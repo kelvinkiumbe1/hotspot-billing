@@ -28,6 +28,8 @@ public class PaymentService {
     private final MpesaService mpesaService;
     private final VoucherService voucherService;
     private final CustomPlanService customPlanService;
+    private final PromotionService promotionService;
+    private final SmsService smsService;
 
     @Transactional(readOnly = true)
     public Payment get(Long id) {
@@ -42,10 +44,11 @@ public class PaymentService {
         if (!plan.isActive()) {
             throw new IllegalStateException("Plan is not active");
         }
-        String checkoutRequestId = mpesaService.stkPush(phoneNumber, plan.getPrice(), "HOTSPOT-" + planId);
+        BigDecimal price = promotionService.apply(plan.getPrice());
+        String checkoutRequestId = mpesaService.stkPush(phoneNumber, price, "HOTSPOT-" + planId);
         Payment payment = Payment.builder()
                 .phoneNumber(phoneNumber)
-                .amount(plan.getPrice())
+                .amount(price)
                 .plan(plan)
                 .checkoutRequestId(checkoutRequestId)
                 .build();
@@ -66,7 +69,7 @@ public class PaymentService {
             throw new IllegalArgumentException(
                     "Choose between " + settings.getMinMinutes() + " and " + settings.getMaxMinutes() + " minutes");
         }
-        BigDecimal price = customPlanService.priceFor(minutes, settings);
+        BigDecimal price = promotionService.apply(customPlanService.priceFor(minutes, settings));
         Plan plan = customPlanService.systemPlan(settings);
         String checkoutRequestId = mpesaService.stkPush(phoneNumber, price, "HOTSPOT-CUSTOM");
         Payment payment = Payment.builder()
@@ -117,6 +120,8 @@ public class PaymentService {
                 : voucherService.issue(payment.getPlan(), payment.getPhoneNumber());
         payment.setVoucher(voucher);
         log.info("Payment {} succeeded, voucher {} issued", payment.getId(), voucher.getCode());
-        // TODO: send the voucher code to the customer via SMS.
+        smsService.trySend(payment.getPhoneNumber(),
+                "Your SPA WiFi access code is " + voucher.getCode()
+                        + ". Use it as both WiFi username and password. Thank you!");
     }
 }

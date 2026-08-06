@@ -85,12 +85,14 @@ export default function Portal() {
   const [redeemErr, setRedeemErr] = useState(null)
   const [plansError, setPlansError] = useState(false)
   const [custom, setCustom] = useState(null)
+  const [promo, setPromo] = useState(null)
   const pollRef = useRef(null)
 
   function loadPlans() {
     setPlansError(false)
     api('/plans').then(setPlans).catch(() => setPlansError(true))
     api('/custom-plan').then(setCustom).catch(() => {})
+    api('/promotion').then(setPromo).catch(() => {})
   }
 
   useEffect(() => {
@@ -200,6 +202,7 @@ export default function Portal() {
     <PlansScreen
       plans={plans}
       custom={custom}
+      promo={promo}
       plansError={plansError}
       onRetryPlans={loadPlans}
       onBuy={choosePlan}
@@ -215,8 +218,14 @@ export default function Portal() {
 /* Screen 1 — Welcome / Plans                                          */
 /* ------------------------------------------------------------------ */
 
-function PlanCard({ plan, popular, onBuy, index = 0 }) {
+function promoPrice(price, promo) {
+  if (!promo?.active) return null
+  return Math.max(1, Math.round((price * (100 - promo.discountPercent)) / 100))
+}
+
+function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
   const speed = speedLabel(plan.bandwidth)
+  const discounted = promoPrice(plan.price, promo)
   return (
     <div
       className={`bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex flex-col gap-3 relative overflow-hidden fade-up transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(15,23,42,0.08)] ${
@@ -244,11 +253,18 @@ function PlanCard({ plan, popular, onBuy, index = 0 }) {
         </div>
         <div className="text-right">
           <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Price</p>
-          <p className={`font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
+          {discounted != null && discounted < plan.price ? (
+            <>
+              <p className="text-sm text-on-surface-variant line-through">KES {plan.price}</p>
+              <p className={`font-semibold text-[#b45309] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
+            </>
+          ) : (
+            <p className={`font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
+          )}
         </div>
       </div>
       <button
-        onClick={() => onBuy(plan)}
+        onClick={() => onBuy(discounted != null && discounted < plan.price ? { ...plan, price: discounted } : plan)}
         className="w-full h-12 bg-gradient-to-r from-secondary to-[#578200] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
       >
         <Icon name="payments" /> Buy with M-Pesa
@@ -257,11 +273,12 @@ function PlanCard({ plan, popular, onBuy, index = 0 }) {
   )
 }
 
-function CustomTimeCard({ custom, onBuy }) {
+function CustomTimeCard({ custom, promo, onBuy }) {
   const [minutes, setMinutes] = useState(custom.minMinutes)
   const m = Number(minutes) || 0
   const valid = m >= custom.minMinutes && m <= custom.maxMinutes
-  const price = Math.max(1, Math.ceil((custom.pricePerHour * m) / 60))
+  const basePrice = Math.max(1, Math.ceil((custom.pricePerHour * m) / 60))
+  const price = promoPrice(basePrice, promo) ?? basePrice
   const speed = speedLabel(custom.bandwidth)
 
   return (
@@ -297,7 +314,10 @@ function CustomTimeCard({ custom, onBuy }) {
           </div>
           <div className="text-right pb-1">
             <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
-            <p className={`text-2xl font-bold tabular-nums ${valid ? 'text-primary' : 'text-outline'}`}>KES {valid ? price : '—'}</p>
+            {valid && price < basePrice && <p className="text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
+            <p className={`text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#b45309]' : 'text-primary') : 'text-outline'}`}>
+              KES {valid ? price : '—'}
+            </p>
           </div>
         </div>
         {!valid && (
@@ -315,7 +335,7 @@ function CustomTimeCard({ custom, onBuy }) {
   )
 }
 
-function PlansScreen({ plans, custom, plansError, onRetryPlans, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
@@ -342,6 +362,19 @@ function PlansScreen({ plans, custom, plansError, onRetryPlans, onBuy, redeemCod
           </div>
         </section>
 
+        {promo?.active && (
+          <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
+            <Icon name="celebration" filled className="text-[32px]!" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-lg leading-tight">{promo.title}</p>
+              <p className="text-sm text-white/90">
+                Ends {new Date(promo.endsAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+              </p>
+            </div>
+            <span className="text-2xl font-bold whitespace-nowrap">-{promo.discountPercent}%</span>
+          </div>
+        )}
+
         <section className="flex flex-col gap-6">
           {PLAN_GROUPS.map((group) => {
             const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
@@ -361,12 +394,13 @@ function PlansScreen({ plans, custom, plansError, onRetryPlans, onBuy, redeemCod
                     popular={p.durationMinutes === 1440}
                     onBuy={onBuy}
                     index={plans.indexOf(p)}
+                    promo={promo}
                   />
                 ))}
               </div>
             )
           })}
-          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} onBuy={onBuy} />}
+          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
           {plans.length === 0 && !plansError && (
             <div className="flex flex-col gap-4">
               {[0, 1, 2].map((i) => (

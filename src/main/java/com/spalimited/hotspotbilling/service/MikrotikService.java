@@ -115,17 +115,19 @@ public class MikrotikService {
         if (!s.isEnabled()) {
             return;
         }
-        execute(s, "/ip/hotspot/user/remove [find name=" + voucher.getCode() + "]");
-        log.info("Removed hotspot user for voucher {}", voucher.getCode());
-    }
-
-    private void execute(MikrotikSettings s, String command) {
         try (ApiConnection connection = open(s)) {
             connection.login(s.getUsername(), s.getPassword());
-            connection.execute(command);
+            // Kick any live session first so the device drops immediately.
+            try {
+                connection.execute("/ip/hotspot/active/remove [find user=" + voucher.getCode() + "]");
+            } catch (Exception noActiveSession) {
+                log.debug("No active session to kick for {}", voucher.getCode());
+            }
+            connection.execute("/ip/hotspot/user/remove [find name=" + voucher.getCode() + "]");
         } catch (Exception e) {
             throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
         }
+        log.info("Removed hotspot user for voucher {}", voucher.getCode());
     }
 
     /**

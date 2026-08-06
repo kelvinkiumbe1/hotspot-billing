@@ -116,6 +116,23 @@ public class AdminController {
                 .toList();
     }
 
+    /**
+     * Disables an active voucher: kicks the device off the router, removes
+     * the hotspot user and marks the voucher expired.
+     */
+    @PatchMapping("/vouchers/{id}/revoke")
+    public Voucher revokeVoucher(@PathVariable Long id) {
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown voucher: " + id));
+        if (voucher.getStatus() != Voucher.Status.ACTIVE) {
+            throw new IllegalStateException("Only active vouchers can be disabled");
+        }
+        mikrotikService.removeVoucher(voucher);
+        voucher.setStatus(Voucher.Status.EXPIRED);
+        voucher.setExpiresAt(java.time.Instant.now());
+        return voucherRepository.save(voucher);
+    }
+
     /** Clears a voucher's MAC lock so the customer can switch devices. */
     @PatchMapping("/vouchers/{id}/unbind")
     public Voucher unbindVoucher(@PathVariable Long id) {

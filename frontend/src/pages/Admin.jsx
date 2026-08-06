@@ -1118,6 +1118,16 @@ function Vouchers({ auth }) {
                       <button onClick={() => copy(v.code)} className="text-tertiary hover:text-primary transition-colors p-1 cursor-pointer" aria-label={`Copy ${v.code}`}>
                         <Icon name={copied === v.code ? 'check' : 'content_copy'} className="text-[20px]!" />
                       </button>
+                      {v.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => api(`/admin/vouchers/${v.id}/revoke`, { method: 'PATCH', auth }).then(load).catch(() => {})}
+                          className="text-tertiary hover:text-error transition-colors p-1 cursor-pointer"
+                          aria-label={`Disable ${v.code}`}
+                          title="Disable — kicks the device off and expires the voucher"
+                        >
+                          <Icon name="block" className="text-[20px]!" />
+                        </button>
+                      )}
                       {v.boundMac && (
                         <button
                           onClick={() => api(`/admin/vouchers/${v.id}/unbind`, { method: 'PATCH', auth }).then(load).catch(() => {})}
@@ -2333,6 +2343,188 @@ function Team({ auth }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Settings: limited-time offers (promotions)                          */
+/* ------------------------------------------------------------------ */
+
+function PromotionCard({ auth }) {
+  const [promos, setPromos] = useState(null)
+  const [form, setForm] = useState({ title: 'Enjoy the Weekend Offer!', discountPercent: 20, durationValue: 2, durationUnit: 'days' })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/admin/promotions', { auth }).then(setPromos).catch(() => setPromos([]))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (promos === null) return <Skeleton className="h-40" />
+
+  const now = Date.now()
+  const current = promos.find((p) => new Date(p.startsAt) <= now && new Date(p.endsAt) > now)
+
+  async function launch(e) {
+    e.preventDefault()
+    setBusy(true)
+    setMsg(null)
+    try {
+      const ms = Number(form.durationValue) * (form.durationUnit === 'hours' ? 3600000 : 86400000)
+      await api('/admin/promotions', {
+        method: 'POST',
+        auth,
+        body: { title: form.title, discountPercent: Number(form.discountPercent), endsAt: new Date(Date.now() + ms).toISOString() },
+      })
+      setMsg({ ok: true, text: 'Offer is live — the portal banner and prices update immediately.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function endNow() {
+    await api(`/admin/promotions/${current.id}/end`, { method: 'PATCH', auth }).catch(() => {})
+    setMsg({ ok: true, text: 'Offer ended — prices reverted to normal.' })
+    load()
+  }
+
+  const inputCls =
+    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[48px]'
+  const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
+
+  return (
+    <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-[#f59e0b]">
+      <div className="flex items-center gap-3 mb-4">
+        <Icon name="celebration" className="text-[#b45309] bg-[#f59e0b]/10 p-2 rounded-lg text-[40px]!" />
+        <div>
+          <h3 className="text-lg font-semibold text-on-surface">Limited-Time Offer</h3>
+          <p className="text-sm text-on-surface-variant">
+            Runs a discount on every price for a fixed window, with a banner on the portal. Prices revert automatically when it ends.
+          </p>
+        </div>
+      </div>
+
+      {current ? (
+        <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 flex-wrap">
+          <Icon name="celebration" filled className="text-[28px]!" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold">{current.title}</p>
+            <p className="text-sm text-white/90">
+              -{current.discountPercent}% · ends {fmtDate(current.endsAt)}, {fmtTime(current.endsAt)}
+            </p>
+          </div>
+          <button onClick={endNow} className="px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/40 text-sm font-semibold transition-colors cursor-pointer">
+            End offer now
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={launch} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="md:col-span-2">
+            <label className={labelCls}>Banner text</label>
+            <input className={inputCls} required maxLength={80} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Discount %</label>
+            <input className={inputCls} type="number" min="1" max="90" required value={form.discountPercent} onChange={(e) => setForm({ ...form, discountPercent: e.target.value })} />
+          </div>
+          <div>
+            <label className={labelCls}>Runs for</label>
+            <div className="flex gap-2">
+              <input className={`${inputCls} flex-1 min-w-0`} type="number" min="1" required value={form.durationValue} onChange={(e) => setForm({ ...form, durationValue: e.target.value })} />
+              <select className={`${inputCls} w-auto`} value={form.durationUnit} onChange={(e) => setForm({ ...form, durationUnit: e.target.value })}>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" disabled={busy} className="md:col-span-4 justify-self-end px-6 py-3 rounded-xl bg-primary text-on-primary text-lg font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 disabled:opacity-60 cursor-pointer">
+            {busy ? 'Launching…' : 'Launch Offer'}
+          </button>
+        </form>
+      )}
+      {msg && <p className={`text-sm font-semibold mt-3 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Settings: SMS campaigns                                             */
+/* ------------------------------------------------------------------ */
+
+function SmsCard({ auth }) {
+  const [info, setInfo] = useState(null)
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    api('/admin/sms/recipients', { auth }).then(setInfo).catch(() => setInfo({ count: 0, enabled: false }))
+  }, [auth])
+
+  if (!info) return <Skeleton className="h-40" />
+
+  async function send() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await api('/admin/sms/campaign', { method: 'POST', auth, body: { message: message.trim() } })
+      setMsg({ ok: true, text: r.message })
+      setMessage('')
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center gap-3 mb-4">
+        <Icon name="sms" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
+        <div>
+          <h3 className="text-lg font-semibold text-on-surface">SMS Campaign</h3>
+          <p className="text-sm text-on-surface-variant">
+            Text every customer who has bought or redeemed a voucher — {info.count.toLocaleString()} number{info.count === 1 ? '' : 's'} on file.
+          </p>
+        </div>
+      </div>
+
+      {!info.enabled && (
+        <div className="flex items-start gap-2 bg-[#f59e0b]/10 border border-[#f59e0b]/30 text-[#b45309] rounded-lg p-3 mb-4 text-sm">
+          <Icon name="info" className="text-[18px]! mt-0.5" />
+          <span>
+            SMS is not configured yet. Create a free <strong>Africa's Talking</strong> account, then set the
+            <code className="mx-1">SMS_ENABLED=true</code>, <code>SMS_USERNAME</code> and <code>SMS_API_KEY</code> environment
+            variables and restart the backend. Voucher codes will also be texted to buyers automatically once enabled.
+          </span>
+        </div>
+      )}
+
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows="3"
+        maxLength={320}
+        placeholder="e.g. Weekend Offer! All SPA WiFi passes 20% off until Sunday midnight. Connect at our hotspot and save."
+        className="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+      />
+      <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-xs text-on-surface-variant">{message.length}/320 characters {message.length > 160 ? '(2 SMS per recipient)' : ''}</span>
+        <div className="flex items-center gap-3">
+          {msg && <span className={`text-sm font-semibold ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</span>}
+          <button
+            onClick={send}
+            disabled={busy || !message.trim() || !info.enabled}
+            className="px-6 py-3 rounded-xl bg-primary text-on-primary text-lg font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+          >
+            <Icon name="send" className="text-[20px]!" />
+            {busy ? 'Sending…' : `Send to ${info.count.toLocaleString()}`}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------ */
 /* Settings: pay-per-minute custom pass                                */
 /* ------------------------------------------------------------------ */
 
@@ -2640,6 +2832,8 @@ function Settings({ auth }) {
         </section>
 
         <CustomPlanCard auth={auth} />
+        <PromotionCard auth={auth} />
+        <SmsCard auth={auth} />
       </div>
 
       {/* Sticky action bar */}
