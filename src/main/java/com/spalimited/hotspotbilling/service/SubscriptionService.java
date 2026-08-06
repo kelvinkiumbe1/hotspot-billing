@@ -29,7 +29,8 @@ public class SubscriptionService {
     private final SubscriptionPaymentRepository payments;
     private final MikrotikService mikrotikService;
     private final MpesaService mpesaService;
-    private final SmsService smsService;
+    private final NotificationService notificationService;
+    private final PortalSettingsService portalSettingsService;
     private final InvoiceService invoiceService;
 
     @org.springframework.beans.factory.annotation.Value("${app.portal-url}")
@@ -158,9 +159,8 @@ public class SubscriptionService {
         }
         subscribers.save(sub);
         invoiceService.settleOldestUnpaid(sub.getId(), method);
-        smsService.trySend(sub.getPhoneNumber(),
-                "Payment received. Your SPA WiFi home internet is active until "
-                        + sub.getPaidUntil().toString().substring(0, 10) + ". Thank you!");
+        notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.SUBSCRIPTION_PAID, sub,
+                java.util.Map.of("date", sub.getPaidUntil().toString().substring(0, 10)));
         log.info("Extended subscriber {} by {} month(s) to {}", sub.getPppoeUsername(), months, sub.getPaidUntil());
     }
 
@@ -204,9 +204,8 @@ public class SubscriptionService {
             mikrotikService.setPppoeEnabled(sub, true);
             sub.setStatus(Subscriber.Status.ACTIVE);
         }
-        smsService.trySend(sub.getPhoneNumber(),
-                "Good news! Your SPA WiFi home internet has been extended until "
-                        + newPaidUntil.toString().substring(0, 10) + ".");
+        notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.SUBSCRIPTION_EXTENDED, sub,
+                java.util.Map.of("date", newPaidUntil.toString().substring(0, 10)));
         log.info("Manually extended subscriber {} by {} {}", sub.getPppoeUsername(), amount, unit);
         return subscribers.save(sub);
     }
@@ -275,19 +274,17 @@ public class SubscriptionService {
                 }
                 sub.setStatus(Subscriber.Status.SUSPENDED);
                 subscribers.save(sub);
-                smsService.trySend(sub.getPhoneNumber(),
-                        "Your SPA WiFi home internet has been suspended because the subscription expired. "
-                                + "Pay KES " + sub.getMonthlyFee() + " to reconnect instantly: "
-                                + portalUrl + "/pay");
+                notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.SUBSCRIPTION_SUSPENDED, sub,
+                        java.util.Map.of("amount", sub.getMonthlyFee().toPlainString(),
+                                "payUrl", portalUrl + "/pay"));
                 log.info("Suspended lapsed subscriber {}", sub.getPppoeUsername());
             } else {
                 if (sub.getPaidUntil().isBefore(now.plus(3, ChronoUnit.DAYS))
                         && !sub.getPaidUntil().equals(sub.getRemindedForExpiry())) {
-                    smsService.trySend(sub.getPhoneNumber(),
-                            "Reminder: your SPA WiFi home internet expires on "
-                                    + sub.getPaidUntil().toString().substring(0, 10)
-                                    + ". Pay KES " + sub.getMonthlyFee() + " to stay connected: "
-                                    + portalUrl + "/pay");
+                    notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.EXPIRY_REMINDER, sub,
+                            java.util.Map.of("date", sub.getPaidUntil().toString().substring(0, 10),
+                                    "amount", sub.getMonthlyFee().toPlainString(),
+                                    "payUrl", portalUrl + "/pay"));
                     sub.setRemindedForExpiry(sub.getPaidUntil());
                     subscribers.save(sub);
                 }
@@ -306,6 +303,14 @@ public class SubscriptionService {
                 }
             }
         }
+    }
+
+    /** Sends a templated message, always supplying the business name. */
+    private void notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key key,
+                        Subscriber sub, java.util.Map<String, String> values) {
+        java.util.Map<String, String> merged = new java.util.HashMap<>(values);
+        merged.put("business", portalSettingsService.settings().getBusinessName());
+        notificationService.send(key, sub.getPhoneNumber(), merged);
     }
 
     private Subscriber get(Long id) {

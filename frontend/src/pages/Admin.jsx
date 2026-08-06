@@ -7,6 +7,8 @@ import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
 import PayBillPage from './admin/PayBill.jsx'
 import AuditLogPage from './admin/AuditLog.jsx'
+import ActiveUsersPage from './admin/ActiveUsers.jsx'
+import BrandingPage from './admin/Branding.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -247,7 +249,10 @@ function Login({ onLogin }) {
 const NAV_GROUPS = [
   {
     label: null,
-    items: [{ key: 'overview', label: 'Overview', icon: 'dashboard' }],
+    items: [
+      { key: 'overview', label: 'Overview', icon: 'dashboard' },
+      { key: 'active', label: 'Active Users', icon: 'group_work' },
+    ],
   },
   {
     label: 'Selling',
@@ -284,6 +289,7 @@ const NAV_GROUPS = [
   {
     label: 'System',
     items: [
+      { key: 'branding', label: 'Branding', icon: 'palette' },
       { key: 'audit', label: 'Audit Log', icon: 'history' },
       { key: 'settings', label: 'Settings', icon: 'settings' },
     ],
@@ -420,6 +426,7 @@ function PayoutBell({ auth }) {
 
 const TAB_TITLES = {
   overview: 'Overview',
+  active: 'Active Users',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -432,6 +439,7 @@ const TAB_TITLES = {
   maintenance: 'Maintenance',
   messages: 'Messages',
   team: 'Team',
+  branding: 'Branding',
   audit: 'Audit Log',
   settings: 'Settings',
 }
@@ -497,6 +505,7 @@ function Shell({ auth, onLogout }) {
       {/* Content */}
       <main className="md:ml-64 pt-24 px-5 md:px-8 pb-8 max-w-[1600px]">
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
+        {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <Vouchers auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
@@ -505,6 +514,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'finance' && <FinancePage auth={auth} />}
         {tab === 'routers' && <RoutersPage auth={auth} />}
         {tab === 'branches' && <BranchesPage auth={auth} />}
+        {tab === 'branding' && <BrandingPage auth={auth} />}
         {tab === 'audit' && <AuditLogPage auth={auth} />}
         {tab === 'support' && <Support auth={auth} />}
         {tab === 'maintenance' && <Maintenance auth={auth} />}

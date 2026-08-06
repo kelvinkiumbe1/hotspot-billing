@@ -29,7 +29,8 @@ public class PaymentService {
     private final VoucherService voucherService;
     private final CustomPlanService customPlanService;
     private final PromotionService promotionService;
-    private final SmsService smsService;
+    private final NotificationService notificationService;
+    private final PortalSettingsService portalSettingsService;
     private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
@@ -128,8 +129,11 @@ public class PaymentService {
                 : voucherService.issue(payment.getPlan(), payment.getPhoneNumber());
         payment.setVoucher(voucher);
         log.info("Payment {} succeeded, voucher {} issued", payment.getId(), voucher.getCode());
-        smsService.trySend(payment.getPhoneNumber(),
-                "Your SPA WiFi access code is " + voucher.getCode()
-                        + ". Use it as both WiFi username and password. Thank you!");
+        notificationService.send(
+                com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.VOUCHER_ISSUED,
+                payment.getPhoneNumber(),
+                java.util.Map.of(
+                        "business", portalSettingsService.settings().getBusinessName(),
+                        "code", voucher.getCode()));
     }
 }

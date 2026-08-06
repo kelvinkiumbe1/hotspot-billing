@@ -384,6 +384,22 @@ public class MikrotikService {
         return sessions;
     }
 
+    /** Kicks one live session off the router; kind is "hotspot" or "pppoe". */
+    public void disconnectSession(Router router, String user, String kind) {
+        if (!live(router)) {
+            throw new IllegalStateException("MikroTik integration is disabled");
+        }
+        try (ApiConnection connection = login(router)) {
+            String command = "pppoe".equalsIgnoreCase(kind)
+                    ? "/ppp/active/remove [find name=" + user + "]"
+                    : "/ip/hotspot/active/remove [find user=" + user + "]";
+            connection.execute(command);
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Disconnected {} ({}) from {}", user, kind, router.getName());
+    }
+
     /** Parses RouterOS byte counters, which may be "123" or "123/456". */
     public static BigDecimal parseBytes(String raw) {
         if (raw == null || raw.isBlank()) {
