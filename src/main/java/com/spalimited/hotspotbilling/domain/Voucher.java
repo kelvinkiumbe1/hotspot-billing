@@ -48,6 +48,9 @@ public class Voucher {
     /** MAC address of the first device that used this voucher, when MAC binding is on. */
     private String boundMac;
 
+    /** Username of the admin/technician who generated it; null for customer purchases. */
+    private String createdBy;
+
     @Builder.Default
     @Column(nullable = false)
     private Instant createdAt = Instant.now();

@@ -30,6 +30,7 @@ public class PaymentService {
     private final CustomPlanService customPlanService;
     private final PromotionService promotionService;
     private final SmsService smsService;
+    private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
     public Payment get(Long id) {
@@ -92,8 +93,19 @@ public class PaymentService {
         String checkoutRequestId = stkCallback.path("CheckoutRequestID").asText();
         int resultCode = stkCallback.path("ResultCode").asInt(-1);
 
+        String receiptNumber = null;
+        for (JsonNode item : stkCallback.path("CallbackMetadata").path("Item")) {
+            if ("MpesaReceiptNumber".equals(item.path("Name").asText())) {
+                receiptNumber = item.path("Value").asText();
+            }
+        }
+
         Payment payment = paymentRepository.findByCheckoutRequestId(checkoutRequestId).orElse(null);
         if (payment == null) {
+            // Not a voucher purchase — maybe a PPPoE subscription payment.
+            if (subscriptionService.handleStkCallback(checkoutRequestId, resultCode, receiptNumber)) {
+                return;
+            }
             log.warn("Callback for unknown CheckoutRequestID {}", checkoutRequestId);
             return;
         }
@@ -109,11 +121,7 @@ public class PaymentService {
             return;
         }
 
-        for (JsonNode item : stkCallback.path("CallbackMetadata").path("Item")) {
-            if ("MpesaReceiptNumber".equals(item.path("Name").asText())) {
-                payment.setMpesaReceiptNumber(item.path("Value").asText());
-            }
-        }
+        payment.setMpesaReceiptNumber(receiptNumber);
         payment.setStatus(Payment.Status.SUCCESS);
         Voucher voucher = payment.getCustomMinutes() != null
                 ? voucherService.issueCustom(payment.getPlan(), payment.getPhoneNumber(), payment.getCustomMinutes())

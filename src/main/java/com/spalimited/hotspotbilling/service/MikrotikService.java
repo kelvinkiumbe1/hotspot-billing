@@ -192,6 +192,82 @@ public class MikrotikService {
         voucher.setBoundMac(null);
     }
 
+    // --- PPPoE subscribers (monthly home/office customers) ---
+
+    /** Creates or updates the PPPoE secret and its rate-limit profile. */
+    public void provisionPppoe(com.spalimited.hotspotbilling.domain.Subscriber sub) {
+        MikrotikSettings s = settings();
+        if (!s.isEnabled()) {
+            log.info("MikroTik disabled - skipping PPPoE provisioning for {}", sub.getPppoeUsername());
+            return;
+        }
+        try (ApiConnection connection = open(s)) {
+            connection.login(s.getUsername(), s.getPassword());
+            String profile = "spa-ppp-" + sub.getId();
+            String rateLimit = sub.getBandwidth() != null && !sub.getBandwidth().isBlank()
+                    ? " rate-limit=" + sub.getBandwidth() : "";
+            try {
+                connection.execute(String.format("/ppp/profile/add name=%s%s", profile, rateLimit));
+            } catch (Exception exists) {
+                connection.execute(String.format("/ppp/profile/set [find name=%s]%s", profile, rateLimit));
+            }
+            try {
+                connection.execute(String.format(
+                        "/ppp/secret/add name=%s password=%s service=pppoe profile=%s",
+                        sub.getPppoeUsername(), sub.getPppoePassword(), profile));
+            } catch (Exception exists) {
+                connection.execute(String.format(
+                        "/ppp/secret/set [find name=%s] password=%s profile=%s disabled=no",
+                        sub.getPppoeUsername(), sub.getPppoePassword(), profile));
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Provisioned PPPoE secret for {}", sub.getPppoeUsername());
+    }
+
+    /** Enables/disables a PPPoE account; disabling also drops the live session. */
+    public void setPppoeEnabled(String pppoeUsername, boolean enabled) {
+        MikrotikSettings s = settings();
+        if (!s.isEnabled()) {
+            return;
+        }
+        try (ApiConnection connection = open(s)) {
+            connection.login(s.getUsername(), s.getPassword());
+            connection.execute(String.format(
+                    "/ppp/secret/set [find name=%s] disabled=%s", pppoeUsername, enabled ? "no" : "yes"));
+            if (!enabled) {
+                try {
+                    connection.execute("/ppp/active/remove [find name=" + pppoeUsername + "]");
+                } catch (Exception noSession) {
+                    log.debug("No live PPPoE session to drop for {}", pppoeUsername);
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("PPPoE {} {}", pppoeUsername, enabled ? "enabled" : "disabled");
+    }
+
+    /** Removes the PPPoE secret entirely (subscriber deleted). */
+    public void removePppoe(String pppoeUsername) {
+        MikrotikSettings s = settings();
+        if (!s.isEnabled()) {
+            return;
+        }
+        try (ApiConnection connection = open(s)) {
+            connection.login(s.getUsername(), s.getPassword());
+            try {
+                connection.execute("/ppp/active/remove [find name=" + pppoeUsername + "]");
+            } catch (Exception noSession) {
+                log.debug("No live PPPoE session to drop for {}", pppoeUsername);
+            }
+            connection.execute("/ppp/secret/remove [find name=" + pppoeUsername + "]");
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
     private ApiConnection open(MikrotikSettings s) throws Exception {
         SocketFactory factory = s.isUseSsl() ? SSLSocketFactory.getDefault() : SocketFactory.getDefault();
         int port = s.getPort() > 0 ? s.getPort() : (s.isUseSsl() ? 8729 : 8728);

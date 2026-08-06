@@ -33,7 +33,9 @@ public class TechnicianController {
             String username,
             @NotBlank @Size(min = 6, message = "Password must be at least 6 characters") String password,
             @NotBlank String fullName,
-            String phoneNumber) {
+            String phoneNumber,
+            Boolean canVouchers,
+            Boolean canPppoe) {
     }
 
     @PostMapping
@@ -47,7 +49,26 @@ public class TechnicianController {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName())
                 .phoneNumber(request.phoneNumber())
+                .canVouchers(request.canVouchers() == null || request.canVouchers())
+                .canPppoe(Boolean.TRUE.equals(request.canPppoe()))
                 .build());
+    }
+
+    public record PermissionsRequest(Boolean canVouchers, Boolean canPppoe) {
+    }
+
+    /** Grants or removes what the technician may do in Field Connect. */
+    @PatchMapping("/{id}/permissions")
+    public Technician setPermissions(@PathVariable Long id, @RequestBody PermissionsRequest request) {
+        Technician tech = technicians.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown technician: " + id));
+        if (request.canVouchers() != null) {
+            tech.setCanVouchers(request.canVouchers());
+        }
+        if (request.canPppoe() != null) {
+            tech.setCanPppoe(request.canPppoe());
+        }
+        return technicians.save(tech);
     }
 
     @PatchMapping("/{id}/toggle")

@@ -2,6 +2,7 @@ package com.spalimited.hotspotbilling.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.persistence.Transient;
 import lombok.*;
 
 import java.time.Instant;
@@ -40,6 +41,22 @@ public class Technician {
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
+
+    /** May generate vouchers in Field Connect. Null means allowed (legacy default). */
+    private Boolean canVouchers;
+
+    /** May create/manage PPPoE subscribers in Field Connect. Null means not allowed. */
+    private Boolean canPppoe;
+
+    @Transient
+    public boolean isVouchersAllowed() {
+        return canVouchers == null || canVouchers;
+    }
+
+    @Transient
+    public boolean isPppoeAllowed() {
+        return Boolean.TRUE.equals(canPppoe);
+    }
 
     @Column(nullable = false)
     private Instant createdAt;

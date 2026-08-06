@@ -162,16 +162,14 @@ function TechLogin({ onLogin }) {
 /* Shell: light drawer (desktop) + bottom nav (mobile)                 */
 /* ------------------------------------------------------------------ */
 
-const TECH_NAV = [
-  { key: 'tasks', label: 'My Tasks', icon: 'task_alt' },
-  { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
-  { key: 'messages', label: 'Messages', icon: 'chat' },
-  { key: 'profile', label: 'Profile', icon: 'person' },
-]
-
 function TechShell({ auth, onLogout }) {
   const [tab, setTab] = useState('tasks')
   const [unread, setUnread] = useState(0)
+  const [perms, setPerms] = useState({ vouchersAllowed: true, pppoeAllowed: false })
+
+  useEffect(() => {
+    api('/tech/me', { auth }).then(setPerms).catch(() => {})
+  }, [auth])
 
   useEffect(() => {
     const load = () => api('/tech/messages/unread', { auth }).then((r) => setUnread(r.unread)).catch(() => {})
@@ -179,6 +177,14 @@ function TechShell({ auth, onLogout }) {
     const t = setInterval(load, 30000)
     return () => clearInterval(t)
   }, [auth, tab])
+
+  const TECH_NAV = [
+    { key: 'tasks', label: 'My Tasks', icon: 'task_alt' },
+    ...(perms.vouchersAllowed ? [{ key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' }] : []),
+    ...(perms.pppoeAllowed ? [{ key: 'subscribers', label: 'Subscribers', icon: 'lan' }] : []),
+    { key: 'messages', label: 'Messages', icon: 'chat' },
+    { key: 'profile', label: 'Profile', icon: 'person' },
+  ]
 
   return (
     <div className="bg-background text-on-background min-h-screen">
@@ -236,7 +242,8 @@ function TechShell({ auth, onLogout }) {
 
       <main className="md:ml-72 pt-20 md:pt-8 px-5 md:px-8 pb-28 md:pb-8 max-w-5xl">
         {tab === 'tasks' && <Tasks auth={auth} />}
-        {tab === 'vouchers' && <FieldVouchers auth={auth} />}
+        {tab === 'vouchers' && perms.vouchersAllowed && <FieldVouchers auth={auth} />}
+        {tab === 'subscribers' && perms.pppoeAllowed && <TechSubscribers auth={auth} />}
         {tab === 'messages' && <TechMessages auth={auth} onRead={() => setUnread(0)} />}
         {tab === 'profile' && <Profile auth={auth} onLogout={onLogout} />}
       </main>
@@ -451,6 +458,8 @@ function Tasks({ auth }) {
 function FieldVouchers({ auth }) {
   const [plans, setPlans] = useState([])
   const [planId, setPlanId] = useState('')
+  const [customMin, setCustomMin] = useState(60)
+  const [customRate, setCustomRate] = useState(null)
   const [qty, setQty] = useState(1)
   const [prefix, setPrefix] = useState('')
   const [codeLen, setCodeLen] = useState(8)
@@ -462,11 +471,17 @@ function FieldVouchers({ auth }) {
   const loadHistory = () => api('/tech/vouchers', { auth }).then(setHistory).catch(() => {})
   useEffect(() => {
     api('/plans').then((ps) => { setPlans(ps); if (ps[0]) setPlanId(String(ps[0].id)) }).catch(() => {})
+    api('/custom-plan').then(setCustomRate).catch(() => {})
     loadHistory()
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isCustom = planId === 'custom'
   const plan = plans.find((p) => String(p.id) === String(planId))
-  const total = plan ? plan.price * qty : 0
+  const unitPrice = isCustom
+    ? (customRate ? Math.max(1, Math.ceil((customRate.pricePerHour * (Number(customMin) || 0)) / 60)) : 0)
+    : (plan ? plan.price : 0)
+  const total = unitPrice * qty
+  const batchName = isCustom ? `Custom — ${formatDuration(Number(customMin) || 0)}` : plan?.name || ''
 
   async function generate() {
     setBusy(true)
@@ -475,11 +490,17 @@ function FieldVouchers({ auth }) {
       const batch = await api('/tech/vouchers/generate', {
         method: 'POST',
         auth,
-        body: { planId: Number(planId), count: qty, prefix: prefix.trim() || null, codeLength: Number(codeLen) || 8 },
+        body: {
+          planId: isCustom ? null : Number(planId),
+          customMinutes: isCustom ? Number(customMin) : null,
+          count: qty,
+          prefix: prefix.trim() || null,
+          codeLength: Number(codeLen) || 8,
+        },
       })
       setGenerated(batch)
       loadHistory()
-      printVoucherCards(batch, plan?.name || '')
+      printVoucherCards(batch, batchName)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -524,10 +545,31 @@ function FieldVouchers({ auth }) {
                   </optgroup>
                 )
               })}
+              <optgroup label="Custom">
+                <option value="custom">Custom time…</option>
+              </optgroup>
             </select>
             <Icon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
           </div>
         </div>
+
+        {isCustom && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold tracking-wider uppercase text-outline" htmlFor="f-custom-min">Minutes</label>
+            <input
+              id="f-custom-min"
+              type="number"
+              min="1"
+              max="44640"
+              value={customMin}
+              onChange={(e) => setCustomMin(e.target.value)}
+              className="w-full h-12 bg-surface-container-low border border-surface-variant rounded-lg px-4 text-base text-on-surface tabular-nums focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+            <p className="text-xs text-on-surface-variant">
+              {customRate ? `Charged at KES ${customRate.pricePerHour}/hour — collect KES ${unitPrice} per voucher` : ''}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold tracking-wider uppercase text-outline">Quantity</label>
@@ -617,7 +659,9 @@ function FieldVouchers({ auth }) {
             <li key={v.id} className="p-4 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className={`font-mono tracking-[2px] text-base ${v.status === 'EXPIRED' ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{v.code}</span>
-                <p className="text-xs text-on-surface-variant mt-0.5">{v.plan?.name} · {fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">
+                  {v.customDurationMinutes != null ? `Custom · ${formatDuration(v.customDurationMinutes)}` : v.plan?.name} · {fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}
+                </p>
               </div>
               <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full ${VOUCHER_PILL[v.status] || VOUCHER_PILL.UNUSED}`}>
                 {v.status?.charAt(0) + v.status?.slice(1).toLowerCase()}
@@ -625,6 +669,165 @@ function FieldVouchers({ auth }) {
             </li>
           ))}
           {recent.length === 0 && <li className="p-4 text-sm text-on-surface-variant">No vouchers yet.</li>}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Subscribers: sign up monthly PPPoE customers in the field           */
+/* ------------------------------------------------------------------ */
+
+function TechSubscribers({ auth }) {
+  const [subs, setSubs] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ fullName: '', phoneNumber: '', pppoeUsername: '', pppoePassword: '', mbps: '', monthlyFee: '', initialMonths: 1, initialMethod: 'CASH' })
+  const [payingId, setPayingId] = useState(null)
+  const [months, setMonths] = useState(1)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/tech/subscribers', { auth }).then(setSubs).catch(() => setSubs([]))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function create(e) {
+    e.preventDefault()
+    setBusy(true)
+    setMsg(null)
+    try {
+      await api('/tech/subscribers', {
+        method: 'POST',
+        auth,
+        body: {
+          fullName: form.fullName,
+          phoneNumber: form.phoneNumber.replace(/\D/g, ''),
+          pppoeUsername: form.pppoeUsername,
+          pppoePassword: form.pppoePassword,
+          bandwidth: form.mbps ? `${form.mbps}M/${form.mbps}M` : null,
+          monthlyFee: Number(form.monthlyFee),
+          initialMonths: Number(form.initialMonths),
+          initialMethod: form.initialMethod,
+        },
+      })
+      setForm({ fullName: '', phoneNumber: '', pppoeUsername: '', pppoePassword: '', mbps: '', monthlyFee: '', initialMonths: 1, initialMethod: 'CASH' })
+      setShowForm(false)
+      setMsg({ ok: true, text: 'Subscriber created — set the PPPoE username and password in their router.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function recordCash(id) {
+    setMsg(null)
+    try {
+      await api(`/tech/subscribers/${id}/payments`, { method: 'POST', auth, body: { months: Number(months) } })
+      setPayingId(null)
+      setMsg({ ok: true, text: 'Payment recorded — subscription extended.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    }
+  }
+
+  const inputCls =
+    'w-full h-12 bg-surface-container-low border border-surface-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all'
+  const labelCls = 'text-xs font-semibold tracking-wider uppercase text-outline'
+
+  if (subs === null) return <div className="animate-pulse bg-surface-container-high rounded-xl h-64"></div>
+
+  return (
+    <div className="max-w-3xl">
+      <div className="flex justify-between items-start gap-4 mb-6 flex-wrap">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface mb-2">Subscribers</h2>
+          <p className="text-base text-on-surface-variant">Sign up monthly home customers on-site.</p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-primary text-on-primary text-base font-semibold px-4 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 cursor-pointer h-12"
+        >
+          <Icon name="person_add" /> New Subscriber
+        </button>
+      </div>
+
+      {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
+
+      {showForm && (
+        <form onSubmit={create} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant flex flex-col gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={labelCls}>Full Name</label><input className={inputCls} required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
+            <div><label className={labelCls}>Phone (M-Pesa)</label><input className={inputCls} required placeholder="2547XXXXXXXX" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} /></div>
+            <div><label className={labelCls}>PPPoE Username</label><input className={inputCls} required value={form.pppoeUsername} onChange={(e) => setForm({ ...form, pppoeUsername: e.target.value })} /></div>
+            <div><label className={labelCls}>PPPoE Password</label><input className={inputCls} required minLength={6} value={form.pppoePassword} onChange={(e) => setForm({ ...form, pppoePassword: e.target.value })} /></div>
+            <div><label className={labelCls}>Speed (Mbps)</label><input className={inputCls} type="number" min="1" value={form.mbps} onChange={(e) => setForm({ ...form, mbps: e.target.value })} /></div>
+            <div><label className={labelCls}>Monthly Fee (KES)</label><input className={inputCls} type="number" min="1" required value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={labelCls}>Months Paid</label><input className={inputCls} type="number" min="0" max="12" required value={form.initialMonths} onChange={(e) => setForm({ ...form, initialMonths: e.target.value })} /></div>
+            <div>
+              <label className={labelCls}>Payment Method</label>
+              <select className={inputCls} value={form.initialMethod} onChange={(e) => setForm({ ...form, initialMethod: e.target.value })}>
+                <option value="CASH">Cash received</option>
+                <option value="MPESA">Send M-Pesa STK</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" disabled={busy} className="w-full h-12 bg-secondary text-on-secondary rounded-lg text-base font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.08)] active:scale-95 transition-transform disabled:opacity-60 cursor-pointer">
+            {busy ? 'Creating…' : 'Create Subscriber'}
+          </button>
+        </form>
+      )}
+
+      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant overflow-hidden">
+        <ul className="divide-y divide-surface-container-high">
+          {subs.map((s) => {
+            const days = Math.floor((new Date(s.paidUntil) - Date.now()) / 86400000)
+            return (
+              <li key={s.id} className="p-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-on-surface">{s.fullName}</p>
+                    <p className="text-xs text-on-surface-variant mt-0.5">
+                      <span className="font-mono">{s.pppoeUsername}</span> · KES {Number(s.monthlyFee).toLocaleString()}/mo
+                      {s.bandwidth ? ` · ${parseInt(s.bandwidth)} Mbps` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                      s.status === 'SUSPENDED' ? 'bg-error-container text-on-error-container'
+                        : days < 0 ? 'bg-error-container text-on-error-container'
+                        : days <= 3 ? 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20'
+                        : 'bg-secondary-container text-on-secondary-container'
+                    }`}>
+                      {s.status === 'SUSPENDED' ? 'Suspended' : days < 0 ? 'Overdue' : `${days}d left`}
+                    </span>
+                    <button
+                      onClick={() => { setPayingId(payingId === s.id ? null : s.id); setMonths(1) }}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold cursor-pointer"
+                    >
+                      Take Payment
+                    </button>
+                  </div>
+                </div>
+                {payingId === s.id && (
+                  <div className="flex items-center gap-2 mt-3 justify-end flex-wrap">
+                    <label className="text-xs text-on-surface-variant">Months:</label>
+                    <input type="number" min="1" max="12" value={months} onChange={(e) => setMonths(e.target.value)}
+                      className="h-9 w-16 bg-surface border border-outline-variant rounded-lg px-2 text-sm text-center tabular-nums focus:outline-none focus:border-primary" />
+                    <span className="text-xs font-semibold text-primary tabular-nums">= KES {(Number(s.monthlyFee) * (Number(months) || 0)).toLocaleString()}</span>
+                    <button onClick={() => recordCash(s.id)} className="h-9 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold cursor-pointer">
+                      Record Cash
+                    </button>
+                  </div>
+                )}
+              </li>
+            )
+          })}
+          {subs.length === 0 && <li className="p-4 text-sm text-on-surface-variant">No subscribers yet — sign up your first home customer.</li>}
         </ul>
       </div>
     </div>

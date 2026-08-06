@@ -239,6 +239,7 @@ const NAV = [
   { key: 'overview', label: 'Overview', icon: 'dashboard' },
   { key: 'plans', label: 'Plans', icon: 'wifi_tethering' },
   { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
+  { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
   { key: 'payments', label: 'Payments', icon: 'payments' },
   { key: 'support', label: 'Support', icon: 'support_agent' },
   { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
@@ -365,6 +366,7 @@ const TAB_TITLES = {
   overview: 'Overview',
   plans: 'Plans',
   vouchers: 'Vouchers',
+  subscribers: 'Subscribers',
   payments: 'Payments',
   support: 'Support',
   maintenance: 'Maintenance',
@@ -436,6 +438,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <Vouchers auth={auth} />}
+        {tab === 'subscribers' && <Subscribers auth={auth} />}
         {tab === 'payments' && <Payments auth={auth} />}
         {tab === 'support' && <Support auth={auth} />}
         {tab === 'maintenance' && <Maintenance auth={auth} />}
@@ -952,12 +955,14 @@ function Vouchers({ auth }) {
   const [vouchers, setVouchers] = useState([])
   const [plans, setPlans] = useState([])
   const [planId, setPlanId] = useState('')
+  const [customMin, setCustomMin] = useState(60)
   const [count, setCount] = useState(10)
   const [prefix, setPrefix] = useState('')
   const [codeLen, setCodeLen] = useState(8)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(null)
+  const [issuerFilter, setIssuerFilter] = useState('all')
 
   const load = () => api('/admin/vouchers', { auth }).then(setVouchers).catch(() => {})
   useEffect(() => {
@@ -969,10 +974,17 @@ function Vouchers({ auth }) {
     setBusy(true)
     setError(null)
     try {
+      const isCustom = planId === 'custom'
       await api('/admin/vouchers/generate', {
         method: 'POST',
         auth,
-        body: { planId: Number(planId), count: Number(count), prefix: prefix.trim() || null, codeLength: Number(codeLen) || 8 },
+        body: {
+          planId: isCustom ? null : Number(planId),
+          customMinutes: isCustom ? Number(customMin) : null,
+          count: Number(count),
+          prefix: prefix.trim() || null,
+          codeLength: Number(codeLen) || 8,
+        },
       })
       load()
     } catch (err) {
@@ -982,9 +994,14 @@ function Vouchers({ auth }) {
     }
   }
 
+  const isCustom = planId === 'custom'
   const selectedPlan = plans.find((p) => String(p.id) === String(planId))
-  const unusedForPlan = vouchers.filter((v) => v.status === 'UNUSED' && String(v.plan?.id) === String(planId))
+  const unusedForPlan = vouchers.filter((v) =>
+    v.status === 'UNUSED' &&
+    (isCustom ? v.customDurationMinutes != null : String(v.plan?.id) === String(planId) && !v.customDurationMinutes)
+  )
   const previewCode = unusedForPlan[0]?.code || 'MCLRRC8H'
+  const previewName = isCustom ? `Custom — ${formatDuration(Number(customMin) || 0)}` : selectedPlan?.name
 
   function copy(code) {
     navigator.clipboard.writeText(code).then(() => {
@@ -1005,9 +1022,26 @@ function Vouchers({ auth }) {
               onChange={(e) => setPlanId(e.target.value)}
               className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 min-w-[200px]"
             >
-              <PlanOptions plans={plans} />
+              <PlanOptions plans={plans.filter((p) => p.name !== 'Custom Time')} />
+              <optgroup label="Custom">
+                <option value="custom">Custom time…</option>
+              </optgroup>
             </select>
           </div>
+          {planId === 'custom' && (
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <label className="text-xs font-semibold tracking-wider text-tertiary" htmlFor="v-custom-min">MINUTES</label>
+              <input
+                id="v-custom-min"
+                type="number"
+                min="1"
+                max="44640"
+                value={customMin}
+                onChange={(e) => setCustomMin(e.target.value)}
+                className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 w-full sm:w-28 tabular-nums"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-xs font-semibold tracking-wider text-tertiary">QUANTITY</label>
             <div className="flex items-center border border-surface-variant rounded-lg bg-background h-12 overflow-hidden">
@@ -1054,7 +1088,7 @@ function Vouchers({ auth }) {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
           <button
-            onClick={() => unusedForPlan.length && printVouchers(unusedForPlan, selectedPlan?.name || '')}
+            onClick={() => unusedForPlan.length && printVouchers(unusedForPlan, previewName || '')}
             disabled={!unusedForPlan.length}
             className="h-12 px-6 rounded-lg border-2 border-primary text-primary text-lg font-semibold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
@@ -1063,7 +1097,7 @@ function Vouchers({ auth }) {
           </button>
           <button
             onClick={generate}
-            disabled={busy || !planId}
+            disabled={busy || !planId || (isCustom && !(Number(customMin) > 0))}
             className="h-12 px-6 rounded-lg bg-primary text-on-primary text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-colors flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
           >
             <Icon name="add_circle" className="text-[20px]!" />
@@ -1076,11 +1110,25 @@ function Vouchers({ auth }) {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Table */}
         <div className="lg:col-span-3 bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-container-highest/50 overflow-hidden">
-          <div className="p-4 border-b border-surface-container-high flex justify-between items-center bg-surface-bright">
+          <div className="p-4 border-b border-surface-container-high flex justify-between items-center gap-3 flex-wrap bg-surface-bright">
             <h2 className="text-lg font-semibold text-on-surface">Voucher Inventory</h2>
-            <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold tracking-wider">
-              Total: {vouchers.length}
-            </span>
+            <div className="flex items-center gap-3">
+              <select
+                value={issuerFilter}
+                onChange={(e) => setIssuerFilter(e.target.value)}
+                className="bg-background border border-surface-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary outline-none h-9"
+                aria-label="Filter by issuer"
+              >
+                <option value="all">Issued by: everyone</option>
+                <option value="customer">Customers (paid online)</option>
+                {[...new Set(vouchers.map((v) => v.createdBy).filter(Boolean))].map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+              <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold tracking-wider">
+                Total: {vouchers.length}
+              </span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[700px]">
@@ -1090,13 +1138,16 @@ function Vouchers({ auth }) {
                   <th className="p-4">PLAN</th>
                   <th className="p-4">STATUS</th>
                   <th className="p-4">BUYER</th>
+                  <th className="p-4">ISSUED BY</th>
                   <th className="p-4">CREATED</th>
                   <th className="p-4">EXPIRES</th>
                   <th className="p-4 text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high text-sm text-on-surface">
-                {vouchers.map((v) => (
+                {vouchers.filter((v) =>
+                  issuerFilter === 'all' ? true : issuerFilter === 'customer' ? !v.createdBy : v.createdBy === issuerFilter
+                ).map((v) => (
                   <tr key={v.id} className={`hover:bg-surface-container-low/50 transition-colors ${v.status === 'EXPIRED' ? 'opacity-75' : ''}`}>
                     <td className="p-4">
                       <span className={`text-lg font-mono tracking-[2px] ${v.status === 'UNUSED' ? 'text-primary' : v.status === 'EXPIRED' ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
@@ -1109,9 +1160,18 @@ function Vouchers({ auth }) {
                         </div>
                       )}
                     </td>
-                    <td className="p-4">{v.plan?.name}</td>
+                    <td className="p-4">
+                      {v.customDurationMinutes != null
+                        ? <>Custom · {formatDuration(v.customDurationMinutes)}</>
+                        : v.plan?.name}
+                    </td>
                     <td className="p-4"><StatusPill status={v.status} /></td>
                     <td className="p-4">{v.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
+                    <td className="p-4">
+                      {v.createdBy
+                        ? <span className="capitalize">{v.createdBy}</span>
+                        : <span className="text-on-surface-variant">{v.phoneNumber ? 'Customer' : '—'}</span>}
+                    </td>
                     <td className="p-4 text-on-surface-variant whitespace-nowrap">{fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</td>
                     <td className="p-4 text-on-surface-variant whitespace-nowrap">{v.expiresAt ? `${fmtDate(v.expiresAt)}, ${fmtTime(v.expiresAt)}` : '—'}</td>
                     <td className="p-4 text-right whitespace-nowrap">
@@ -1151,7 +1211,7 @@ function Vouchers({ auth }) {
                   </tr>
                 ))}
                 {vouchers.length === 0 && (
-                  <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No vouchers yet — generate a batch above.</td></tr>
+                  <tr><td className="p-4 text-on-surface-variant" colSpan={8}>No vouchers yet — generate a batch above.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1177,12 +1237,14 @@ function Vouchers({ auth }) {
               </div>
               <div className="flex justify-between items-end border-t border-surface-container-high pt-2">
                 <div>
-                  <p className="text-base font-semibold text-on-surface">{selectedPlan?.name || 'Plan'}</p>
+                  <p className="text-base font-semibold text-on-surface">{previewName || 'Plan'}</p>
                   <p className="text-sm text-on-surface-variant">
-                    {selectedPlan ? `Valid for ${formatDuration(selectedPlan.durationMinutes)}` : ''}
+                    {isCustom
+                      ? `Valid for ${formatDuration(Number(customMin) || 0)}`
+                      : selectedPlan ? `Valid for ${formatDuration(selectedPlan.durationMinutes)}` : ''}
                   </p>
                 </div>
-                <p className="text-lg font-semibold text-primary">{selectedPlan ? `KES ${selectedPlan.price}` : ''}</p>
+                <p className="text-lg font-semibold text-primary">{!isCustom && selectedPlan ? `KES ${selectedPlan.price}` : ''}</p>
               </div>
             </div>
             <button
@@ -1199,6 +1261,319 @@ function Vouchers({ auth }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Subscribers (monthly PPPoE customers)                               */
+/* ------------------------------------------------------------------ */
+
+function SubscriberModal({ auth, onClose, onSaved }) {
+  const [form, setForm] = useState({ fullName: '', phoneNumber: '', pppoeUsername: '', pppoePassword: '', mbps: '', monthlyFee: '', initialMonths: 1, initialMethod: 'CASH' })
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api('/admin/subscribers', {
+        method: 'POST',
+        auth,
+        body: {
+          fullName: form.fullName,
+          phoneNumber: form.phoneNumber.replace(/\D/g, ''),
+          pppoeUsername: form.pppoeUsername,
+          pppoePassword: form.pppoePassword,
+          bandwidth: form.mbps ? `${form.mbps}M/${form.mbps}M` : null,
+          monthlyFee: Number(form.monthlyFee),
+          initialMonths: Number(form.initialMonths),
+          initialMethod: form.initialMethod,
+        },
+      })
+      onSaved()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const inputCls =
+    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]'
+  const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2'
+
+  return (
+    <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
+        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
+          <h3 className="text-2xl font-bold text-on-background">Add Subscriber</h3>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
+            <Icon name="close" />
+          </button>
+        </div>
+        <form onSubmit={save}>
+          <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Full Name</label>
+                <input className={inputCls} required placeholder="e.g. Mary Kamau" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Phone (M-Pesa)</label>
+                <input className={inputCls} required placeholder="2547XXXXXXXX" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>PPPoE Username</label>
+                <input className={inputCls} required placeholder="e.g. mkamau" value={form.pppoeUsername} onChange={(e) => setForm({ ...form, pppoeUsername: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>PPPoE Password</label>
+                <input className={inputCls} required minLength={6} type="text" placeholder="Set in their router" value={form.pppoePassword} onChange={(e) => setForm({ ...form, pppoePassword: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className={labelCls}>Speed (Mbps)</label>
+                <input className={inputCls} type="number" min="1" placeholder="e.g. 10" value={form.mbps} onChange={(e) => setForm({ ...form, mbps: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Monthly Fee (KES)</label>
+                <input className={inputCls} type="number" min="1" required placeholder="e.g. 2500" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Months Paid Now</label>
+                <input className={inputCls} type="number" min="0" max="12" required value={form.initialMonths} onChange={(e) => setForm({ ...form, initialMonths: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Initial Payment Method</label>
+              <select className={inputCls} value={form.initialMethod} onChange={(e) => setForm({ ...form, initialMethod: e.target.value })}>
+                <option value="CASH">Cash received — credit the months now</option>
+                <option value="MPESA">Send M-Pesa STK — months credited after they pay</option>
+              </select>
+            </div>
+            <p className="text-xs font-semibold tracking-wider text-tertiary">
+              The PPPoE username and password go into the customer's router (PPPoE client). The account is created on the MikroTik automatically.
+            </p>
+            {error && <p className="text-sm text-error">{error}</p>}
+          </div>
+          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">
+              Cancel
+            </button>
+            <button type="submit" disabled={busy} className="px-6 py-3 rounded-lg text-lg font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[48px] disabled:opacity-60 cursor-pointer">
+              {busy ? 'Creating…' : 'Create Subscriber'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function subscriberState(s) {
+  if (s.status === 'SUSPENDED') return { label: 'Suspended', cls: 'bg-error-container text-on-error-container' }
+  const days = (new Date(s.paidUntil) - Date.now()) / 86400000
+  if (days < 0) return { label: 'Overdue', cls: 'bg-error-container text-on-error-container' }
+  if (days <= 3) return { label: 'Expiring', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
+  return { label: 'Active', cls: 'bg-secondary-container text-on-secondary-container' }
+}
+
+function Subscribers({ auth }) {
+  const [subs, setSubs] = useState(null)
+  const [modal, setModal] = useState(false)
+  const [actionId, setActionId] = useState(null) // row with the payment form open
+  const [months, setMonths] = useState(1)
+  const [msg, setMsg] = useState(null)
+  const [deleteId, setDeleteId] = useState(null)
+
+  const load = () => api('/admin/subscribers', { auth }).then(setSubs).catch(() => setSubs([]))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (subs === null) return <Skeleton className="h-64" />
+
+  const active = subs.filter((s) => s.status === 'ACTIVE')
+  const mrr = active.reduce((a, s) => a + Number(s.monthlyFee), 0)
+  const expiring = active.filter((s) => (new Date(s.paidUntil) - Date.now()) / 86400000 <= 3).length
+
+  async function act(path, body) {
+    setMsg(null)
+    try {
+      const r = await api(path, { method: body ? 'POST' : 'PATCH', auth, body })
+      if (r?.message) setMsg({ ok: true, text: r.message })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-4xl font-bold tracking-tight text-on-background">Subscribers</h2>
+          <p className="text-base text-on-surface-variant mt-1">Monthly PPPoE home &amp; office customers.</p>
+        </div>
+        <button
+          onClick={() => setModal(true)}
+          className="bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] cursor-pointer"
+        >
+          <Icon name="add" />
+          Add Subscriber
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[
+          ['Active', active.length, 'border-t-primary'],
+          ['Suspended', subs.length - active.length, ''],
+          ['Expiring ≤3 days', expiring, 'border-t-[#f59e0b]'],
+          ['Monthly Revenue', fmtKES(mrr), 'border-t-secondary'],
+        ].map(([label, value, accent]) => (
+          <div key={label} className={`bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 ${accent ? `border-t-4 ${accent}` : ''}`}>
+            <CardLabel>{label}</CardLabel>
+            <div className="text-3xl font-bold tracking-tight mt-2 text-on-background tabular-nums">{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
+
+      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
+                <th className="p-4 border-b border-surface-variant/50">Customer</th>
+                <th className="p-4 border-b border-surface-variant/50">PPPoE Login</th>
+                <th className="p-4 border-b border-surface-variant/50">Package</th>
+                <th className="p-4 border-b border-surface-variant/50">Paid Until</th>
+                <th className="p-4 border-b border-surface-variant/50">Last Payment</th>
+                <th className="p-4 border-b border-surface-variant/50">Status</th>
+                <th className="p-4 border-b border-surface-variant/50 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {subs.map((s) => {
+                const st = subscriberState(s)
+                const days = Math.floor((new Date(s.paidUntil) - Date.now()) / 86400000)
+                return (
+                  <tr key={s.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors align-top">
+                    <td className="p-4">
+                      <div className="text-base font-semibold text-on-background">{s.fullName}</div>
+                      <div className="text-xs text-on-surface-variant mt-0.5">{s.phoneNumber}</div>
+                    </td>
+                    <td className="p-4 font-mono">{s.pppoeUsername}</td>
+                    <td className="p-4">
+                      <div className="tabular-nums font-semibold">{fmtKES(s.monthlyFee)}/mo</div>
+                      {s.bandwidth && (
+                        <div className="flex items-center gap-1 text-xs text-on-surface-variant mt-0.5">
+                          <Icon name="speed" className="text-[14px]!" /> {speedLabel(s.bandwidth)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <div className="whitespace-nowrap">{fmtDate(s.paidUntil)}</div>
+                      <div className={`text-xs mt-0.5 ${days < 0 ? 'text-error font-semibold' : days <= 3 ? 'text-[#b45309] font-semibold' : 'text-on-surface-variant'}`}>
+                        {days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : `${days} day${days === 1 ? '' : 's'} left`}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      {s.lastPaymentMethod ? (
+                        <>
+                          <span className={`text-xs font-semibold tracking-wider px-2 py-0.5 rounded-full ${
+                            s.lastPaymentMethod === 'MPESA' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'
+                          }`}>
+                            {s.lastPaymentMethod === 'MPESA' ? 'M-PESA' : 'CASH'}
+                          </span>
+                          {s.lastPaymentAt && <div className="text-xs text-on-surface-variant mt-1">{fmtDate(s.lastPaymentAt)}</div>}
+                        </>
+                      ) : (
+                        <span className="text-on-surface-variant text-xs">No payment yet</span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        <button
+                          onClick={() => { setActionId(actionId === s.id ? null : s.id); setMonths(1); setDeleteId(null) }}
+                          className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-surface-tint transition-colors cursor-pointer"
+                        >
+                          Take Payment
+                        </button>
+                        {s.status === 'ACTIVE' ? (
+                          <button onClick={() => act(`/admin/subscribers/${s.id}/suspend`)} className="px-3 py-1.5 rounded-lg border border-error text-error text-xs font-semibold hover:bg-error/5 transition-colors cursor-pointer">
+                            Suspend
+                          </button>
+                        ) : (
+                          <button onClick={() => act(`/admin/subscribers/${s.id}/activate`)} className="px-3 py-1.5 rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/5 transition-colors cursor-pointer">
+                            Reactivate
+                          </button>
+                        )}
+                        <button onClick={() => { setDeleteId(deleteId === s.id ? null : s.id); setActionId(null) }} className="text-tertiary hover:text-error transition-colors p-1 cursor-pointer" aria-label={`Remove ${s.fullName}`}>
+                          <Icon name="delete" className="text-[18px]!" />
+                        </button>
+                      </div>
+                      {actionId === s.id && (
+                        <div className="flex items-center gap-2 mt-3 justify-end flex-wrap">
+                          <label className="text-xs text-on-surface-variant">Months:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={months}
+                            onChange={(e) => setMonths(e.target.value)}
+                            className="h-9 w-16 bg-surface border border-outline-variant rounded-lg px-2 text-sm text-center tabular-nums focus:outline-none focus:border-primary"
+                          />
+                          <span className="text-xs font-semibold text-primary tabular-nums">= {fmtKES(Number(s.monthlyFee) * (Number(months) || 0))}</span>
+                          <button
+                            onClick={() => { act(`/admin/subscribers/${s.id}/payments`, { months: Number(months) }); setActionId(null) }}
+                            className="h-9 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold cursor-pointer"
+                          >
+                            Record Cash
+                          </button>
+                          <button
+                            onClick={() => { act(`/admin/subscribers/${s.id}/stk`, { months: Number(months) }); setActionId(null) }}
+                            className="h-9 px-3 rounded-lg bg-primary text-on-primary text-xs font-semibold cursor-pointer"
+                          >
+                            Send M-Pesa STK
+                          </button>
+                        </div>
+                      )}
+                      {deleteId === s.id && (
+                        <div className="flex items-center gap-2 mt-3 justify-end">
+                          <span className="text-sm text-on-surface-variant">Remove <strong className="text-on-surface">{s.fullName}</strong>?</span>
+                          <button
+                            onClick={() => { api(`/admin/subscribers/${s.id}`, { method: 'DELETE', auth }).then(() => { setDeleteId(null); load() }).catch((err) => setMsg({ ok: false, text: err.message })) }}
+                            className="h-9 px-4 rounded-lg bg-error text-on-error text-sm font-semibold cursor-pointer"
+                          >
+                            Yes, remove
+                          </button>
+                          <button onClick={() => setDeleteId(null)} className="h-9 px-4 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold cursor-pointer">
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {subs.length === 0 && (
+                <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No subscribers yet — add your first monthly customer.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {modal && <SubscriberModal auth={auth} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
     </div>
   )
 }
@@ -2138,7 +2513,7 @@ function Messages({ auth }) {
 /* ------------------------------------------------------------------ */
 
 function TechnicianModal({ auth, onClose, onSaved }) {
-  const [form, setForm] = useState({ username: '', password: '', fullName: '', phoneNumber: '' })
+  const [form, setForm] = useState({ username: '', password: '', fullName: '', phoneNumber: '', canVouchers: true, canPppoe: false })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -2150,7 +2525,7 @@ function TechnicianModal({ auth, onClose, onSaved }) {
       await api('/admin/technicians', {
         method: 'POST',
         auth,
-        body: { ...form, phoneNumber: form.phoneNumber || null },
+        body: { ...form, phoneNumber: form.phoneNumber || null, canVouchers: form.canVouchers, canPppoe: form.canPppoe },
       })
       onSaved()
     } catch (err) {
@@ -2193,6 +2568,19 @@ function TechnicianModal({ auth, onClose, onSaved }) {
               <label className={labelCls}>Password</label>
               <input className={inputCls} type="text" placeholder="At least 6 characters" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               <p className="text-xs font-semibold tracking-wider text-tertiary mt-1">Share these credentials with the technician — they sign in at /tech.</p>
+            </div>
+            <div>
+              <label className={labelCls}>Permissions</label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
+                  <input type="checkbox" checked={form.canVouchers} onChange={(e) => setForm({ ...form, canVouchers: e.target.checked })} className="w-4 h-4 accent-[#005c55]" />
+                  <span className="text-sm text-on-surface"><strong>Issue vouchers</strong> — generate and print WiFi passes in the field</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
+                  <input type="checkbox" checked={form.canPppoe} onChange={(e) => setForm({ ...form, canPppoe: e.target.checked })} className="w-4 h-4 accent-[#005c55]" />
+                  <span className="text-sm text-on-surface"><strong>Manage PPPoE subscribers</strong> — sign up monthly home customers and take payments</span>
+                </label>
+              </div>
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
@@ -2262,6 +2650,7 @@ function Team({ auth }) {
                 <th className="p-4 border-b border-surface-variant/50">Username</th>
                 <th className="p-4 border-b border-surface-variant/50">Phone</th>
                 <th className="p-4 border-b border-surface-variant/50">Since</th>
+                <th className="p-4 border-b border-surface-variant/50">Permissions</th>
                 <th className="p-4 border-b border-surface-variant/50">Status</th>
                 <th className="p-4 border-b border-surface-variant/50 text-right">Actions</th>
               </tr>
@@ -2280,6 +2669,28 @@ function Team({ auth }) {
                   <td className="p-4 font-mono">{t.username}</td>
                   <td className="p-4">{t.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
                   <td className="p-4 text-on-surface-variant">{fmtDate(t.createdAt)}</td>
+                  <td className="p-4">
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => api(`/admin/technicians/${t.id}/permissions`, { method: 'PATCH', auth, body: { canVouchers: !t.vouchersAllowed } }).then(load)}
+                        title={t.vouchersAllowed ? 'Click to remove voucher access' : 'Click to grant voucher access'}
+                        className={`px-2 py-1 rounded-full text-[11px] font-bold tracking-wide cursor-pointer transition-colors ${
+                          t.vouchersAllowed ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-variant text-on-surface-variant line-through'
+                        }`}
+                      >
+                        VOUCHERS
+                      </button>
+                      <button
+                        onClick={() => api(`/admin/technicians/${t.id}/permissions`, { method: 'PATCH', auth, body: { canPppoe: !t.pppoeAllowed } }).then(load)}
+                        title={t.pppoeAllowed ? 'Click to remove PPPoE access' : 'Click to grant PPPoE access'}
+                        className={`px-2 py-1 rounded-full text-[11px] font-bold tracking-wide cursor-pointer transition-colors ${
+                          t.pppoeAllowed ? 'bg-primary-container/30 text-primary' : 'bg-surface-variant text-on-surface-variant line-through'
+                        }`}
+                      >
+                        PPPOE
+                      </button>
+                    </div>
+                  </td>
                   <td className="p-4"><StatusPill status={t.active ? 'ACTIVE' : 'INACTIVE'} /></td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-3">
@@ -2330,7 +2741,7 @@ function Team({ auth }) {
                 </tr>
               ))}
               {techs.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={6}>No technicians yet — add the first account.</td></tr>
+                <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No technicians yet — add the first account.</td></tr>
               )}
             </tbody>
           </table>
@@ -2345,6 +2756,30 @@ function Team({ auth }) {
 /* ------------------------------------------------------------------ */
 /* Settings: limited-time offers (promotions)                          */
 /* ------------------------------------------------------------------ */
+
+function PromoCountdown({ endsAt, onExpire }) {
+  const [remaining, setRemaining] = useState(() => new Date(endsAt).getTime() - Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setRemaining(new Date(endsAt).getTime() - Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [endsAt])
+  useEffect(() => {
+    if (remaining <= 0) onExpire()
+  }, [remaining <= 0]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (remaining <= 0) return <span>ended</span>
+  const s = Math.floor(remaining / 1000)
+  const d = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  return (
+    <span className="font-mono font-bold tabular-nums">
+      {d > 0 ? `${d}d ${h}h ${m}m ${sec}s` : `${pad(h)}:${pad(m)}:${pad(sec)}`}
+    </span>
+  )
+}
 
 function PromotionCard({ auth }) {
   const [promos, setPromos] = useState(null)
@@ -2407,8 +2842,9 @@ function PromotionCard({ auth }) {
           <Icon name="celebration" filled className="text-[28px]!" />
           <div className="flex-1 min-w-0">
             <p className="font-bold">{current.title}</p>
-            <p className="text-sm text-white/90">
-              -{current.discountPercent}% · ends {fmtDate(current.endsAt)}, {fmtTime(current.endsAt)}
+            <p className="text-sm text-white/90 flex items-center gap-1.5">
+              <Icon name="timer" className="text-[16px]!" />
+              -{current.discountPercent}% · ends in <PromoCountdown endsAt={current.endsAt} onExpire={load} />
             </p>
           </div>
           <button onClick={endNow} className="px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/40 text-sm font-semibold transition-colors cursor-pointer">

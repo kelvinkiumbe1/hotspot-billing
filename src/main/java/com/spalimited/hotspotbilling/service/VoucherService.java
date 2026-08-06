@@ -44,10 +44,16 @@ public class VoucherService {
      */
     @Transactional
     public Voucher issue(Plan plan, String phoneNumber, String prefix, Integer length) {
+        return issue(plan, phoneNumber, prefix, length, null);
+    }
+
+    @Transactional
+    public Voucher issue(Plan plan, String phoneNumber, String prefix, Integer length, String createdBy) {
         Voucher voucher = Voucher.builder()
                 .code(uniqueCode(normalizePrefix(prefix), normalizeLength(prefix, length)))
                 .plan(plan)
                 .phoneNumber(phoneNumber)
+                .createdBy(createdBy)
                 .build();
         voucher = voucherRepository.save(voucher);
         mikrotikService.provisionVoucher(voucher);
@@ -56,16 +62,30 @@ public class VoucherService {
     }
 
     /**
-     * Creates a pay-per-minute voucher: the customer bought an exact number
-     * of minutes rather than a predefined plan duration.
+     * Creates a pay-per-minute voucher: an exact number of minutes rather
+     * than a predefined plan duration.
      */
     @Transactional
     public Voucher issueCustom(Plan plan, String phoneNumber, int minutes) {
+        return issueCustom(plan, phoneNumber, minutes, null, null);
+    }
+
+    @Transactional
+    public Voucher issueCustom(Plan plan, String phoneNumber, int minutes, String prefix, Integer length) {
+        return issueCustom(plan, phoneNumber, minutes, prefix, length, null);
+    }
+
+    @Transactional
+    public Voucher issueCustom(Plan plan, String phoneNumber, int minutes, String prefix, Integer length, String createdBy) {
+        if (minutes < 1) {
+            throw new IllegalArgumentException("Minutes must be at least 1");
+        }
         Voucher voucher = Voucher.builder()
-                .code(uniqueCode("", DEFAULT_CODE_LENGTH))
+                .code(uniqueCode(normalizePrefix(prefix), normalizeLength(prefix, length)))
                 .plan(plan)
                 .phoneNumber(phoneNumber)
                 .customDurationMinutes(minutes)
+                .createdBy(createdBy)
                 .build();
         voucher = voucherRepository.save(voucher);
         mikrotikService.provisionVoucher(voucher);

@@ -205,6 +205,7 @@ export default function Portal() {
       promo={promo}
       plansError={plansError}
       onRetryPlans={loadPlans}
+      onPromoExpire={loadPlans}
       onBuy={choosePlan}
       redeemCode={redeemCode}
       setRedeemCode={setRedeemCode}
@@ -221,6 +222,52 @@ export default function Portal() {
 function promoPrice(price, promo) {
   if (!promo?.active) return null
   return Math.max(1, Math.round((price * (100 - promo.discountPercent)) / 100))
+}
+
+function useCountdown(endsAt) {
+  const [remaining, setRemaining] = useState(() => new Date(endsAt).getTime() - Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setRemaining(new Date(endsAt).getTime() - Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [endsAt])
+  return remaining
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return '0s'
+  const s = Math.floor(ms / 1000)
+  const d = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (d > 0) return `${d}d ${h}h ${m}m ${sec}s`
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`
+}
+
+function PromoBanner({ promo, onExpire }) {
+  const remaining = useCountdown(promo.endsAt)
+  const expired = remaining <= 0
+
+  useEffect(() => {
+    if (expired) onExpire()
+  }, [expired]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (expired) return null
+
+  return (
+    <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
+      <Icon name="celebration" filled className="text-[32px]!" />
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-lg leading-tight">{promo.title}</p>
+        <p className="text-sm text-white/90 flex items-center gap-1.5 mt-0.5">
+          <Icon name="timer" className="text-[16px]!" />
+          Ends in <span className="font-mono font-bold tabular-nums">{formatCountdown(remaining)}</span>
+        </p>
+      </div>
+      <span className="text-2xl font-bold whitespace-nowrap">-{promo.discountPercent}%</span>
+    </div>
+  )
 }
 
 function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
@@ -335,7 +382,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
   )
 }
 
-function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
@@ -362,18 +409,7 @@ function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onBuy, re
           </div>
         </section>
 
-        {promo?.active && (
-          <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
-            <Icon name="celebration" filled className="text-[32px]!" />
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-lg leading-tight">{promo.title}</p>
-              <p className="text-sm text-white/90">
-                Ends {new Date(promo.endsAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
-              </p>
-            </div>
-            <span className="text-2xl font-bold whitespace-nowrap">-{promo.discountPercent}%</span>
-          </div>
-        )}
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
         <section className="flex flex-col gap-6">
           {PLAN_GROUPS.map((group) => {

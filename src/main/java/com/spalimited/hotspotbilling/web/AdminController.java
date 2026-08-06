@@ -35,6 +35,7 @@ public class AdminController {
     private final PaymentRepository paymentRepository;
     private final VoucherService voucherService;
     private final com.spalimited.hotspotbilling.service.MikrotikService mikrotikService;
+    private final com.spalimited.hotspotbilling.service.CustomPlanService customPlanService;
 
     // --- Dashboard ---
 
@@ -97,8 +98,9 @@ public class AdminController {
 
     // --- Vouchers ---
 
-    public record GenerateRequest(@NotNull Long planId, @Min(1) @Max(500) int count,
-                                  String prefix, Integer codeLength) {
+    public record GenerateRequest(Long planId, @Min(1) @Max(500) int count,
+                                  String prefix, Integer codeLength,
+                                  @Min(1) @Max(44640) Integer customMinutes) {
     }
 
     @GetMapping("/vouchers")
@@ -108,11 +110,23 @@ public class AdminController {
 
     @PostMapping("/vouchers/generate")
     @ResponseStatus(HttpStatus.CREATED)
-    public List<Voucher> generateVouchers(@Valid @RequestBody GenerateRequest request) {
+    public List<Voucher> generateVouchers(@Valid @RequestBody GenerateRequest request,
+                                          java.security.Principal principal) {
+        String createdBy = principal.getName();
+        if (request.customMinutes() != null) {
+            Plan plan = customPlanService.systemPlan(customPlanService.settings());
+            return IntStream.range(0, request.count())
+                    .mapToObj(i -> voucherService.issueCustom(
+                            plan, null, request.customMinutes(), request.prefix(), request.codeLength(), createdBy))
+                    .toList();
+        }
+        if (request.planId() == null) {
+            throw new IllegalArgumentException("Choose a plan or a custom duration");
+        }
         Plan plan = planRepository.findById(request.planId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown plan: " + request.planId()));
         return IntStream.range(0, request.count())
-                .mapToObj(i -> voucherService.issue(plan, null, request.prefix(), request.codeLength()))
+                .mapToObj(i -> voucherService.issue(plan, null, request.prefix(), request.codeLength(), createdBy))
                 .toList();
     }
 
