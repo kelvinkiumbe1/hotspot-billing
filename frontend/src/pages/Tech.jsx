@@ -4,6 +4,7 @@ import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import loginValley from '../assets/login-valley.jpg'
 
+
 /* ------------------------------------------------------------------ */
 /* Helpers (Field Connect — technician app)                            */
 /* ------------------------------------------------------------------ */
@@ -107,20 +108,20 @@ function TechLogin({ onLogin }) {
   }
 
   return (
-    <div className="tech-theme relative bg-background text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
+    <div className="tech-theme relative text-on-background min-h-screen flex flex-col items-center justify-center px-5 py-10 overflow-hidden">
+      {/* The photo shows through untinted; all branding and copy live on
+          the card so nothing has to fight the image for legibility. */}
       <img src={loginValley} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#000066]/85"></div>
       <div className="relative z-10 w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
-            <Icon name="engineering" filled className="text-on-secondary-container text-[32px]!" />
+        <form onSubmit={submit} className="bg-surface-container-lowest rounded-2xl shadow-[0_16px_40px_rgba(0,0,102,0.35)] border-t-4 border-primary p-7 flex flex-col gap-4">
+          <div className="flex flex-col items-center mb-2">
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,102,0.25)] mb-3">
+              <Icon name="engineering" filled className="text-on-primary text-[32px]!" />
+            </div>
+            <h1 className="text-2xl font-bold text-on-surface">Field Connect</h1>
+            <p className="text-sm text-on-surface-variant">SPA WiFi Technician App</p>
           </div>
-          <h1 className="text-2xl font-bold text-white">Field Connect</h1>
-          <p className="text-sm text-white/75">SPA WiFi Technician App</p>
-        </div>
-
-        <form onSubmit={submit} className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-on-surface">Technician sign in</h2>
+          <h2 className="text-base font-semibold text-on-surface border-t border-outline-variant pt-4">Technician sign in</h2>
           <div>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="tech-user">Username</label>
             <input
@@ -189,7 +190,7 @@ function TechShell({ auth, onLogout }) {
   return (
     <div className="tech-theme bg-background text-on-background min-h-screen">
       {/* Desktop drawer */}
-      <nav className="hidden md:flex h-screen w-72 rounded-r-xl bg-surface-container-lowest shadow-xl fixed inset-y-0 left-0 z-40 flex-col p-4">
+      <nav className="tech-nav hidden md:flex h-screen w-72 bg-surface-container-lowest shadow-xl fixed inset-y-0 left-0 z-40 flex-col p-4">
         <div className="flex items-center gap-4 mb-8 p-2">
           <div className="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center shadow-sm">
             <Icon name="engineering" filled className="text-on-secondary-container" />
@@ -233,7 +234,7 @@ function TechShell({ auth, onLogout }) {
       </nav>
 
       {/* Mobile top bar */}
-      <header className="fixed top-0 w-full bg-surface shadow-sm z-40 md:hidden flex items-center justify-between px-5 h-14">
+      <header className="tech-nav fixed top-0 w-full bg-surface shadow-sm z-40 md:hidden flex items-center justify-between px-5 h-14">
         <h1 className="text-xl font-bold text-primary tracking-tight">Field Connect</h1>
         <button onClick={onLogout} aria-label="Logout" className="p-2 text-on-surface-variant cursor-pointer">
           <Icon name="logout" />
@@ -249,7 +250,7 @@ function TechShell({ auth, onLogout }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-4px_12px_rgba(15,23,42,0.05)] rounded-t-xl md:hidden">
+      <nav className="tech-nav fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-4px_12px_rgba(0,0,102,0.15)] rounded-t-xl md:hidden">
         {TECH_NAV.map((item) => (
           <button
             key={item.key}

@@ -93,49 +93,78 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Field Connect (technician) theme: deep navy with chalk.             */
-/* Chalk on navy measures ~17:1, so it stays readable in daylight —    */
-/* which is where technicians actually use this app.                   */
+/* Field Connect (technician) theme: chalk canvas, deep-navy ink.      */
+/* A full page of saturated chalk glares, so content sits on white     */
+/* cards and the chalk shows through as a warm frame. Navy carries     */
+/* every action; navy-on-chalk measures ~17:1 for daylight use.        */
 /* ------------------------------------------------------------------ */
 .tech-theme {
-  --color-background: #000066;
-  --color-on-background: #f6f6e9;
-  --color-surface: #01016e;
-  --color-on-surface: #f6f6e9;
-  --color-on-surface-variant: #c3c3e6;
-  --color-surface-bright: #1a1a8a;
-  --color-surface-dim: #00004d;
-  --color-surface-variant: #3a3aa8;
-  --color-surface-container-lowest: #0a0a7a;
-  --color-surface-container-low: #121280;
-  --color-surface-container: #1a1a8a;
-  --color-surface-container-high: #232394;
-  --color-surface-container-highest: #2c2c9e;
+  --color-background: #ffff99;
+  --color-on-background: #000066;
+  --color-surface: #fffdf0;
+  --color-on-surface: #000066;
+  --color-on-surface-variant: #454584;
+  --color-surface-bright: #ffffff;
+  --color-surface-dim: #f2f08a;
+  --color-surface-variant: #e6e2a6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fffef5;
+  --color-surface-container: #fdfbe6;
+  --color-surface-container-high: #f8f5d5;
+  --color-surface-container-highest: #f2eec2;
 
-  /* Chalk carries every action; navy text on it clears WCAG AAA. */
+  /* Navy is the action colour, with chalk text sitting on it. */
+  --color-primary: #000066;
+  --color-on-primary: #ffff99;
+  --color-primary-container: #000066;
+  --color-on-primary-container: #ffff99;
+  --color-primary-fixed: #000066;
+  --color-primary-fixed-dim: #2a2a8f;
+  --color-surface-tint: #0d0d80;
+
+  --color-secondary: #000066;
+  --color-on-secondary: #ffff99;
+  /* Navy at low alpha keeps pills tinted rather than muddy. */
+  --color-secondary-container: rgba(0, 0, 102, 0.1);
+  --color-on-secondary-container: #000066;
+
+  --color-outline: #8a8757;
+  --color-outline-variant: #ddd894;
+  --color-error: #a5231c;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #7d1710;
+  --color-tertiary: #4a4a85;
+  --color-inverse-surface: #000066;
+}
+
+/**
+ * Navigation surfaces flip back to navy so the layout has an anchor and
+ * the chalk canvas reads as light rather than overwhelming. Nesting the
+ * overrides means every utility class inside re-colours on its own.
+ */
+.tech-theme .tech-nav {
+  --color-surface: #000066;
+  --color-surface-container-lowest: #000066;
+  --color-surface-container-low: #0a0a7a;
+  --color-surface-container: #12127f;
+  --color-surface-container-high: rgba(255, 255, 153, 0.12);
+  --color-surface-container-highest: rgba(255, 255, 153, 0.16);
+  --color-surface-variant: rgba(255, 255, 153, 0.22);
+  --color-surface-bright: #0a0a7a;
+  --color-on-surface: #fffdf0;
+  --color-on-surface-variant: #c6c6e8;
+
   --color-primary: #ffff99;
   --color-on-primary: #000066;
-  --color-primary-container: #ffff99;
-  --color-on-primary-container: #000066;
-  --color-primary-fixed: #ffff99;
-  --color-primary-fixed-dim: #e8e878;
-  --color-surface-tint: #f0f082;
-
+  --color-primary-container: rgba(255, 255, 153, 0.18);
+  --color-on-primary-container: #ffff99;
   --color-secondary: #ffff99;
   --color-on-secondary: #000066;
-  /* Chalk at low alpha reads as a soft glow on navy; mixing chalk with a
-     dark navy instead produces a muddy olive, so keep it translucent. */
-  --color-secondary-container: rgba(255, 255, 153, 0.16);
+  --color-secondary-container: rgba(255, 255, 153, 0.18);
   --color-on-secondary-container: #ffff99;
-
-  --color-outline: #9494d8;
-  --color-outline-variant: #2f2f9c;
+  --color-outline-variant: rgba(255, 255, 153, 0.2);
   --color-error: #ff8a80;
-  --color-on-error: #000066;
-  --color-error-container: #5c1a17;
-  --color-on-error-container: #ffb4ab;
-  --color-tertiary: #d2d2f2;
-  --color-inverse-surface: #f6f6e9;
 }
 
 /* Material Symbols icon font */
