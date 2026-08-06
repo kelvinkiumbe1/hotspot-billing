@@ -1376,6 +1376,172 @@ function SubscriberModal({ auth, onClose, onSaved }) {
   )
 }
 
+function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
+  const [history, setHistory] = useState(null)
+  const [months, setMonths] = useState(1)
+  const [extendAmount, setExtendAmount] = useState(1)
+  const [extendUnit, setExtendUnit] = useState('DAYS')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const s = subscriber
+  const st = subscriberState(s)
+  const days = Math.floor((new Date(s.paidUntil) - Date.now()) / 86400000)
+
+  useEffect(() => {
+    api(`/admin/subscribers/${s.id}/payments`, { auth }).then(setHistory).catch(() => setHistory([]))
+  }, [s.id, auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function run(path, body, okText) {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await api(path, { method: body ? 'POST' : 'PATCH', auth, body })
+      setMsg({ ok: true, text: r?.message || okText })
+      api(`/admin/subscribers/${s.id}/payments`, { auth }).then(setHistory).catch(() => {})
+      onChanged()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const Row = ({ label, children }) => (
+    <div className="flex justify-between items-center py-2 border-b border-surface-variant border-dashed gap-4">
+      <span className="text-sm text-on-surface-variant shrink-0">{label}</span>
+      <span className="text-sm font-medium text-on-surface text-right">{children}</span>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="flex-1 bg-on-background/30 backdrop-blur-[2px]" onClick={onClose}></div>
+      <div className="w-full max-w-md bg-surface-container-lowest h-full shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-surface-variant bg-surface-bright flex justify-between items-start">
+          <div>
+            <h3 className="text-lg font-semibold text-on-surface">{s.fullName}</h3>
+            <p className="text-sm text-on-surface-variant mt-1 font-mono">{s.pppoeUsername}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant transition-colors cursor-pointer" aria-label="Close details">
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-xl border-t-4 ${
+            st.label === 'Active' ? 'border-secondary' : st.label === 'Expiring' ? 'border-[#f59e0b]' : 'border-error'
+          }`}>
+            <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full mb-2 ${st.cls}`}>{st.label}</span>
+            <span className="text-lg font-bold text-on-surface">{fmtDate(s.paidUntil)}</span>
+            <span className="text-sm text-on-surface-variant">
+              {days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : `${days} day${days === 1 ? '' : 's'} remaining`}
+            </span>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Account</h4>
+            <Row label="Phone">{s.phoneNumber}</Row>
+            <Row label="PPPoE username"><span className="font-mono">{s.pppoeUsername}</span></Row>
+            <Row label="Package">
+              {fmtKES(s.monthlyFee)}/mo{s.bandwidth ? ` · ${speedLabel(s.bandwidth)}` : ''}
+            </Row>
+            <Row label="Created by">
+              {s.createdBy ? <span className="capitalize">{s.createdBy}</span> : <span className="text-on-surface-variant">—</span>}
+            </Row>
+            <Row label="Created on">{fmtDate(s.createdAt)}, {fmtTime(s.createdAt)}</Row>
+            <Row label="Last payment">
+              {s.lastPaymentMethod
+                ? `${s.lastPaymentMethod === 'MPESA' ? 'M-Pesa' : 'Cash'}${s.lastPaymentAt ? ` · ${fmtDate(s.lastPaymentAt)}` : ''}`
+                : <span className="text-on-surface-variant">No payment yet</span>}
+            </Row>
+          </div>
+
+          {/* Take payment */}
+          <div>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Take Payment</h4>
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="w-20">
+                <label className="block text-xs text-on-surface-variant mb-1">Months</label>
+                <input type="number" min="1" max="12" value={months} onChange={(e) => setMonths(e.target.value)}
+                  className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-2 text-sm text-center tabular-nums focus:outline-none focus:border-primary" />
+              </div>
+              <span className="text-sm font-semibold text-primary tabular-nums pb-2.5">= {fmtKES(Number(s.monthlyFee) * (Number(months) || 0))}</span>
+              <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/payments`, { months: Number(months) }, 'Cash payment recorded.')}
+                className="h-10 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold disabled:opacity-60 cursor-pointer">
+                Record Cash
+              </button>
+              <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/stk`, { months: Number(months) }, 'STK prompt sent.')}
+                className="h-10 px-3 rounded-lg bg-primary text-on-primary text-xs font-semibold disabled:opacity-60 cursor-pointer">
+                Send M-Pesa STK
+              </button>
+            </div>
+          </div>
+
+          {/* Goodwill extend */}
+          <div>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Extend Without Payment</h4>
+            <p className="text-xs text-on-surface-variant mb-2">Goodwill time, e.g. compensation for an outage.</p>
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="w-20">
+                <input type="number" min="1" value={extendAmount} onChange={(e) => setExtendAmount(e.target.value)}
+                  className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-2 text-sm text-center tabular-nums focus:outline-none focus:border-primary" />
+              </div>
+              <select value={extendUnit} onChange={(e) => setExtendUnit(e.target.value)}
+                className="h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm focus:outline-none focus:border-primary">
+                <option value="HOURS">Hours</option>
+                <option value="DAYS">Days</option>
+                <option value="MONTHS">Months</option>
+              </select>
+              <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/extend`, { amount: Number(extendAmount), unit: extendUnit }, 'Subscription extended.')}
+                className="h-10 px-4 rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/5 transition-colors disabled:opacity-60 cursor-pointer flex items-center gap-1">
+                <Icon name="more_time" className="text-[16px]!" /> Extend
+              </button>
+            </div>
+          </div>
+
+          {/* Payment history */}
+          <div>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Payment History</h4>
+            {history === null ? <Skeleton className="h-16" /> : (
+              <ul className="divide-y divide-surface-variant">
+                {history.map((p) => (
+                  <li key={p.id} className="py-2 flex justify-between items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-on-surface">{fmtKES(p.amount)} · {p.months} month{p.months > 1 ? 's' : ''}</p>
+                      <p className="text-xs text-on-surface-variant">
+                        {p.method === 'MPESA' ? 'M-Pesa' : 'Cash'}{p.mpesaReceiptNumber ? ` · ${p.mpesaReceiptNumber}` : ''} · {fmtDate(p.createdAt)}
+                      </p>
+                    </div>
+                    <StatusPill status={p.status} />
+                  </li>
+                ))}
+                {history.length === 0 && <li className="py-2 text-sm text-on-surface-variant">No payments recorded yet.</li>}
+              </ul>
+            )}
+          </div>
+
+          {msg && <p className={`text-sm font-semibold ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
+        </div>
+
+        <div className="p-4 border-t border-surface-variant bg-surface-bright flex gap-3">
+          {s.status === 'ACTIVE' ? (
+            <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/suspend`, null, 'Subscriber suspended.')}
+              className="flex-1 h-12 border border-error text-error rounded-lg text-base font-semibold hover:bg-error/5 transition-colors disabled:opacity-60 cursor-pointer">
+              Suspend
+            </button>
+          ) : (
+            <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/activate`, null, 'Subscriber reactivated.')}
+              className="flex-1 h-12 bg-primary text-on-primary rounded-lg text-base font-semibold hover:bg-surface-tint transition-colors disabled:opacity-60 cursor-pointer">
+              Reactivate
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function subscriberState(s) {
   if (s.status === 'SUSPENDED') return { label: 'Suspended', cls: 'bg-error-container text-on-error-container' }
   const days = (new Date(s.paidUntil) - Date.now()) / 86400000
@@ -1391,6 +1557,7 @@ function Subscribers({ auth }) {
   const [months, setMonths] = useState(1)
   const [msg, setMsg] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
+  const [detailId, setDetailId] = useState(null)
 
   const load = () => api('/admin/subscribers', { auth }).then(setSubs).catch(() => setSubs([]))
   useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1465,8 +1632,11 @@ function Subscribers({ auth }) {
                 return (
                   <tr key={s.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors align-top">
                     <td className="p-4">
-                      <div className="text-base font-semibold text-on-background">{s.fullName}</div>
+                      <button onClick={() => setDetailId(s.id)} className="text-base font-semibold text-primary hover:underline text-left cursor-pointer">
+                        {s.fullName}
+                      </button>
                       <div className="text-xs text-on-surface-variant mt-0.5">{s.phoneNumber}</div>
+                      {s.createdBy && <div className="text-xs text-on-surface-variant mt-0.5 capitalize">added by {s.createdBy}</div>}
                     </td>
                     <td className="p-4 font-mono">{s.pppoeUsername}</td>
                     <td className="p-4">
@@ -1502,6 +1672,12 @@ function Subscribers({ auth }) {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2 flex-wrap">
+                        <button
+                          onClick={() => setDetailId(s.id)}
+                          className="px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors cursor-pointer"
+                        >
+                          Details
+                        </button>
                         <button
                           onClick={() => { setActionId(actionId === s.id ? null : s.id); setMonths(1); setDeleteId(null) }}
                           className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-surface-tint transition-colors cursor-pointer"
@@ -1574,6 +1750,14 @@ function Subscribers({ auth }) {
       </div>
 
       {modal && <SubscriberModal auth={auth} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
+      {detailId && subs.find((s) => s.id === detailId) && (
+        <SubscriberDetail
+          auth={auth}
+          subscriber={subs.find((s) => s.id === detailId)}
+          onClose={() => setDetailId(null)}
+          onChanged={load}
+        />
+      )}
     </div>
   )
 }

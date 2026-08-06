@@ -148,7 +148,8 @@ public class TechController {
                 request.initialMonths() != null ? request.initialMonths() : 1,
                 "MPESA".equalsIgnoreCase(request.initialMethod())
                         ? com.spalimited.hotspotbilling.domain.SubscriptionPayment.Method.MPESA
-                        : com.spalimited.hotspotbilling.domain.SubscriptionPayment.Method.CASH);
+                        : com.spalimited.hotspotbilling.domain.SubscriptionPayment.Method.CASH,
+                principal.getName());
     }
 
     public record MonthsRequest(@Min(1) @Max(12) int months) {

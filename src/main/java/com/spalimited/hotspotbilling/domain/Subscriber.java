@@ -65,6 +65,9 @@ public class Subscriber {
 
     private Instant lastPaymentAt;
 
+    /** Username of the admin/technician who signed this customer up. */
+    private String createdBy;
+
     @Column(nullable = false)
     private Instant createdAt;
 

@@ -38,7 +38,15 @@ public class SubscriptionService {
     public Subscriber create(String fullName, String phoneNumber, String pppoeUsername,
                              String pppoePassword, String bandwidth, BigDecimal monthlyFee, int initialMonths) {
         return create(fullName, phoneNumber, pppoeUsername, pppoePassword, bandwidth, monthlyFee,
-                initialMonths, SubscriptionPayment.Method.CASH);
+                initialMonths, SubscriptionPayment.Method.CASH, null);
+    }
+
+    @Transactional
+    public Subscriber create(String fullName, String phoneNumber, String pppoeUsername,
+                             String pppoePassword, String bandwidth, BigDecimal monthlyFee,
+                             int initialMonths, SubscriptionPayment.Method initialMethod) {
+        return create(fullName, phoneNumber, pppoeUsername, pppoePassword, bandwidth, monthlyFee,
+                initialMonths, initialMethod, null);
     }
 
     /**
@@ -49,7 +57,7 @@ public class SubscriptionService {
     @Transactional
     public Subscriber create(String fullName, String phoneNumber, String pppoeUsername,
                              String pppoePassword, String bandwidth, BigDecimal monthlyFee,
-                             int initialMonths, SubscriptionPayment.Method initialMethod) {
+                             int initialMonths, SubscriptionPayment.Method initialMethod, String createdBy) {
         subscribers.findByPppoeUsername(pppoeUsername).ifPresent(existing -> {
             throw new IllegalArgumentException("PPPoE username already taken: " + pppoeUsername);
         });
@@ -66,6 +74,7 @@ public class SubscriptionService {
                         : Instant.now())
                 .lastPaymentMethod(cash && initialMonths > 0 ? "CASH" : null)
                 .lastPaymentAt(cash && initialMonths > 0 ? Instant.now() : null)
+                .createdBy(createdBy)
                 .build());
         mikrotikService.provisionPppoe(sub);
         if (cash && initialMonths > 0) {
@@ -151,6 +160,32 @@ public class SubscriptionService {
                 "Payment received. Your SPA WiFi home internet is active until "
                         + sub.getPaidUntil().toString().substring(0, 10) + ". Thank you!");
         log.info("Extended subscriber {} by {} month(s) to {}", sub.getPppoeUsername(), months, sub.getPaidUntil());
+    }
+
+    /**
+     * Goodwill/manual extension without a payment — hours, days or months
+     * (e.g. compensation for downtime). Reactivates a suspended account.
+     */
+    @Transactional
+    public Subscriber extendManually(Long id, int amount, String unit) {
+        Subscriber sub = get(id);
+        Instant base = sub.getPaidUntil().isAfter(Instant.now()) ? sub.getPaidUntil() : Instant.now();
+        Instant newPaidUntil = switch (unit == null ? "" : unit.toUpperCase()) {
+            case "HOURS" -> base.plus(amount, ChronoUnit.HOURS);
+            case "DAYS" -> base.plus(amount, ChronoUnit.DAYS);
+            case "MONTHS" -> base.plus((long) amount * DAYS_PER_MONTH, ChronoUnit.DAYS);
+            default -> throw new IllegalArgumentException("Unit must be HOURS, DAYS or MONTHS");
+        };
+        sub.setPaidUntil(newPaidUntil);
+        if (sub.getStatus() == Subscriber.Status.SUSPENDED) {
+            mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), true);
+            sub.setStatus(Subscriber.Status.ACTIVE);
+        }
+        smsService.trySend(sub.getPhoneNumber(),
+                "Good news! Your SPA WiFi home internet has been extended until "
+                        + newPaidUntil.toString().substring(0, 10) + ".");
+        log.info("Manually extended subscriber {} by {} {}", sub.getPppoeUsername(), amount, unit);
+        return subscribers.save(sub);
     }
 
     @Transactional

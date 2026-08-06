@@ -45,7 +45,7 @@ public class SubscriberController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Subscriber create(@Valid @RequestBody CreateRequest request) {
+    public Subscriber create(@Valid @RequestBody CreateRequest request, java.security.Principal principal) {
         return subscriptionService.create(
                 request.fullName(),
                 request.phoneNumber(),
@@ -55,7 +55,18 @@ public class SubscriberController {
                 request.monthlyFee(),
                 request.initialMonths() != null ? request.initialMonths() : 1,
                 "MPESA".equalsIgnoreCase(request.initialMethod())
-                        ? SubscriptionPayment.Method.MPESA : SubscriptionPayment.Method.CASH);
+                        ? SubscriptionPayment.Method.MPESA : SubscriptionPayment.Method.CASH,
+                principal.getName());
+    }
+
+    public record ExtendRequest(@Min(1) @Max(1000) int amount,
+                                @jakarta.validation.constraints.NotBlank String unit) {
+    }
+
+    /** Goodwill extension without payment — hours, days or months. */
+    @PostMapping("/{id}/extend")
+    public Subscriber extend(@PathVariable Long id, @Valid @RequestBody ExtendRequest request) {
+        return subscriptionService.extendManually(id, request.amount(), request.unit());
     }
 
     public record MonthsRequest(@Min(1) @Max(12) int months) {
