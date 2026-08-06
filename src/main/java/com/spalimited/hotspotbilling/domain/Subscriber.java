@@ -68,6 +68,28 @@ public class Subscriber {
     /** Username of the admin/technician who signed this customer up. */
     private String createdBy;
 
+    /** Router/site this customer is provisioned on; null means the default. */
+    private Long routerId;
+
+    /** Branch/franchise this customer belongs to; null means head office. */
+    private Long branchId;
+
+    /**
+     * Rolling data usage in MB, refreshed by the monitor job. Nullable so
+     * the column can be added to databases that already hold subscribers;
+     * read it through {@link #getDataUsedMbOrZero()}.
+     */
+    private Long dataUsedMb;
+
+    @Transient
+    public long getDataUsedMbOrZero() {
+        return dataUsedMb != null ? dataUsedMb : 0L;
+    }
+
+    private Instant usageResetAt;
+
+    private Instant lastSeenOnlineAt;
+
     @Column(nullable = false)
     private Instant createdAt;
 

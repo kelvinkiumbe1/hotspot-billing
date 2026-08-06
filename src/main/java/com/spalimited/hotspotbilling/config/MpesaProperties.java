@@ -13,6 +13,8 @@ public record MpesaProperties(
         String consumerSecret,
         String shortCode,
         String passkey,
-        String callbackUrl
+        String callbackUrl,
+        /** PayBill number customers deposit to (C2B); blank if unused. */
+        String paybill
 ) {
 }

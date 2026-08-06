@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
+import RoutersPage from './admin/Routers.jsx'
+import FinancePage from './admin/Finance.jsx'
+import BranchesPage from './admin/Branches.jsx'
+import PayBillPage from './admin/PayBill.jsx'
+import AuditLogPage from './admin/AuditLog.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -241,10 +246,15 @@ const NAV = [
   { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
   { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
   { key: 'payments', label: 'Payments', icon: 'payments' },
+  { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
+  { key: 'finance', label: 'Finance', icon: 'assessment' },
+  { key: 'routers', label: 'Routers', icon: 'router' },
+  { key: 'branches', label: 'Branches', icon: 'add_business' },
   { key: 'support', label: 'Support', icon: 'support_agent' },
   { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
   { key: 'messages', label: 'Messages', icon: 'chat' },
   { key: 'team', label: 'Team', icon: 'group' },
+  { key: 'audit', label: 'Audit Log', icon: 'history' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -368,10 +378,15 @@ const TAB_TITLES = {
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
   payments: 'Payments',
+  paybill: 'PayBill',
+  finance: 'Finance',
+  routers: 'Routers',
+  branches: 'Branches',
   support: 'Support',
   maintenance: 'Maintenance',
   messages: 'Messages',
   team: 'Team',
+  audit: 'Audit Log',
   settings: 'Settings',
 }
 
@@ -440,6 +455,11 @@ function Shell({ auth, onLogout }) {
         {tab === 'vouchers' && <Vouchers auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
         {tab === 'payments' && <Payments auth={auth} />}
+        {tab === 'paybill' && <PayBillPage auth={auth} />}
+        {tab === 'finance' && <FinancePage auth={auth} />}
+        {tab === 'routers' && <RoutersPage auth={auth} />}
+        {tab === 'branches' && <BranchesPage auth={auth} />}
+        {tab === 'audit' && <AuditLogPage auth={auth} />}
         {tab === 'support' && <Support auth={auth} />}
         {tab === 'maintenance' && <Maintenance auth={auth} />}
         {tab === 'messages' && <Messages auth={auth} />}

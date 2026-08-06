@@ -30,6 +30,7 @@ public class SubscriptionService {
     private final MikrotikService mikrotikService;
     private final MpesaService mpesaService;
     private final SmsService smsService;
+    private final InvoiceService invoiceService;
 
     @org.springframework.beans.factory.annotation.Value("${app.portal-url}")
     private String portalUrl;
@@ -152,14 +153,36 @@ public class SubscriptionService {
         sub.setLastPaymentMethod(method);
         sub.setLastPaymentAt(Instant.now());
         if (sub.getStatus() == Subscriber.Status.SUSPENDED) {
-            mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), true);
+            mikrotikService.setPppoeEnabled(sub, true);
             sub.setStatus(Subscriber.Status.ACTIVE);
         }
         subscribers.save(sub);
+        invoiceService.settleOldestUnpaid(sub.getId(), method);
         smsService.trySend(sub.getPhoneNumber(),
                 "Payment received. Your SPA WiFi home internet is active until "
                         + sub.getPaidUntil().toString().substring(0, 10) + ". Thank you!");
         log.info("Extended subscriber {} by {} month(s) to {}", sub.getPppoeUsername(), months, sub.getPaidUntil());
+    }
+
+    /**
+     * Credits a payment that arrived outside the STK flow — a PayBill
+     * (C2B) deposit or an admin applying an unmatched one by hand.
+     */
+    @Transactional
+    public SubscriptionPayment creditExternalPayment(Long subscriberId, int months,
+                                                     BigDecimal amount, String receiptNumber) {
+        Subscriber sub = get(subscriberId);
+        SubscriptionPayment payment = payments.save(SubscriptionPayment.builder()
+                .subscriber(sub)
+                .amount(amount)
+                .months(months)
+                .method(SubscriptionPayment.Method.MPESA)
+                .status(SubscriptionPayment.Status.SUCCESS)
+                .mpesaReceiptNumber(receiptNumber)
+                .completedAt(Instant.now())
+                .build());
+        extend(sub, months, "MPESA");
+        return payment;
     }
 
     /**
@@ -178,7 +201,7 @@ public class SubscriptionService {
         };
         sub.setPaidUntil(newPaidUntil);
         if (sub.getStatus() == Subscriber.Status.SUSPENDED) {
-            mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), true);
+            mikrotikService.setPppoeEnabled(sub, true);
             sub.setStatus(Subscriber.Status.ACTIVE);
         }
         smsService.trySend(sub.getPhoneNumber(),
@@ -191,7 +214,7 @@ public class SubscriptionService {
     @Transactional
     public Subscriber suspend(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), false);
+        mikrotikService.setPppoeEnabled(sub, false);
         sub.setStatus(Subscriber.Status.SUSPENDED);
         return subscribers.save(sub);
     }
@@ -199,7 +222,7 @@ public class SubscriptionService {
     @Transactional
     public Subscriber activate(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), true);
+        mikrotikService.setPppoeEnabled(sub, true);
         sub.setStatus(Subscriber.Status.ACTIVE);
         return subscribers.save(sub);
     }
@@ -207,7 +230,7 @@ public class SubscriptionService {
     @Transactional
     public void delete(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.removePppoe(sub.getPppoeUsername());
+        mikrotikService.removePppoe(sub);
         payments.deleteBySubscriberId(id);
         subscribers.delete(sub);
     }
@@ -246,7 +269,7 @@ public class SubscriptionService {
         for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.ACTIVE)) {
             if (sub.getPaidUntil().isBefore(now)) {
                 try {
-                    mikrotikService.setPppoeEnabled(sub.getPppoeUsername(), false);
+                    mikrotikService.setPppoeEnabled(sub, false);
                 } catch (Exception e) {
                     log.warn("Could not disable {} on router: {}", sub.getPppoeUsername(), e.getMessage());
                 }

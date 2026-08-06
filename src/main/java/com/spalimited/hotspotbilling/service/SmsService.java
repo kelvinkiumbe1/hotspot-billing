@@ -28,6 +28,7 @@ public class SmsService {
     private static final int BATCH_SIZE = 100;
 
     private final SmsProperties props;
+    private final WhatsappService whatsappService;
     private final HttpClient http = HttpClient.newHttpClient();
 
     public boolean isEnabled() {
@@ -56,8 +57,15 @@ public class SmsService {
         return sent;
     }
 
-    /** Best-effort single send that never throws (e.g. voucher code after purchase). */
+    /**
+     * Best-effort single send that never throws. Tries WhatsApp first when
+     * it is configured (cheaper and richer), then falls back to SMS.
+     */
     public void trySend(String phoneNumber, String message) {
+        if (whatsappService != null && whatsappService.isEnabled()
+                && whatsappService.send("+" + phoneNumber, message)) {
+            return;
+        }
         if (!isEnabled()) {
             log.info("SMS disabled — would have sent to {}: {}", phoneNumber, message);
             return;
