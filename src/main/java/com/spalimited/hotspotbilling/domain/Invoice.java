@@ -42,6 +42,20 @@ public class Invoice {
     @Column(nullable = false)
     private int months = 1;
 
+    // --- VAT, captured as it stood when the invoice was issued ---
+
+    /** Charge before tax. Null on invoices raised before VAT was added. */
+    private BigDecimal netAmount;
+
+    /** Tax on this invoice. */
+    private BigDecimal vatAmount;
+
+    /** The rate applied, kept on the row so a later rate change cannot rewrite history. */
+    private BigDecimal vatRate;
+
+    /** True when the amount already contained VAT rather than having it added. */
+    private Boolean vatInclusive;
+
     @Column(nullable = false)
     private LocalDate issuedOn;
 

@@ -18,6 +18,8 @@ import VouchersPage from './admin/Vouchers.jsx'
 import CommunicationsPage from './admin/Communications.jsx'
 import FiberPage from './admin/Fiber.jsx'
 import StaffPage from './admin/Staff.jsx'
+import LedgerPage from './admin/Ledger.jsx'
+import TaxSettingsPage from './admin/TaxSettings.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -272,6 +274,7 @@ const NAV_GROUPS = [
     label: 'Finance',
     items: [
       { key: 'finance', label: 'Billing', icon: 'receipt_long', need: 'FINANCE' },
+      { key: 'ledger', label: 'Ledger', icon: 'account_balance_wallet', need: 'FINANCE' },
       { key: 'payments', label: 'Payments', icon: 'payments', need: 'FINANCE' },
       { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
       { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
@@ -293,6 +296,7 @@ const NAV_GROUPS = [
       { key: 'staff', label: 'Staff Logins', icon: 'admin_panel_settings', need: 'STAFF' },
       { key: 'branches', label: 'Branches', icon: 'add_business', need: 'FINANCE' },
       { key: 'audit', label: 'Audit Log', icon: 'history', need: 'STAFF' },
+      { key: 'vat', label: 'VAT', icon: 'percent', need: 'SETTINGS' },
       { key: 'settings', label: 'Settings', icon: 'settings', need: 'SETTINGS' },
     ],
   },
@@ -484,6 +488,8 @@ const TAB_TITLES = {
   outbox: 'Outbox',
   fiber: 'Fiber Map',
   staff: 'Staff Logins',
+  ledger: 'Customer Ledger',
+  vat: 'VAT',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -595,6 +601,8 @@ function Shell({ auth, onLogout }) {
         {tab === 'outbox' && <CommunicationsPage auth={auth} />}
         {tab === 'fiber' && <FiberPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
+        {tab === 'ledger' && <LedgerPage auth={auth} />}
+        {tab === 'vat' && <TaxSettingsPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <VouchersPage auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
