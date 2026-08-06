@@ -14,6 +14,9 @@ import LeadsPage from './admin/Leads.jsx'
 import AgentsPage from './admin/Agents.jsx'
 import EquipmentPage from './admin/Equipment.jsx'
 import AnalyticsPage from './admin/Analytics.jsx'
+import VouchersPage from './admin/Vouchers.jsx'
+import CommunicationsPage from './admin/Communications.jsx'
+import FiberPage from './admin/Fiber.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -50,20 +53,6 @@ function planGroup(minutes) {
 }
 
 /** <option> list grouped Hourly/Daily/Weekly/Monthly for plan selectors. */
-function PlanOptions({ plans }) {
-  return PLAN_GROUPS.map((group) => {
-    const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
-    if (!groupPlans.length) return null
-    return (
-      <optgroup key={group} label={group}>
-        {groupPlans.map((p) => (
-          <option key={p.id} value={p.id}>{p.name} — KES {p.price}</option>
-        ))}
-      </optgroup>
-    )
-  })
-}
-
 function speedLabel(bandwidth) {
   if (!bandwidth) return null
   const down = bandwidth.split('/')[0].trim().replace(/M$/i, '')
@@ -274,6 +263,7 @@ const NAV_GROUPS = [
       { key: 'plans', label: 'Plans', icon: 'inventory_2' },
       { key: 'routers', label: 'Routers', icon: 'router' },
       { key: 'equipment', label: 'Equipment', icon: 'inventory_2' },
+      { key: 'fiber', label: 'Fiber Map', icon: 'polyline' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
     ],
   },
@@ -290,7 +280,8 @@ const NAV_GROUPS = [
   {
     label: 'Outreach',
     items: [
-      { key: 'messages', label: 'Messages', icon: 'chat' },
+      { key: 'outbox', label: 'Outbox', icon: 'outbox' },
+      { key: 'messages', label: 'Team Chat', icon: 'chat' },
       { key: 'branding', label: 'Campaigns', icon: 'campaign' },
     ],
   },
@@ -470,6 +461,8 @@ const TAB_TITLES = {
   agents: 'Agents & Batches',
   equipment: 'Equipment',
   analytics: 'Analytics',
+  outbox: 'Outbox',
+  fiber: 'Fiber Map',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -480,7 +473,7 @@ const TAB_TITLES = {
   branches: 'Branches',
   support: 'Tickets',
   maintenance: 'Maintenance',
-  messages: 'Messages',
+  messages: 'Team Chat',
   team: 'Team',
   branding: 'Campaigns & Branding',
   audit: 'Audit Log',
@@ -553,8 +546,10 @@ function Shell({ auth, onLogout }) {
         {tab === 'agents' && <AgentsPage auth={auth} />}
         {tab === 'equipment' && <EquipmentPage auth={auth} />}
         {tab === 'analytics' && <AnalyticsPage auth={auth} />}
+        {tab === 'outbox' && <CommunicationsPage auth={auth} />}
+        {tab === 'fiber' && <FiberPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
-        {tab === 'vouchers' && <Vouchers auth={auth} />}
+        {tab === 'vouchers' && <VouchersPage auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
         {tab === 'payments' && <Payments auth={auth} />}
         {tab === 'paybill' && <PayBillPage auth={auth} />}
@@ -1009,8 +1004,8 @@ function PlanModal({ auth, plan, onClose, onSaved }) {
                 <div>
                   <label className={labelCls}>Duration *</label>
                   <div className="flex gap-2">
-                    <input className={inputCls + ' flex-1 min-w-0'} type="number" min="1" step="1" required placeholder="e.g. 8" value={form.durationValue} onChange={(e) => set({ durationValue: e.target.value })} />
-                    <select className={inputCls + ' w-auto'} value={form.durationUnit} onChange={(e) => set({ durationUnit: e.target.value })}>
+                    <input className={inputCls + ' flex-1 min-w-[90px]'} type="number" min="1" step="1" required placeholder="e.g. 8" value={form.durationValue} onChange={(e) => set({ durationValue: e.target.value })} />
+                    <select className={inputCls + ' w-[116px] shrink-0'} value={form.durationUnit} onChange={(e) => set({ durationUnit: e.target.value })}>
                       <option value="minutes">Minutes</option>
                       <option value="hours">Hours</option>
                       <option value="days">Days</option>
@@ -1361,347 +1356,6 @@ function Plans({ auth }) {
           onSaved={() => { setEditing(null); load() }}
         />
       )}
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Vouchers                                                            */
-/* ------------------------------------------------------------------ */
-
-function printVouchers(vouchers, planName) {
-  const cards = vouchers.map((v) => `
-    <div class="card">
-      <div class="head"><strong>SPA WiFi</strong><span>INTERNET ACCESS</span></div>
-      <div class="code-box"><small>ACCESS CODE</small><div class="code">${v.code}</div></div>
-      <div class="foot"><span>${planName}</span><span>Use as WiFi username &amp; password</span></div>
-    </div>`).join('')
-  const w = window.open('', '_blank')
-  w.document.write(`<!doctype html><html><head><title>Voucher batch — ${planName}</title><style>
-    body { font-family: Arial, sans-serif; margin: 10mm; }
-    .grid { display: flex; flex-wrap: wrap; gap: 6mm; }
-    .card { width: 85mm; height: 54mm; border: 1px dashed #6e7977; border-top: 3px solid #005c55; border-radius: 4mm;
-            padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;
-            page-break-inside: avoid; }
-    .head { display: flex; justify-content: space-between; color: #005c55; font-size: 12px; }
-    .code-box { text-align: center; border: 1px solid #bdc9c6; border-radius: 2mm; padding: 3mm; }
-    .code-box small { color: #6e7977; letter-spacing: 1px; font-size: 9px; }
-    .code { font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; letter-spacing: 3px; }
-    .foot { display: flex; justify-content: space-between; font-size: 10px; color: #3e4947; }
-  </style></head><body><div class="grid">${cards}</div><script>window.onload = () => window.print()<\/script></body></html>`)
-  w.document.close()
-}
-
-function Vouchers({ auth }) {
-  const [vouchers, setVouchers] = useState([])
-  const [plans, setPlans] = useState([])
-  const [planId, setPlanId] = useState('')
-  const [customMin, setCustomMin] = useState(60)
-  const [count, setCount] = useState(10)
-  const [prefix, setPrefix] = useState('')
-  const [codeLen, setCodeLen] = useState(8)
-  const [error, setError] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(null)
-  const [issuerFilter, setIssuerFilter] = useState('all')
-
-  const load = () => api('/admin/vouchers', { auth }).then(setVouchers).catch(() => {})
-  useEffect(() => {
-    load()
-    api('/admin/plans', { auth }).then((ps) => { setPlans(ps); if (ps[0]) setPlanId(String(ps[0].id)) }).catch(() => {})
-  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function generate() {
-    setBusy(true)
-    setError(null)
-    try {
-      const isCustom = planId === 'custom'
-      await api('/admin/vouchers/generate', {
-        method: 'POST',
-        auth,
-        body: {
-          planId: isCustom ? null : Number(planId),
-          customMinutes: isCustom ? Number(customMin) : null,
-          count: Number(count),
-          prefix: prefix.trim() || null,
-          codeLength: Number(codeLen) || 8,
-        },
-      })
-      load()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const isCustom = planId === 'custom'
-  const selectedPlan = plans.find((p) => String(p.id) === String(planId))
-  const unusedForPlan = vouchers.filter((v) =>
-    v.status === 'UNUSED' &&
-    (isCustom ? v.customDurationMinutes != null : String(v.plan?.id) === String(planId) && !v.customDurationMinutes)
-  )
-  const previewCode = unusedForPlan[0]?.code || 'MCLRRC8H'
-  const previewName = isCustom ? `Custom — ${formatDuration(Number(customMin) || 0)}` : selectedPlan?.name
-
-  function copy(code) {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(code)
-      setTimeout(() => setCopied(null), 1500)
-    })
-  }
-
-  return (
-    <div>
-      {/* Toolbar */}
-      <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mb-6 flex flex-col lg:flex-row gap-4 items-start lg:items-end justify-between border border-surface-container-highest/50">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end w-full lg:w-auto">
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-xs font-semibold tracking-wider text-tertiary">SELECT PLAN</label>
-            <select
-              value={planId}
-              onChange={(e) => setPlanId(e.target.value)}
-              className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 min-w-[200px]"
-            >
-              <PlanOptions plans={plans.filter((p) => p.name !== 'Custom Time')} />
-              <optgroup label="Custom">
-                <option value="custom">Custom time…</option>
-              </optgroup>
-            </select>
-          </div>
-          {planId === 'custom' && (
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-semibold tracking-wider text-tertiary" htmlFor="v-custom-min">MINUTES</label>
-              <input
-                id="v-custom-min"
-                type="number"
-                min="1"
-                max="44640"
-                value={customMin}
-                onChange={(e) => setCustomMin(e.target.value)}
-                className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 w-full sm:w-28 tabular-nums"
-              />
-            </div>
-          )}
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-xs font-semibold tracking-wider text-tertiary">QUANTITY</label>
-            <div className="flex items-center border border-surface-variant rounded-lg bg-background h-12 overflow-hidden">
-              <button onClick={() => setCount(Math.max(1, Number(count) - 1))} className="px-4 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors h-full flex items-center cursor-pointer">
-                <Icon name="remove" className="text-[20px]!" />
-              </button>
-              <input
-                type="number"
-                min="1"
-                max="500"
-                value={count}
-                onChange={(e) => setCount(e.target.value)}
-                className="w-16 text-center text-lg font-semibold text-on-surface border-none bg-transparent focus:ring-0 focus:outline-none px-0 h-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <button onClick={() => setCount(Math.min(500, Number(count) + 1))} className="px-4 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors h-full flex items-center cursor-pointer">
-                <Icon name="add" className="text-[20px]!" />
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-xs font-semibold tracking-wider text-tertiary" htmlFor="v-prefix">CODE PREFIX (OPTIONAL)</label>
-            <input
-              id="v-prefix"
-              type="text"
-              maxLength={12}
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-              placeholder="e.g. SPA"
-              className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 w-full sm:w-32"
-            />
-          </div>
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-xs font-semibold tracking-wider text-tertiary" htmlFor="v-len">CODE LENGTH</label>
-            <input
-              id="v-len"
-              type="number"
-              min={Math.max(6, prefix.length + 4)}
-              max="16"
-              value={codeLen}
-              onChange={(e) => setCodeLen(e.target.value)}
-              className="bg-background border border-surface-variant rounded-lg px-4 py-2 text-on-surface text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-12 w-full sm:w-24 tabular-nums"
-            />
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <button
-            onClick={() => unusedForPlan.length && printVouchers(unusedForPlan, previewName || '')}
-            disabled={!unusedForPlan.length}
-            className="h-12 px-6 rounded-lg border-2 border-primary text-primary text-lg font-semibold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-          >
-            <Icon name="print" className="text-[20px]!" />
-            Print Batch
-          </button>
-          <button
-            onClick={generate}
-            disabled={busy || !planId || (isCustom && !(Number(customMin) > 0))}
-            className="h-12 px-6 rounded-lg bg-primary text-on-primary text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-colors flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
-          >
-            <Icon name="add_circle" className="text-[20px]!" />
-            {busy ? 'Generating…' : 'Generate Vouchers'}
-          </button>
-        </div>
-      </div>
-      {error && <p className="text-sm text-error mb-4">{error}</p>}
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Table */}
-        <div className="lg:col-span-3 bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-container-highest/50 overflow-hidden">
-          <div className="p-4 border-b border-surface-container-high flex justify-between items-center gap-3 flex-wrap bg-surface-bright">
-            <h2 className="text-lg font-semibold text-on-surface">Voucher Inventory</h2>
-            <div className="flex items-center gap-3">
-              <select
-                value={issuerFilter}
-                onChange={(e) => setIssuerFilter(e.target.value)}
-                className="bg-background border border-surface-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary outline-none h-9"
-                aria-label="Filter by issuer"
-              >
-                <option value="all">Issued by: everyone</option>
-                <option value="customer">Customers (paid online)</option>
-                {[...new Set(vouchers.map((v) => v.createdBy).filter(Boolean))].map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-              <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold tracking-wider">
-                Total: {vouchers.length}
-              </span>
-            </div>
-          </div>
-          <div className="overflow-x-auto table-scroll">
-            <table className="data-table w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="bg-surface text-tertiary border-b border-surface-container-high text-xs font-semibold tracking-wider">
-                  <th className="">VOUCHER CODE</th>
-                  <th className="">PLAN</th>
-                  <th className="">STATUS</th>
-                  <th className="">BUYER</th>
-                  <th className="">ISSUED BY</th>
-                  <th className="">CREATED</th>
-                  <th className="">EXPIRES</th>
-                  <th className="text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container-high text-sm text-on-surface">
-                {vouchers.filter((v) =>
-                  issuerFilter === 'all' ? true : issuerFilter === 'customer' ? !v.createdBy : v.createdBy === issuerFilter
-                ).map((v) => (
-                  <tr key={v.id} className={`hover:bg-surface-container-low/50 transition-colors ${v.status === 'EXPIRED' ? 'opacity-75' : ''}`}>
-                    <td className="">
-                      <span className={`text-lg font-mono tracking-[2px] ${v.status === 'UNUSED' ? 'text-primary' : v.status === 'EXPIRED' ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
-                        {v.code}
-                      </span>
-                      {v.boundMac && (
-                        <div className="flex items-center gap-1 text-xs text-on-surface-variant mt-1">
-                          <Icon name="lock" className="text-[14px]!" />
-                          <span className="font-mono">{v.boundMac}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="">
-                      {v.customDurationMinutes != null
-                        ? <>Custom · {formatDuration(v.customDurationMinutes)}</>
-                        : v.plan?.name}
-                    </td>
-                    <td className=""><StatusPill status={v.status} /></td>
-                    <td className="">{v.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
-                    <td className="">
-                      {v.createdBy
-                        ? <span className="capitalize">{v.createdBy}</span>
-                        : <span className="text-on-surface-variant">{v.phoneNumber ? 'Customer' : '—'}</span>}
-                    </td>
-                    <td className="text-on-surface-variant whitespace-nowrap">{fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</td>
-                    <td className="text-on-surface-variant whitespace-nowrap">{v.expiresAt ? `${fmtDate(v.expiresAt)}, ${fmtTime(v.expiresAt)}` : '—'}</td>
-                    <td className="text-right whitespace-nowrap">
-                      <button onClick={() => copy(v.code)} className="text-tertiary hover:text-primary transition-colors p-1 cursor-pointer" aria-label={`Copy ${v.code}`}>
-                        <Icon name={copied === v.code ? 'check' : 'content_copy'} className="text-[20px]!" />
-                      </button>
-                      {v.status === 'ACTIVE' && (
-                        <button
-                          onClick={() => api(`/admin/vouchers/${v.id}/revoke`, { method: 'PATCH', auth }).then(load).catch(() => {})}
-                          className="text-tertiary hover:text-error transition-colors p-1 cursor-pointer"
-                          aria-label={`Disable ${v.code}`}
-                          title="Disable — kicks the device off and expires the voucher"
-                        >
-                          <Icon name="block" className="text-[20px]!" />
-                        </button>
-                      )}
-                      {v.boundMac && (
-                        <button
-                          onClick={() => api(`/admin/vouchers/${v.id}/unbind`, { method: 'PATCH', auth }).then(load).catch(() => {})}
-                          className="text-tertiary hover:text-primary transition-colors p-1 cursor-pointer"
-                          aria-label={`Unbind ${v.code} from its device`}
-                          title="Unbind from device"
-                        >
-                          <Icon name="link_off" className="text-[20px]!" />
-                        </button>
-                      )}
-                      {v.status === 'UNUSED' && (
-                        <button
-                          onClick={() => api(`/admin/vouchers/${v.id}`, { method: 'DELETE', auth }).then(load).catch(() => {})}
-                          className="text-tertiary hover:text-error transition-colors p-1 cursor-pointer"
-                          aria-label={`Delete ${v.code}`}
-                        >
-                          <Icon name="delete" className="text-[20px]!" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {vouchers.length === 0 && (
-                  <tr><td className="text-on-surface-variant" colSpan={8}>No vouchers yet — generate a batch above.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Print preview */}
-        <div className="lg:col-span-1">
-          <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-container-highest/50 p-4 lg:sticky lg:top-24">
-            <h3 className="text-lg font-semibold text-on-surface mb-4">Print Preview</h3>
-            <div className="border-2 border-dashed border-outline-variant p-4 rounded-lg bg-surface flex flex-col gap-4 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-2xl font-bold text-primary leading-none">SPA WiFi</p>
-                  <p className="text-xs font-semibold tracking-wider text-tertiary mt-1">INTERNET ACCESS</p>
-                </div>
-                <Icon name="wifi" filled className="text-primary-container text-[32px]!" />
-              </div>
-              <div className="text-center py-4 bg-background rounded border border-surface-container-high">
-                <p className="text-xs font-semibold tracking-wider text-tertiary mb-1">ACCESS CODE</p>
-                <p className="text-3xl font-bold font-mono tracking-[3px] text-on-surface">{previewCode}</p>
-              </div>
-              <div className="flex justify-between items-end border-t border-surface-container-high pt-2">
-                <div>
-                  <p className="text-base font-semibold text-on-surface">{previewName || 'Plan'}</p>
-                  <p className="text-sm text-on-surface-variant">
-                    {isCustom
-                      ? `Valid for ${formatDuration(Number(customMin) || 0)}`
-                      : selectedPlan ? `Valid for ${formatDuration(selectedPlan.durationMinutes)}` : ''}
-                  </p>
-                </div>
-                <p className="text-lg font-semibold text-primary">{!isCustom && selectedPlan ? `KES ${selectedPlan.price}` : ''}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => unusedForPlan.length && printVouchers(unusedForPlan, selectedPlan?.name || '')}
-              disabled={!unusedForPlan.length}
-              className="mt-4 w-full h-12 rounded-lg bg-primary text-on-primary text-base font-semibold flex items-center justify-center gap-2 hover:bg-surface-tint transition-colors shadow-[0_4px_12px_rgba(15,23,42,0.08)] active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              <Icon name="print" className="text-[20px]!" />
-              Print {unusedForPlan.length} Unused Voucher{unusedForPlan.length === 1 ? '' : 's'}
-            </button>
-            <p className="text-sm text-on-surface-variant mt-3 text-center">
-              Standard 85×54mm format.<br />Optimized for thermal printers.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -221,6 +221,135 @@ public class AdminController {
         return voucherRepository.findTop100ByOrderByCreatedAtDesc();
     }
 
+    /** Headline counts for the voucher page, over the whole stock not just a page of it. */
+    @GetMapping("/vouchers/summary")
+    public Map<String, Object> voucherSummary() {
+        List<Voucher> all = voucherRepository.findAll();
+        long unused = all.stream().filter(v -> v.getStatus() == Voucher.Status.UNUSED).count();
+        long active = all.stream().filter(v -> v.getStatus() == Voucher.Status.ACTIVE).count();
+        long expired = all.stream().filter(v -> v.getStatus() == Voucher.Status.EXPIRED).count();
+        long redeemed = active + expired; // anything that left the shelf
+        long batches = all.stream()
+                .map(Voucher::getBatchId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .count();
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("total", all.size());
+        out.put("unused", unused);
+        out.put("active", active);
+        out.put("expired", expired);
+        out.put("redeemed", redeemed);
+        out.put("batches", batches);
+        out.put("redemptionPercent", all.isEmpty() ? 0
+                : BigDecimal.valueOf(redeemed * 100.0 / all.size())
+                        .setScale(1, java.math.RoundingMode.HALF_UP));
+        return out;
+    }
+
+    /**
+     * The whole stock as CSV, for handing to a reseller or keeping a record
+     * outside the system. Streamed as a download rather than JSON.
+     */
+    @GetMapping(value = "/vouchers/export", produces = "text/csv")
+    public org.springframework.http.ResponseEntity<String> exportVouchers(
+            @RequestParam(required = false) String status) {
+        StringBuilder csv = new StringBuilder("code,plan,price,duration_minutes,status,created,activated,expires,bound_mac,batch_id,created_by\n");
+        voucherRepository.findAll().stream()
+                .filter(v -> status == null || status.isBlank()
+                        || v.getStatus().name().equalsIgnoreCase(status))
+                .sorted(java.util.Comparator.comparing(Voucher::getCreatedAt).reversed())
+                .forEach(v -> csv.append(String.join(",",
+                        csvCell(v.getCode()),
+                        csvCell(v.getPlan() == null ? "" : v.getPlan().getName()),
+                        csvCell(v.getPlan() == null ? "" : String.valueOf(v.getPlan().getPrice())),
+                        String.valueOf(v.getEffectiveDurationMinutes()),
+                        v.getStatus().name(),
+                        String.valueOf(v.getCreatedAt()),
+                        v.getActivatedAt() == null ? "" : String.valueOf(v.getActivatedAt()),
+                        v.getExpiresAt() == null ? "" : String.valueOf(v.getExpiresAt()),
+                        csvCell(v.getBoundMac()),
+                        v.getBatchId() == null ? "" : String.valueOf(v.getBatchId()),
+                        csvCell(v.getCreatedBy()))).append("\n"));
+
+        String filename = "vouchers-" + java.time.LocalDate.now() + ".csv";
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                .body(csv.toString());
+    }
+
+    /** Quotes any cell containing a comma or quote, so the CSV cannot break. */
+    private static String csvCell(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    public record BulkRequest(@NotNull List<Long> ids) {
+    }
+
+    /**
+     * Disables many active vouchers at once, and deletes unused ones. Each
+     * id is reported separately so one failure does not hide the rest.
+     */
+    @PostMapping("/vouchers/bulk-revoke")
+    public Map<String, Object> bulkRevoke(@Valid @RequestBody BulkRequest request) {
+        List<String> done = new java.util.ArrayList<>();
+        Map<String, String> skipped = new java.util.LinkedHashMap<>();
+        for (Long id : request.ids()) {
+            Voucher voucher = voucherRepository.findById(id).orElse(null);
+            if (voucher == null) {
+                skipped.put(String.valueOf(id), "no longer exists");
+                continue;
+            }
+            if (voucher.getStatus() != Voucher.Status.ACTIVE) {
+                skipped.put(voucher.getCode(), "not active");
+                continue;
+            }
+            try {
+                mikrotikService.removeVoucher(voucher);
+            } catch (Exception routerDown) {
+                // Still mark it dead here; the router sync will catch up.
+                skipped.put(voucher.getCode(), "router unreachable, marked expired anyway");
+            }
+            voucher.setStatus(Voucher.Status.EXPIRED);
+            voucher.setExpiresAt(java.time.Instant.now());
+            voucherRepository.save(voucher);
+            done.add(voucher.getCode());
+        }
+        return Map.of("revoked", done, "skipped", skipped);
+    }
+
+    @PostMapping("/vouchers/bulk-delete")
+    public Map<String, Object> bulkDelete(@Valid @RequestBody BulkRequest request) {
+        List<String> done = new java.util.ArrayList<>();
+        Map<String, String> skipped = new java.util.LinkedHashMap<>();
+        for (Long id : request.ids()) {
+            Voucher voucher = voucherRepository.findById(id).orElse(null);
+            if (voucher == null) {
+                skipped.put(String.valueOf(id), "no longer exists");
+                continue;
+            }
+            if (voucher.getStatus() != Voucher.Status.UNUSED) {
+                skipped.put(voucher.getCode(), "already used — delete would lose the record");
+                continue;
+            }
+            try {
+                mikrotikService.removeVoucher(voucher);
+            } catch (Exception routerDown) {
+                // The hotspot user may linger; deleting the row is still right.
+            }
+            voucherRepository.delete(voucher);
+            done.add(voucher.getCode());
+        }
+        return Map.of("deleted", done, "skipped", skipped);
+    }
+
     @PostMapping("/vouchers/generate")
     @ResponseStatus(HttpStatus.CREATED)
     public List<Voucher> generateVouchers(@Valid @RequestBody GenerateRequest request,

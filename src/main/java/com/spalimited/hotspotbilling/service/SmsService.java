@@ -1,6 +1,7 @@
 package com.spalimited.hotspotbilling.service;
 
 import com.spalimited.hotspotbilling.config.SmsProperties;
+import com.spalimited.hotspotbilling.domain.OutboundMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class SmsService {
 
     private final SmsProperties props;
     private final WhatsappService whatsappService;
+    private final OutboxService outboxService;
     private final HttpClient http = HttpClient.newHttpClient();
 
     public boolean isEnabled() {
@@ -59,21 +61,42 @@ public class SmsService {
 
     /**
      * Best-effort single send that never throws. Tries WhatsApp first when
-     * it is configured (cheaper and richer), then falls back to SMS.
+     * it is configured (cheaper and richer), then falls back to SMS. Every
+     * attempt is written to the outbox, including the ones that fail and the
+     * ones skipped because nothing is configured, so the log is the whole
+     * picture rather than only the successes.
      */
     public void trySend(String phoneNumber, String message) {
-        if (whatsappService != null && whatsappService.isEnabled()
-                && whatsappService.send("+" + phoneNumber, message)) {
-            return;
+        trySend(phoneNumber, message, null, null, null);
+    }
+
+    /** As above, tagged with a campaign reference and the sender. */
+    public void trySend(String phoneNumber, String message, String recipientName,
+                        String campaignRef, String sentBy) {
+        if (whatsappService != null && whatsappService.isEnabled()) {
+            boolean ok = whatsappService.send("+" + phoneNumber, message);
+            outboxService.record(OutboundMessage.Channel.WHATSAPP, phoneNumber, recipientName,
+                    message, ok, ok ? null : "WhatsApp gateway rejected the message",
+                    campaignRef, sentBy);
+            if (ok) {
+                return;
+            }
+            // Fall through and try SMS rather than giving up on the customer.
         }
         if (!isEnabled()) {
             log.info("SMS disabled — would have sent to {}: {}", phoneNumber, message);
+            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
+                    false, "SMS is not configured", campaignRef, sentBy);
             return;
         }
         try {
             sendBulk(List.of(phoneNumber), message);
+            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
+                    true, null, campaignRef, sentBy);
         } catch (Exception e) {
             log.warn("SMS to {} failed: {}", phoneNumber, e.getMessage());
+            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
+                    false, e.getMessage(), campaignRef, sentBy);
         }
     }
 
