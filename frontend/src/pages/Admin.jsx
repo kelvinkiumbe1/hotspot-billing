@@ -11,6 +11,7 @@ import ActiveUsersPage from './admin/ActiveUsers.jsx'
 import BrandingPage from './admin/Branding.jsx'
 import LeadsPage from './admin/Leads.jsx'
 import AgentsPage from './admin/Agents.jsx'
+import EquipmentPage from './admin/Equipment.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -267,6 +268,7 @@ const NAV_GROUPS = [
       { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering' },
       { key: 'plans', label: 'Plans', icon: 'inventory_2' },
       { key: 'routers', label: 'Routers', icon: 'router' },
+      { key: 'equipment', label: 'Equipment', icon: 'inventory_2' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
     ],
   },
@@ -479,6 +481,7 @@ const TAB_TITLES = {
   active: 'Live Sessions',
   leads: 'Leads',
   agents: 'Agents & Batches',
+  equipment: 'Equipment',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -560,6 +563,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'leads' && <LeadsPage auth={auth} />}
         {tab === 'agents' && <AgentsPage auth={auth} />}
+        {tab === 'equipment' && <EquipmentPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <Vouchers auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
@@ -621,7 +625,11 @@ function RevenueChart({ payments, days }) {
 }
 
 function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wide, index = 0, trend }) {
-  const shown = useCountUp(value)
+  // Some cards show a duration or a dash rather than a number; counting up
+  // to those would render 0, so they pass straight through.
+  const numeric = value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value))
+  const counted = useCountUp(numeric ? value : 0)
+  const shown = numeric ? counted : value
   return (
     <div
       className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up ${
@@ -2150,7 +2158,134 @@ function PriorityBadge({ priority }) {
   )
 }
 
+/** Minutes as something a person reads at a glance: "2h 15m", "3 days". */
+function humanMinutes(mins) {
+  if (mins === null || mins === undefined) return 'No data yet'
+  if (mins < 1) return 'Under a minute'
+  if (mins < 60) return `${mins}m`
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ${mins % 60}m`
+  const days = Math.floor(mins / 1440)
+  const hours = Math.floor((mins % 1440) / 60)
+  return `${days}d ${hours}h`
+}
+
+function TicketAnalytics({ auth }) {
+  const [data, setData] = useState(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    api('/admin/tickets/analytics', { auth }).then(setData).catch(() => setFailed(true))
+  }, [auth])
+
+  if (failed) {
+    return (
+      <div className="p-8 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <p className="text-on-surface-variant">Could not load ticket analytics. Is the server running?</p>
+      </div>
+    )
+  }
+  if (!data) return <Skeleton className="h-72" />
+
+  const peak = Math.max(1, ...data.perDay.map((d) => d.count))
+  const statusColours = {
+    OPEN: 'bg-[#f59e0b]',
+    IN_PROGRESS: 'bg-primary',
+    RESOLVED: 'bg-secondary',
+  }
+  const priorityColours = { HIGH: 'bg-error', MEDIUM: 'bg-[#f59e0b]', LOW: 'bg-secondary' }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Opened This Week" icon="inbox" value={data.openedLast7Days} />
+        <KpiCard
+          label="Awaiting First Reply"
+          icon="hourglass_empty"
+          value={data.awaitingFirstReply}
+          accent={data.awaitingFirstReply > 0 ? 'border-t-error' : undefined}
+        />
+        <KpiCard label="Median First Reply" icon="schedule" value={humanMinutes(data.medianFirstReplyMinutes)} />
+        <KpiCard label="Average Time To Resolve" icon="task_alt" value={humanMinutes(data.avgResolveMinutes)} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30">
+          <CardLabel>Tickets opened, last 14 days</CardLabel>
+          <div className="mt-4 flex items-end gap-1.5 h-32">
+            {data.perDay.map((d) => (
+              <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full gap-1"
+                title={`${d.count} on ${d.date}`}>
+                <span className="text-[10px] text-on-surface-variant">{d.count || ''}</span>
+                <div
+                  className={`w-full rounded-t ${d.count ? 'bg-primary' : 'bg-surface-container-high'}`}
+                  style={{ height: `${Math.max(4, (d.count / peak) * 100)}%` }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between text-[10px] text-on-surface-variant">
+            <span>{data.perDay[0]?.date}</span>
+            <span>Today</span>
+          </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 space-y-5">
+          <div>
+            <CardLabel>By status</CardLabel>
+            <div className="mt-3 space-y-2">
+              {Object.entries(data.byStatus).map(([status, count]) => (
+                <div key={status} className="flex items-center gap-3">
+                  <span className="text-sm w-28 shrink-0">{status.replace(/_/g, ' ').toLowerCase()}</span>
+                  <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
+                    <div className={`h-full rounded-full ${statusColours[status] || 'bg-primary'}`}
+                      style={{ width: `${data.total ? (count / data.total) * 100 : 0}%` }} />
+                  </div>
+                  <span className="text-sm font-semibold w-8 text-right">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <CardLabel>By priority</CardLabel>
+            <div className="mt-3 space-y-2">
+              {Object.entries(data.byPriority).map(([priority, count]) => (
+                <div key={priority} className="flex items-center gap-3">
+                  <span className="text-sm w-28 shrink-0">{priority.toLowerCase()}</span>
+                  <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
+                    <div className={`h-full rounded-full ${priorityColours[priority] || 'bg-primary'}`}
+                      style={{ width: `${data.total ? (count / data.total) * 100 : 0}%` }} />
+                  </div>
+                  <span className="text-sm font-semibold w-8 text-right">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30">
+        <CardLabel>What customers complain about most</CardLabel>
+        {data.topSubjects.length === 0 ? (
+          <p className="mt-3 text-sm text-on-surface-variant">No tickets yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-outline-variant/30">
+            {data.topSubjects.map((s) => (
+              <li key={s.subject} className="py-2.5 flex items-center justify-between gap-4">
+                <span className="text-sm">{s.subject}</span>
+                <span className="text-sm font-semibold text-on-surface-variant shrink-0">
+                  {s.count} {s.count === 1 ? 'ticket' : 'tickets'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Support({ auth }) {
+  const [view, setView] = useState('inbox')
   const [tickets, setTickets] = useState(null)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
@@ -2210,7 +2345,7 @@ function Support({ auth }) {
           <p className="text-base text-on-surface-variant">Help customers with connection and payment issues.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {Object.keys(TICKET_FILTERS).map((f) => (
+          {view === 'inbox' && Object.keys(TICKET_FILTERS).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -2223,10 +2358,28 @@ function Support({ auth }) {
               {f}
             </button>
           ))}
+          <div className="flex rounded-full border border-outline-variant overflow-hidden ml-1">
+            {[['inbox', 'Inbox', 'inbox'], ['analytics', 'Analytics', 'insights']].map(([key, label, icon]) => (
+              <button
+                key={key}
+                onClick={() => setView(key)}
+                aria-pressed={view === key}
+                className={`px-4 py-1.5 text-sm flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  view === key
+                    ? 'bg-inverse-surface text-primary-fixed font-semibold'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <Icon name={icon} className="text-[16px]!" /> {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+      {view === 'analytics' && <TicketAnalytics auth={auth} />}
+
+      <div className={`grid grid-cols-1 lg:grid-cols-5 gap-6 items-start ${view === 'analytics' ? 'hidden' : ''}`}>
         {/* Ticket list */}
         <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-outline-variant/30 overflow-hidden">
           <div className="p-4 border-b border-outline-variant/30">
