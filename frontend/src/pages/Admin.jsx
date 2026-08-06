@@ -12,6 +12,7 @@ import BrandingPage from './admin/Branding.jsx'
 import LeadsPage from './admin/Leads.jsx'
 import AgentsPage from './admin/Agents.jsx'
 import EquipmentPage from './admin/Equipment.jsx'
+import AnalyticsPage from './admin/Analytics.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -252,7 +253,10 @@ function Login({ onLogin }) {
 const NAV_GROUPS = [
   {
     label: null,
-    items: [{ key: 'overview', label: 'Overview', icon: 'dashboard' }],
+    items: [
+      { key: 'overview', label: 'Overview', icon: 'dashboard' },
+      { key: 'analytics', label: 'Analytics', icon: 'insights' },
+    ],
   },
   {
     label: 'Customers',
@@ -464,6 +468,7 @@ const TAB_TITLES = {
   leads: 'Leads',
   agents: 'Agents & Batches',
   equipment: 'Equipment',
+  analytics: 'Analytics',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -546,6 +551,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'leads' && <LeadsPage auth={auth} />}
         {tab === 'agents' && <AgentsPage auth={auth} />}
         {tab === 'equipment' && <EquipmentPage auth={auth} />}
+        {tab === 'analytics' && <AnalyticsPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <Vouchers auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
