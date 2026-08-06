@@ -113,9 +113,9 @@ function TechLogin({ onLogin }) {
           the card so nothing has to fight the image for legibility. */}
       <img src={loginValley} alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="relative z-10 w-full max-w-sm">
-        <form onSubmit={submit} className="bg-surface-container-lowest rounded-2xl shadow-[0_16px_40px_rgba(0,0,102,0.35)] border-t-4 border-primary p-7 flex flex-col gap-4">
+        <form onSubmit={submit} className="bg-surface-container-lowest rounded-2xl shadow-[0_16px_40px_rgba(77,17,17,0.35)] border-t-4 border-primary p-7 flex flex-col gap-4">
           <div className="flex flex-col items-center mb-2">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,102,0.25)] mb-3">
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_8px_16px_rgba(77,17,17,0.25)] mb-3">
               <Icon name="engineering" filled className="text-on-primary text-[32px]!" />
             </div>
             <h1 className="text-2xl font-bold text-on-surface">Field Connect</h1>
@@ -250,7 +250,7 @@ function TechShell({ auth, onLogout }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="tech-nav fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-4px_12px_rgba(0,0,102,0.15)] rounded-t-xl md:hidden">
+      <nav className="tech-nav fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-4px_12px_rgba(77,17,17,0.15)] rounded-t-xl md:hidden">
         {TECH_NAV.map((item) => (
           <button
             key={item.key}

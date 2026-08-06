@@ -93,78 +93,79 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Field Connect (technician) theme: chalk canvas, deep-navy ink.      */
-/* A full page of saturated chalk glares, so content sits on white     */
-/* cards and the chalk shows through as a warm frame. Navy carries     */
-/* every action; navy-on-chalk measures ~17:1 for daylight use.        */
+/* Field Connect (technician) theme: sand canvas, ruby-red ink.        */
+/* Content sits on near-white cards so the sand frames rather than     */
+/* washes it out. Ruby on sand measures ~8:1, fine for daylight.       */
 /* ------------------------------------------------------------------ */
 .tech-theme {
-  --color-background: #ffff99;
-  --color-on-background: #000066;
-  --color-surface: #fffdf0;
-  --color-on-surface: #000066;
-  --color-on-surface-variant: #454584;
+  --color-background: #ffcc99;
+  --color-on-background: #4d1111;
+  --color-surface: #fffaf5;
+  --color-on-surface: #4d1111;
+  --color-on-surface-variant: #7d4034;
   --color-surface-bright: #ffffff;
-  --color-surface-dim: #f2f08a;
-  --color-surface-variant: #e6e2a6;
+  --color-surface-dim: #f2b787;
+  --color-surface-variant: #ecc3a4;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #fffef5;
-  --color-surface-container: #fdfbe6;
-  --color-surface-container-high: #f8f5d5;
-  --color-surface-container-highest: #f2eec2;
+  --color-surface-container-low: #fffaf4;
+  --color-surface-container: #fdf1e6;
+  --color-surface-container-high: #fae4d2;
+  --color-surface-container-highest: #f6d7bf;
 
-  /* Navy is the action colour, with chalk text sitting on it. */
-  --color-primary: #000066;
-  --color-on-primary: #ffff99;
-  --color-primary-container: #000066;
-  --color-on-primary-container: #ffff99;
-  --color-primary-fixed: #000066;
-  --color-primary-fixed-dim: #2a2a8f;
-  --color-surface-tint: #0d0d80;
+  /* Ruby is the action colour, with warm white text on it. */
+  --color-primary: #990000;
+  --color-on-primary: #fff3e8;
+  --color-primary-container: #990000;
+  --color-on-primary-container: #fff3e8;
+  --color-primary-fixed: #990000;
+  --color-primary-fixed-dim: #b52020;
+  --color-surface-tint: #7a0000;
 
-  --color-secondary: #000066;
-  --color-on-secondary: #ffff99;
-  /* Navy at low alpha keeps pills tinted rather than muddy. */
-  --color-secondary-container: rgba(0, 0, 102, 0.1);
-  --color-on-secondary-container: #000066;
+  --color-secondary: #990000;
+  --color-on-secondary: #fff3e8;
+  /* Ruby at low alpha keeps pills tinted rather than muddy. */
+  --color-secondary-container: rgba(153, 0, 0, 0.1);
+  --color-on-secondary-container: #990000;
 
-  --color-outline: #8a8757;
-  --color-outline-variant: #ddd894;
-  --color-error: #a5231c;
+  --color-outline: #a5705a;
+  --color-outline-variant: #e5b795;
+  /* Brighter than ruby so destructive states still read as distinct —
+     every status pill also carries a text label, never colour alone. */
+  --color-error: #c62828;
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
-  --color-on-error-container: #7d1710;
-  --color-tertiary: #4a4a85;
-  --color-inverse-surface: #000066;
+  --color-on-error-container: #8c1d18;
+  --color-tertiary: #8a5a4a;
+  --color-inverse-surface: #4d1111;
 }
 
 /**
- * Navigation surfaces flip back to navy so the layout has an anchor and
- * the chalk canvas reads as light rather than overwhelming. Nesting the
+ * Navigation flips to a ruby panel with sand accents, which anchors the
+ * layout and keeps the sand canvas reading as light. Nesting the
  * overrides means every utility class inside re-colours on its own.
  */
 .tech-theme .tech-nav {
-  --color-surface: #000066;
-  --color-surface-container-lowest: #000066;
-  --color-surface-container-low: #0a0a7a;
-  --color-surface-container: #12127f;
-  --color-surface-container-high: rgba(255, 255, 153, 0.12);
-  --color-surface-container-highest: rgba(255, 255, 153, 0.16);
-  --color-surface-variant: rgba(255, 255, 153, 0.22);
-  --color-surface-bright: #0a0a7a;
-  --color-on-surface: #fffdf0;
-  --color-on-surface-variant: #c6c6e8;
+  --color-surface: #990000;
+  --color-surface-container-lowest: #990000;
+  --color-surface-container-low: #a81212;
+  --color-surface-container: #b31d1d;
+  --color-surface-container-high: rgba(255, 204, 153, 0.14);
+  --color-surface-container-highest: rgba(255, 204, 153, 0.18);
+  --color-surface-variant: rgba(255, 204, 153, 0.24);
+  --color-surface-bright: #a81212;
+  --color-on-surface: #fff3e8;
+  --color-on-surface-variant: #f0c9b2;
 
-  --color-primary: #ffff99;
-  --color-on-primary: #000066;
-  --color-primary-container: rgba(255, 255, 153, 0.18);
-  --color-on-primary-container: #ffff99;
-  --color-secondary: #ffff99;
-  --color-on-secondary: #000066;
-  --color-secondary-container: rgba(255, 255, 153, 0.18);
-  --color-on-secondary-container: #ffff99;
-  --color-outline-variant: rgba(255, 255, 153, 0.2);
-  --color-error: #ff8a80;
+  --color-primary: #ffcc99;
+  --color-on-primary: #990000;
+  --color-primary-container: rgba(255, 204, 153, 0.2);
+  --color-on-primary-container: #ffcc99;
+  --color-secondary: #ffcc99;
+  --color-on-secondary: #990000;
+  --color-secondary-container: rgba(255, 204, 153, 0.2);
+  --color-on-secondary-container: #ffcc99;
+  --color-outline-variant: rgba(255, 204, 153, 0.22);
+  --color-error: #ffb4ab;
 }
 
 /* Material Symbols icon font */
