@@ -47,6 +47,93 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ------------------------------------------------------------------ */
+/* Customer portal theme: black canvas with an amber accent.           */
+/* Re-points the same design tokens, so every existing utility class   */
+/* inside .portal-theme picks up the new palette automatically.        */
+/* ------------------------------------------------------------------ */
+.portal-theme {
+  --color-background: #000000;
+  --color-on-background: #ffffff;
+  --color-surface: #0a0a0a;
+  --color-on-surface: #ffffff;
+  --color-on-surface-variant: #b9b9b9;
+  --color-surface-bright: #161616;
+  --color-surface-dim: #000000;
+  --color-surface-variant: #2b2b2b;
+  --color-surface-container-lowest: #121212;
+  --color-surface-container-low: #191919;
+  --color-surface-container: #202020;
+  --color-surface-container-high: #272727;
+  --color-surface-container-highest: #2f2f2f;
+
+  /* Amber is the single accent; black text on it clears WCAG AAA. */
+  --color-primary: #fdbf2d;
+  --color-on-primary: #000000;
+  --color-primary-container: #fdbf2d;
+  --color-on-primary-container: #000000;
+  --color-primary-fixed: #fdbf2d;
+  --color-primary-fixed-dim: #d9a323;
+  --color-surface-tint: #e0aa22;
+
+  /* Buy buttons share the accent rather than the teal-green brand. */
+  --color-secondary: #fdbf2d;
+  --color-on-secondary: #000000;
+  --color-secondary-container: #3a2c07;
+  --color-on-secondary-container: #fdbf2d;
+
+  --color-outline: #7a7a7a;
+  --color-outline-variant: #3a3a3a;
+  --color-error: #ff8a80;
+  --color-on-error: #000000;
+  --color-error-container: #3b1512;
+  --color-on-error-container: #ffb4ab;
+  --color-tertiary: #cfcfcf;
+  --color-inverse-surface: #f5f5f5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Field Connect (technician) theme: deep onyx with spring green.      */
+/* ------------------------------------------------------------------ */
+.tech-theme {
+  --color-background: #07191e;
+  --color-on-background: #eaf6f4;
+  --color-surface: #0a2027;
+  --color-on-surface: #eaf6f4;
+  --color-on-surface-variant: #9fb8bb;
+  --color-surface-bright: #103038;
+  --color-surface-dim: #051317;
+  --color-surface-variant: #1c3b43;
+  --color-surface-container-lowest: #0c252c;
+  --color-surface-container-low: #102b33;
+  --color-surface-container: #143139;
+  --color-surface-container-high: #183840;
+  --color-surface-container-highest: #1d4048;
+
+  /* Spring green carries actions; onyx text on it clears WCAG AAA. */
+  --color-primary: #02f5a1;
+  --color-on-primary: #07191e;
+  --color-primary-container: #02f5a1;
+  --color-on-primary-container: #07191e;
+  --color-primary-fixed: #02f5a1;
+  --color-primary-fixed-dim: #02c885;
+  --color-surface-tint: #02d68d;
+
+  --color-secondary: #02f5a1;
+  --color-on-secondary: #07191e;
+  --color-secondary-container: #0d3c33;
+  --color-on-secondary-container: #02f5a1;
+
+  --color-outline: #6d8a8f;
+  --color-outline-variant: #24454d;
+  --color-error: #ff8a80;
+  --color-on-error: #07191e;
+  --color-error-container: #3b1512;
+  --color-on-error-container: #ffb4ab;
+  --color-tertiary: #b9d3d6;
+  --color-inverse-surface: #eaf6f4;
+}
+
 /* Material Symbols icon font */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";
@@ -64,6 +151,42 @@ body {
 }
 .material-symbols-outlined.filled {
   font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* ------------------------------------------------------------------ */
+/* Data-dense admin tables: sticky headers, compact rows, zebra hover  */
+/* Applied by adding .data-table to a <table> inside a scroll container */
+/* ------------------------------------------------------------------ */
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface-container-low);
+  padding: 0.625rem 0.75rem;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+  white-space: nowrap;
+  box-shadow: inset 0 -1px 0 var(--color-surface-variant);
+}
+.data-table tbody td {
+  padding: 0.625rem 0.75rem;
+  font-size: 13px;
+  vertical-align: top;
+}
+.data-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+.data-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-surface-container-low) 55%, transparent);
+}
+
+/* Scroll container that keeps sticky headers working */
+.table-scroll {
+  max-height: 70vh;
+  overflow: auto;
 }
 
 /* Keyboard focus visibility (WCAG) */

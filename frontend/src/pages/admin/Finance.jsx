@@ -181,31 +181,31 @@ export default function Finance({ auth }) {
           </div>
           {invoices === null ? <Skeleton className="h-64" /> : (
             <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+              <div className="overflow-x-auto table-scroll">
+                <table className="data-table w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                      <th className="p-4">Invoice</th>
-                      <th className="p-4">Customer</th>
-                      <th className="p-4">Amount</th>
-                      <th className="p-4">Issued</th>
-                      <th className="p-4">Due</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="">Invoice</th>
+                      <th className="">Customer</th>
+                      <th className="">Amount</th>
+                      <th className="">Issued</th>
+                      <th className="">Due</th>
+                      <th className="">Status</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm divide-y divide-surface-variant/30">
                     {invoices.map((i) => (
                       <tr key={i.id} className="hover:bg-surface-container-low/20 transition-colors">
-                        <td className="p-4 font-mono">{i.number}</td>
-                        <td className="p-4">
+                        <td className="font-mono">{i.number}</td>
+                        <td className="">
                           <div className="font-semibold">{i.subscriber?.fullName}</div>
                           <div className="text-xs text-on-surface-variant font-mono">{i.subscriber?.pppoeUsername}</div>
                         </td>
-                        <td className="p-4 font-semibold tabular-nums">{fmtKES(i.amount)}</td>
-                        <td className="p-4 text-on-surface-variant">{i.issuedOn}</td>
-                        <td className="p-4 text-on-surface-variant">{i.dueOn}</td>
-                        <td className="p-4">
+                        <td className="font-semibold tabular-nums">{fmtKES(i.amount)}</td>
+                        <td className="text-on-surface-variant">{i.issuedOn}</td>
+                        <td className="text-on-surface-variant">{i.dueOn}</td>
+                        <td className="">
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
                             i.status === 'PAID' ? 'bg-secondary-container text-on-secondary-container'
                               : i.status === 'CANCELLED' ? 'bg-surface-variant text-on-surface-variant'
@@ -214,7 +214,7 @@ export default function Finance({ auth }) {
                             {i.status === 'PAID' ? 'Paid' : i.status === 'CANCELLED' ? 'Cancelled' : 'Unpaid'}
                           </span>
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="text-right">
                           {i.status === 'UNPAID' && (
                             <button onClick={() => api(`/admin/invoices/${i.id}/cancel`, { method: 'PATCH', auth }).then(loadInvoices)}
                               className="text-xs font-semibold text-error hover:underline cursor-pointer">CANCEL</button>
@@ -223,7 +223,7 @@ export default function Finance({ auth }) {
                       </tr>
                     ))}
                     {invoices.length === 0 && (
-                      <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No invoices yet — they are issued automatically 5 days before a subscription lapses.</td></tr>
+                      <tr><td className="text-on-surface-variant" colSpan={7}>No invoices yet — they are issued automatically 5 days before a subscription lapses.</td></tr>
                     )}
                   </tbody>
                 </table>

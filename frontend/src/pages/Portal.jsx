@@ -256,7 +256,7 @@ function PromoBanner({ promo, onExpire }) {
   if (expired) return null
 
   return (
-    <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
+    <div className="rounded-xl bg-gradient-to-r from-[#7a4a06] to-[#c98a12] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
       <Icon name="celebration" filled className="text-[32px]!" />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-lg leading-tight">{promo.title}</p>
@@ -303,7 +303,7 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
           {discounted != null && discounted < plan.price ? (
             <>
               <p className="text-sm text-on-surface-variant line-through">KES {plan.price}</p>
-              <p className={`font-semibold text-[#b45309] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
+              <p className={`font-semibold text-[#ffd479] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
             </>
           ) : (
             <p className={`font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
@@ -312,7 +312,7 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
       </div>
       <button
         onClick={() => onBuy(discounted != null && discounted < plan.price ? { ...plan, price: discounted } : plan)}
-        className="w-full h-12 bg-gradient-to-r from-secondary to-[#578200] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
+        className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
       >
         <Icon name="payments" /> Buy with M-Pesa
       </button>
@@ -362,7 +362,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
           <div className="text-right pb-1">
             <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
             {valid && price < basePrice && <p className="text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
-            <p className={`text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#b45309]' : 'text-primary') : 'text-outline'}`}>
+            <p className={`text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#ffd479]' : 'text-primary') : 'text-outline'}`}>
               KES {valid ? price : '—'}
             </p>
           </div>
@@ -373,7 +373,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
         <button
           onClick={() => valid && onBuy({ id: 'custom', customMinutes: m, name: `${formatDuration(m)} Custom`, price, bandwidth: custom.bandwidth })}
           disabled={!valid}
-          className="w-full h-12 bg-gradient-to-r from-secondary to-[#578200] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
+          className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
         >
           <Icon name="payments" /> Buy {valid ? formatDuration(m) : ''} with M-Pesa
         </button>
@@ -384,7 +384,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
 
 function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
         <Brand />
       </header>
@@ -392,7 +392,7 @@ function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onPromoEx
       <main className="flex-1 w-full max-w-lg mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
         <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
           <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#00201d]/90 via-[#00201d]/70 to-primary/30"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
           <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
             <div className="flex-1">
               <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
@@ -518,7 +518,7 @@ function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onPromoEx
 
 function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface border-b border-outline-variant flex items-center justify-between px-5 h-16 w-full sticky top-0 z-50">
         <Brand />
         <button
@@ -578,7 +578,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
           <button
             type="submit"
             disabled={sending}
-            className="w-full bg-gradient-to-r from-secondary to-[#578200] text-on-secondary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+            className="w-full bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
           >
             <Icon name="send_money" />
             {sending ? 'Sending request…' : 'Send Payment Request'}
@@ -597,7 +597,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
 
 function WaitingScreen({ onCancel }) {
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col items-center justify-center">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col items-center justify-center">
       <main className="w-full max-w-md px-5 flex flex-col items-center py-8">
         <div className="flex items-center gap-2 mb-8">
           <Icon name="wifi" className="text-primary text-[28px]!" />
@@ -719,7 +719,7 @@ function SuccessScreen({ code, note, onHome }) {
   }
 
   return (
-    <div className="bg-background text-on-background flex flex-col min-h-screen relative overflow-hidden">
+    <div className="portal-theme bg-background text-on-background flex flex-col min-h-screen relative overflow-hidden">
       <Confetti />
 
       <main className="flex-grow flex flex-col items-center justify-center px-5 py-8 z-10 w-full max-w-md mx-auto">
@@ -780,7 +780,7 @@ function SuccessScreen({ code, note, onHome }) {
 
 function ErrorScreen({ message, onRetry, onChoosePlan }) {
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface border-b border-outline-variant w-full top-0 z-50 flex items-center justify-between px-5 h-16 sticky">
         <Brand />
         <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Error</span>

@@ -107,9 +107,9 @@ function TechLogin({ onLogin }) {
   }
 
   return (
-    <div className="relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
+    <div className="tech-theme relative bg-background text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
       <img src={loginValley} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#121f00]/60"></div>
+      <div className="absolute inset-0 bg-[#07191e]/80"></div>
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
@@ -187,7 +187,7 @@ function TechShell({ auth, onLogout }) {
   ]
 
   return (
-    <div className="bg-background text-on-background min-h-screen">
+    <div className="tech-theme bg-background text-on-background min-h-screen">
       {/* Desktop drawer */}
       <nav className="hidden md:flex h-screen w-72 rounded-r-xl bg-surface-container-lowest shadow-xl fixed inset-y-0 left-0 z-40 flex-col p-4">
         <div className="flex items-center gap-4 mb-8 p-2">

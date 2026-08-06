@@ -240,63 +240,109 @@ function Login({ onLogin }) {
 /* Dashboard shell: sidebar + topbar                                   */
 /* ------------------------------------------------------------------ */
 
-const NAV = [
-  { key: 'overview', label: 'Overview', icon: 'dashboard' },
-  { key: 'plans', label: 'Plans', icon: 'wifi_tethering' },
-  { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
-  { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
-  { key: 'payments', label: 'Payments', icon: 'payments' },
-  { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
-  { key: 'finance', label: 'Finance', icon: 'assessment' },
-  { key: 'routers', label: 'Routers', icon: 'router' },
-  { key: 'branches', label: 'Branches', icon: 'add_business' },
-  { key: 'support', label: 'Support', icon: 'support_agent' },
-  { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
-  { key: 'messages', label: 'Messages', icon: 'chat' },
-  { key: 'team', label: 'Team', icon: 'group' },
-  { key: 'audit', label: 'Audit Log', icon: 'history' },
-  { key: 'settings', label: 'Settings', icon: 'settings' },
+/**
+ * Grouped so the sidebar stays scannable — a flat list of fifteen items
+ * is the "overloaded nav" anti-pattern.
+ */
+const NAV_GROUPS = [
+  {
+    label: null,
+    items: [{ key: 'overview', label: 'Overview', icon: 'dashboard' }],
+  },
+  {
+    label: 'Selling',
+    items: [
+      { key: 'plans', label: 'Plans', icon: 'wifi_tethering' },
+      { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
+      { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { key: 'payments', label: 'Payments', icon: 'payments' },
+      { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
+      { key: 'finance', label: 'Finance', icon: 'assessment' },
+    ],
+  },
+  {
+    label: 'Network',
+    items: [
+      { key: 'routers', label: 'Routers', icon: 'router' },
+      { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
+      { key: 'branches', label: 'Branches', icon: 'add_business' },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { key: 'support', label: 'Support', icon: 'support_agent' },
+      { key: 'messages', label: 'Messages', icon: 'chat' },
+      { key: 'team', label: 'Team', icon: 'group' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { key: 'audit', label: 'Audit Log', icon: 'history' },
+      { key: 'settings', label: 'Settings', icon: 'settings' },
+    ],
+  },
 ]
+
+const NAV = NAV_GROUPS.flatMap((g) => g.items)
 
 function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
   return (
-    <div className="flex flex-col h-full py-6 px-4">
-      <div className="mb-8 px-4 flex items-center gap-3">
-        <Icon name="wifi_tethering" filled className="text-primary-fixed text-[36px]!" />
+    <div className="flex flex-col h-full py-5 px-3">
+      <div className="mb-5 px-4 flex items-center gap-3 shrink-0">
+        <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]!" />
         <div>
-          <h1 className="text-2xl font-bold text-primary-fixed leading-tight">HotspotPro</h1>
-          <p className="text-xs font-semibold tracking-wider text-surface-variant/80">NETWORK MANAGER</p>
+          <p className="text-xl font-bold text-primary-fixed leading-tight">HotspotPro</p>
+          <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70">NETWORK MANAGER</p>
         </div>
       </div>
-      <ul className="flex flex-col gap-2 flex-1">
-        {NAV.map((item) => (
-          <li key={item.key}>
-            <button
-              onClick={() => onNav(item.key)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer active:scale-95 transition-all ${
-                tab === item.key
-                  ? 'bg-primary-container text-on-primary-container'
-                  : 'text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10'
-              }`}
-            >
-              <Icon name={item.icon} filled={tab === item.key} />
-              <span className="text-lg font-semibold">{item.label}</span>
-              {badges[item.key] > 0 && (
-                <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center">
-                  {badges[item.key]}
-                </span>
-              )}
-            </button>
-          </li>
+      <nav className="flex flex-col gap-4 flex-1 overflow-y-auto pr-1">
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.label || `g${gi}`}>
+            {group.label && (
+              <p className="px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50">
+                {group.label}
+              </p>
+            )}
+            <ul className="flex flex-col gap-0.5">
+              {group.items.map((item) => (
+                <li key={item.key}>
+                  <button
+                    onClick={() => onNav(item.key)}
+                    aria-current={tab === item.key ? 'page' : undefined}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                      tab === item.key
+                        ? 'bg-primary-container text-on-primary-container font-semibold'
+                        : 'text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10'
+                    }`}
+                  >
+                    <Icon name={item.icon} filled={tab === item.key} className="text-[20px]!" />
+                    <span className="text-base">{item.label}</span>
+                    {badges[item.key] > 0 && (
+                      <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center">
+                        {badges[item.key]}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
-      <div className="mt-auto pt-4 border-t border-surface-variant/20">
+      </nav>
+      <div className="mt-4 pt-3 border-t border-surface-variant/20 shrink-0">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10 rounded-lg cursor-pointer active:scale-95 transition-all"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10 rounded-lg cursor-pointer transition-colors"
         >
-          <Icon name="logout" />
-          <span className="text-lg font-semibold">Logout</span>
+          <Icon name="logout" className="text-[20px]!" />
+          <span className="text-base">Logout</span>
         </button>
       </div>
     </div>
@@ -667,29 +713,29 @@ function Overview({ auth, onNav }) {
             VIEW ALL <Icon name="arrow_forward" className="text-[16px]!" />
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto table-scroll">
+          <table className="data-table w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="p-4 font-semibold">Phone</th>
-                <th className="p-4 font-semibold">Plan</th>
-                <th className="p-4 font-semibold">Amount</th>
-                <th className="p-4 font-semibold">Status</th>
-                <th className="p-4 font-semibold">Time</th>
+                <th className="font-semibold">Phone</th>
+                <th className="font-semibold">Plan</th>
+                <th className="font-semibold">Amount</th>
+                <th className="font-semibold">Status</th>
+                <th className="font-semibold">Time</th>
               </tr>
             </thead>
             <tbody className="text-sm text-on-surface divide-y divide-outline-variant/20">
               {recent.map((p) => (
                 <tr key={p.id} className="hover:bg-surface-container-low/50 transition-colors">
-                  <td className="p-4 font-medium">{p.phoneNumber}</td>
-                  <td className="p-4">{p.plan?.name}</td>
-                  <td className="p-4 font-medium tabular-nums">{fmtKES(p.amount)}</td>
-                  <td className="p-4"><StatusPill status={p.status} /></td>
-                  <td className="p-4 text-on-surface-variant">{relativeTime(p.createdAt)}</td>
+                  <td className="font-medium">{p.phoneNumber}</td>
+                  <td className="">{p.plan?.name}</td>
+                  <td className="font-medium tabular-nums">{fmtKES(p.amount)}</td>
+                  <td className=""><StatusPill status={p.status} /></td>
+                  <td className="text-on-surface-variant">{relativeTime(p.createdAt)}</td>
                 </tr>
               ))}
               {recent.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={5}>No payments yet.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={5}>No payments yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -887,33 +933,33 @@ function Plans({ auth }) {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+        <div className="overflow-x-auto table-scroll">
+          <table className="data-table w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="p-4 border-b border-surface-variant/50">Plan Name</th>
-                <th className="p-4 border-b border-surface-variant/50">Price</th>
-                <th className="p-4 border-b border-surface-variant/50">Duration</th>
-                <th className="p-4 border-b border-surface-variant/50">Bandwidth</th>
-                <th className="p-4 border-b border-surface-variant/50">Status</th>
-                <th className="p-4 border-b border-surface-variant/50 text-right">Enabled</th>
+                <th className="border-b border-surface-variant/50">Plan Name</th>
+                <th className="border-b border-surface-variant/50">Price</th>
+                <th className="border-b border-surface-variant/50">Duration</th>
+                <th className="border-b border-surface-variant/50">Bandwidth</th>
+                <th className="border-b border-surface-variant/50">Status</th>
+                <th className="border-b border-surface-variant/50 text-right">Enabled</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors">
-                  <td className="p-4">
+                  <td className="">
                     <div className="text-lg font-semibold text-on-background">{p.name}</div>
                     {p.bandwidth && <div className="text-xs font-semibold tracking-wider text-on-surface-variant mt-1">Rate limit: {p.bandwidth}</div>}
                   </td>
-                  <td className="p-4 text-lg font-semibold tabular-nums">{fmtKES(p.price)}</td>
-                  <td className="p-4">
+                  <td className="text-lg font-semibold tabular-nums">{fmtKES(p.price)}</td>
+                  <td className="">
                     <div>{formatDuration(p.durationMinutes)}</div>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
                       {planGroup(p.durationMinutes)}
                     </span>
                   </td>
-                  <td className="p-4">
+                  <td className="">
                     {p.bandwidth ? (
                       <div className="flex items-center gap-2">
                         <Icon name="speed" className="text-[16px]! text-primary" />
@@ -925,14 +971,14 @@ function Plans({ auth }) {
                       {p.effectiveMaxDevices || 1} device{(p.effectiveMaxDevices || 1) > 1 ? 's' : ''}
                     </div>
                   </td>
-                  <td className="p-4"><StatusPill status={p.active ? 'ACTIVE' : 'INACTIVE'} /></td>
-                  <td className="p-4 text-right">
+                  <td className=""><StatusPill status={p.active ? 'ACTIVE' : 'INACTIVE'} /></td>
+                  <td className="text-right">
                     <Toggle checked={p.active} onChange={() => api(`/admin/plans/${p.id}/toggle`, { method: 'PATCH', auth }).then(load)} />
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={6}>No plans found.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={6}>No plans found.</td></tr>
               )}
             </tbody>
           </table>
@@ -1150,18 +1196,18 @@ function Vouchers({ auth }) {
               </span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+          <div className="overflow-x-auto table-scroll">
+            <table className="data-table w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-surface text-tertiary border-b border-surface-container-high text-xs font-semibold tracking-wider">
-                  <th className="p-4">VOUCHER CODE</th>
-                  <th className="p-4">PLAN</th>
-                  <th className="p-4">STATUS</th>
-                  <th className="p-4">BUYER</th>
-                  <th className="p-4">ISSUED BY</th>
-                  <th className="p-4">CREATED</th>
-                  <th className="p-4">EXPIRES</th>
-                  <th className="p-4 text-right">ACTIONS</th>
+                  <th className="">VOUCHER CODE</th>
+                  <th className="">PLAN</th>
+                  <th className="">STATUS</th>
+                  <th className="">BUYER</th>
+                  <th className="">ISSUED BY</th>
+                  <th className="">CREATED</th>
+                  <th className="">EXPIRES</th>
+                  <th className="text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high text-sm text-on-surface">
@@ -1169,7 +1215,7 @@ function Vouchers({ auth }) {
                   issuerFilter === 'all' ? true : issuerFilter === 'customer' ? !v.createdBy : v.createdBy === issuerFilter
                 ).map((v) => (
                   <tr key={v.id} className={`hover:bg-surface-container-low/50 transition-colors ${v.status === 'EXPIRED' ? 'opacity-75' : ''}`}>
-                    <td className="p-4">
+                    <td className="">
                       <span className={`text-lg font-mono tracking-[2px] ${v.status === 'UNUSED' ? 'text-primary' : v.status === 'EXPIRED' ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
                         {v.code}
                       </span>
@@ -1180,21 +1226,21 @@ function Vouchers({ auth }) {
                         </div>
                       )}
                     </td>
-                    <td className="p-4">
+                    <td className="">
                       {v.customDurationMinutes != null
                         ? <>Custom · {formatDuration(v.customDurationMinutes)}</>
                         : v.plan?.name}
                     </td>
-                    <td className="p-4"><StatusPill status={v.status} /></td>
-                    <td className="p-4">{v.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
-                    <td className="p-4">
+                    <td className=""><StatusPill status={v.status} /></td>
+                    <td className="">{v.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
+                    <td className="">
                       {v.createdBy
                         ? <span className="capitalize">{v.createdBy}</span>
                         : <span className="text-on-surface-variant">{v.phoneNumber ? 'Customer' : '—'}</span>}
                     </td>
-                    <td className="p-4 text-on-surface-variant whitespace-nowrap">{fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</td>
-                    <td className="p-4 text-on-surface-variant whitespace-nowrap">{v.expiresAt ? `${fmtDate(v.expiresAt)}, ${fmtTime(v.expiresAt)}` : '—'}</td>
-                    <td className="p-4 text-right whitespace-nowrap">
+                    <td className="text-on-surface-variant whitespace-nowrap">{fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</td>
+                    <td className="text-on-surface-variant whitespace-nowrap">{v.expiresAt ? `${fmtDate(v.expiresAt)}, ${fmtTime(v.expiresAt)}` : '—'}</td>
+                    <td className="text-right whitespace-nowrap">
                       <button onClick={() => copy(v.code)} className="text-tertiary hover:text-primary transition-colors p-1 cursor-pointer" aria-label={`Copy ${v.code}`}>
                         <Icon name={copied === v.code ? 'check' : 'content_copy'} className="text-[20px]!" />
                       </button>
@@ -1231,7 +1277,7 @@ function Vouchers({ auth }) {
                   </tr>
                 ))}
                 {vouchers.length === 0 && (
-                  <tr><td className="p-4 text-on-surface-variant" colSpan={8}>No vouchers yet — generate a batch above.</td></tr>
+                  <tr><td className="text-on-surface-variant" colSpan={8}>No vouchers yet — generate a batch above.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1632,17 +1678,17 @@ function Subscribers({ auth }) {
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
       <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+        <div className="overflow-x-auto table-scroll">
+          <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="p-4 border-b border-surface-variant/50">Customer</th>
-                <th className="p-4 border-b border-surface-variant/50">PPPoE Login</th>
-                <th className="p-4 border-b border-surface-variant/50">Package</th>
-                <th className="p-4 border-b border-surface-variant/50">Paid Until</th>
-                <th className="p-4 border-b border-surface-variant/50">Last Payment</th>
-                <th className="p-4 border-b border-surface-variant/50">Status</th>
-                <th className="p-4 border-b border-surface-variant/50 text-right">Actions</th>
+                <th className="border-b border-surface-variant/50">Customer</th>
+                <th className="border-b border-surface-variant/50">PPPoE Login</th>
+                <th className="border-b border-surface-variant/50">Package</th>
+                <th className="border-b border-surface-variant/50">Paid Until</th>
+                <th className="border-b border-surface-variant/50">Last Payment</th>
+                <th className="border-b border-surface-variant/50">Status</th>
+                <th className="border-b border-surface-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
@@ -1651,15 +1697,15 @@ function Subscribers({ auth }) {
                 const days = Math.floor((new Date(s.paidUntil) - Date.now()) / 86400000)
                 return (
                   <tr key={s.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors align-top">
-                    <td className="p-4">
+                    <td className="">
                       <button onClick={() => setDetailId(s.id)} className="text-base font-semibold text-primary hover:underline text-left cursor-pointer">
                         {s.fullName}
                       </button>
                       <div className="text-xs text-on-surface-variant mt-0.5">{s.phoneNumber}</div>
                       {s.createdBy && <div className="text-xs text-on-surface-variant mt-0.5 capitalize">added by {s.createdBy}</div>}
                     </td>
-                    <td className="p-4 font-mono">{s.pppoeUsername}</td>
-                    <td className="p-4">
+                    <td className="font-mono">{s.pppoeUsername}</td>
+                    <td className="">
                       <div className="tabular-nums font-semibold">{fmtKES(s.monthlyFee)}/mo</div>
                       {s.bandwidth && (
                         <div className="flex items-center gap-1 text-xs text-on-surface-variant mt-0.5">
@@ -1667,13 +1713,13 @@ function Subscribers({ auth }) {
                         </div>
                       )}
                     </td>
-                    <td className="p-4">
+                    <td className="">
                       <div className="whitespace-nowrap">{fmtDate(s.paidUntil)}</div>
                       <div className={`text-xs mt-0.5 ${days < 0 ? 'text-error font-semibold' : days <= 3 ? 'text-[#b45309] font-semibold' : 'text-on-surface-variant'}`}>
                         {days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : `${days} day${days === 1 ? '' : 's'} left`}
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="">
                       {s.lastPaymentMethod ? (
                         <>
                           <span className={`text-xs font-semibold tracking-wider px-2 py-0.5 rounded-full ${
@@ -1687,10 +1733,10 @@ function Subscribers({ auth }) {
                         <span className="text-on-surface-variant text-xs">No payment yet</span>
                       )}
                     </td>
-                    <td className="p-4">
+                    <td className="">
                       <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="text-right">
                       <div className="flex items-center justify-end gap-2 flex-wrap">
                         <button
                           onClick={() => setDetailId(s.id)}
@@ -1762,7 +1808,7 @@ function Subscribers({ auth }) {
                 )
               })}
               {subs.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No subscribers yet — add your first monthly customer.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={7}>No subscribers yet — add your first monthly customer.</td></tr>
               )}
             </tbody>
           </table>
@@ -1949,17 +1995,17 @@ function Payments({ auth }) {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+        <div className="overflow-x-auto table-scroll">
+          <table className="data-table w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="border-b border-surface-variant bg-surface-container-low text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="p-4 font-semibold">Date / Time</th>
-                <th className="p-4 font-semibold">Phone Number</th>
-                <th className="p-4 font-semibold">Plan</th>
-                <th className="p-4 font-semibold">Amount</th>
-                <th className="p-4 font-semibold">M-Pesa Receipt</th>
-                <th className="p-4 font-semibold">Voucher</th>
-                <th className="p-4 font-semibold">Status</th>
+                <th className="font-semibold">Date / Time</th>
+                <th className="font-semibold">Phone Number</th>
+                <th className="font-semibold">Plan</th>
+                <th className="font-semibold">Amount</th>
+                <th className="font-semibold">M-Pesa Receipt</th>
+                <th className="font-semibold">Voucher</th>
+                <th className="font-semibold">Status</th>
               </tr>
             </thead>
             <tbody className="text-sm text-on-surface divide-y divide-surface-variant">
@@ -1969,20 +2015,20 @@ function Payments({ auth }) {
                   onClick={() => setSelected(p)}
                   className="hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
-                  <td className="p-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap">
                     <div className="font-semibold text-on-surface">{fmtDate(p.createdAt)}</div>
                     <div className="text-on-surface-variant text-xs mt-0.5">{fmtTime(p.createdAt)}</div>
                   </td>
-                  <td className="p-4 font-medium">{p.phoneNumber}</td>
-                  <td className="p-4">{p.plan?.name}</td>
-                  <td className="p-4 font-semibold tabular-nums">{fmtKES(p.amount)}</td>
-                  <td className="p-4 font-mono text-xs">{p.mpesaReceiptNumber || <span className="text-on-surface-variant/50">—</span>}</td>
-                  <td className="p-4 font-mono text-xs">{p.voucher?.code || <span className="text-on-surface-variant/50">—</span>}</td>
-                  <td className="p-4"><StatusPill status={p.status} /></td>
+                  <td className="font-medium">{p.phoneNumber}</td>
+                  <td className="">{p.plan?.name}</td>
+                  <td className="font-semibold tabular-nums">{fmtKES(p.amount)}</td>
+                  <td className="font-mono text-xs">{p.mpesaReceiptNumber || <span className="text-on-surface-variant/50">—</span>}</td>
+                  <td className="font-mono text-xs">{p.voucher?.code || <span className="text-on-surface-variant/50">—</span>}</td>
+                  <td className=""><StatusPill status={p.status} /></td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No payments match.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={7}>No payments match.</td></tr>
               )}
             </tbody>
           </table>
@@ -2846,23 +2892,23 @@ function Team({ auth }) {
       {resetMsg && <p className={`text-sm mb-4 ${resetMsg.ok ? 'text-surface-tint' : 'text-error'}`}>{resetMsg.text}</p>}
 
       <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+        <div className="overflow-x-auto table-scroll">
+          <table className="data-table w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="p-4 border-b border-surface-variant/50">Technician</th>
-                <th className="p-4 border-b border-surface-variant/50">Username</th>
-                <th className="p-4 border-b border-surface-variant/50">Phone</th>
-                <th className="p-4 border-b border-surface-variant/50">Since</th>
-                <th className="p-4 border-b border-surface-variant/50">Permissions</th>
-                <th className="p-4 border-b border-surface-variant/50">Status</th>
-                <th className="p-4 border-b border-surface-variant/50 text-right">Actions</th>
+                <th className="border-b border-surface-variant/50">Technician</th>
+                <th className="border-b border-surface-variant/50">Username</th>
+                <th className="border-b border-surface-variant/50">Phone</th>
+                <th className="border-b border-surface-variant/50">Since</th>
+                <th className="border-b border-surface-variant/50">Permissions</th>
+                <th className="border-b border-surface-variant/50">Status</th>
+                <th className="border-b border-surface-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {techs.map((t) => (
                 <tr key={t.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors">
-                  <td className="p-4">
+                  <td className="">
                     <div className="flex items-center gap-3">
                       <span className="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-sm font-bold uppercase">
                         {t.fullName?.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2)}
@@ -2870,10 +2916,10 @@ function Team({ auth }) {
                       <span className="text-base font-semibold text-on-background">{t.fullName}</span>
                     </div>
                   </td>
-                  <td className="p-4 font-mono">{t.username}</td>
-                  <td className="p-4">{t.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
-                  <td className="p-4 text-on-surface-variant">{fmtDate(t.createdAt)}</td>
-                  <td className="p-4">
+                  <td className="font-mono">{t.username}</td>
+                  <td className="">{t.phoneNumber || <span className="text-on-surface-variant">—</span>}</td>
+                  <td className="text-on-surface-variant">{fmtDate(t.createdAt)}</td>
+                  <td className="">
                     <div className="flex gap-1.5 flex-wrap">
                       <button
                         onClick={() => api(`/admin/technicians/${t.id}/permissions`, { method: 'PATCH', auth, body: { canVouchers: !t.vouchersAllowed } }).then(load)}
@@ -2895,8 +2941,8 @@ function Team({ auth }) {
                       </button>
                     </div>
                   </td>
-                  <td className="p-4"><StatusPill status={t.active ? 'ACTIVE' : 'INACTIVE'} /></td>
-                  <td className="p-4 text-right">
+                  <td className=""><StatusPill status={t.active ? 'ACTIVE' : 'INACTIVE'} /></td>
+                  <td className="text-right">
                     <div className="flex items-center justify-end gap-3">
                       <button
                         onClick={() => { setResetId(resetId === t.id ? null : t.id); setDeleteId(null); setNewPass(''); setResetMsg(null) }}
@@ -2945,7 +2991,7 @@ function Team({ auth }) {
                 </tr>
               ))}
               {techs.length === 0 && (
-                <tr><td className="p-4 text-on-surface-variant" colSpan={7}>No technicians yet — add the first account.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={7}>No technicians yet — add the first account.</td></tr>
               )}
             </tbody>
           </table>
