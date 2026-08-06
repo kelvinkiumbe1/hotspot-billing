@@ -40,7 +40,7 @@ function taskChip(task) {
   if (task.status === 'COMPLETED') return { label: 'Completed', cls: 'bg-secondary-container text-on-secondary-container' }
   const days = (new Date(task.scheduledStart) - Date.now()) / 86400000
   if (days < 0) return { label: 'Overdue', cls: 'bg-error-container text-on-error-container' }
-  if (days <= 7) return { label: 'Upcoming', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
+  if (days <= 7) return { label: 'Upcoming', cls: 'bg-secondary-container text-on-secondary-container' }
   return { label: 'Planned', cls: 'bg-primary-container/20 text-primary' }
 }
 
@@ -109,7 +109,7 @@ function TechLogin({ onLogin }) {
   return (
     <div className="tech-theme relative bg-background text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
       <img src={loginValley} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#07191e]/80"></div>
+      <div className="absolute inset-0 bg-[#000066]/85"></div>
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
@@ -800,7 +800,7 @@ function TechSubscribers({ auth }) {
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
                       s.status === 'SUSPENDED' ? 'bg-error-container text-on-error-container'
                         : days < 0 ? 'bg-error-container text-on-error-container'
-                        : days <= 3 ? 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20'
+                        : days <= 3 ? 'bg-secondary-container text-on-secondary-container'
                         : 'bg-secondary-container text-on-secondary-container'
                     }`}>
                       {s.status === 'SUSPENDED' ? 'Suspended' : days < 0 ? 'Overdue' : `${days}d left`}
@@ -887,7 +887,7 @@ function TechMessages({ auth, onRead }) {
 /* ------------------------------------------------------------------ */
 
 const PAYOUT_PILL = {
-  REQUESTED: { label: 'Requested', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' },
+  REQUESTED: { label: 'Requested', cls: 'bg-secondary-container text-on-secondary-container' },
   PAID: { label: 'Paid', cls: 'bg-secondary-container text-on-secondary-container' },
   REJECTED: { label: 'Rejected', cls: 'bg-error-container text-on-error-container' },
 }

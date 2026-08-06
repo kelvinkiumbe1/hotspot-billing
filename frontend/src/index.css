@@ -93,45 +93,49 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Field Connect (technician) theme: deep onyx with spring green.      */
+/* Field Connect (technician) theme: deep navy with chalk.             */
+/* Chalk on navy measures ~17:1, so it stays readable in daylight —    */
+/* which is where technicians actually use this app.                   */
 /* ------------------------------------------------------------------ */
 .tech-theme {
-  --color-background: #07191e;
-  --color-on-background: #eaf6f4;
-  --color-surface: #0a2027;
-  --color-on-surface: #eaf6f4;
-  --color-on-surface-variant: #9fb8bb;
-  --color-surface-bright: #103038;
-  --color-surface-dim: #051317;
-  --color-surface-variant: #1c3b43;
-  --color-surface-container-lowest: #0c252c;
-  --color-surface-container-low: #102b33;
-  --color-surface-container: #143139;
-  --color-surface-container-high: #183840;
-  --color-surface-container-highest: #1d4048;
+  --color-background: #000066;
+  --color-on-background: #f6f6e9;
+  --color-surface: #01016e;
+  --color-on-surface: #f6f6e9;
+  --color-on-surface-variant: #c3c3e6;
+  --color-surface-bright: #1a1a8a;
+  --color-surface-dim: #00004d;
+  --color-surface-variant: #3a3aa8;
+  --color-surface-container-lowest: #0a0a7a;
+  --color-surface-container-low: #121280;
+  --color-surface-container: #1a1a8a;
+  --color-surface-container-high: #232394;
+  --color-surface-container-highest: #2c2c9e;
 
-  /* Spring green carries actions; onyx text on it clears WCAG AAA. */
-  --color-primary: #02f5a1;
-  --color-on-primary: #07191e;
-  --color-primary-container: #02f5a1;
-  --color-on-primary-container: #07191e;
-  --color-primary-fixed: #02f5a1;
-  --color-primary-fixed-dim: #02c885;
-  --color-surface-tint: #02d68d;
+  /* Chalk carries every action; navy text on it clears WCAG AAA. */
+  --color-primary: #ffff99;
+  --color-on-primary: #000066;
+  --color-primary-container: #ffff99;
+  --color-on-primary-container: #000066;
+  --color-primary-fixed: #ffff99;
+  --color-primary-fixed-dim: #e8e878;
+  --color-surface-tint: #f0f082;
 
-  --color-secondary: #02f5a1;
-  --color-on-secondary: #07191e;
-  --color-secondary-container: #0d3c33;
-  --color-on-secondary-container: #02f5a1;
+  --color-secondary: #ffff99;
+  --color-on-secondary: #000066;
+  /* Chalk at low alpha reads as a soft glow on navy; mixing chalk with a
+     dark navy instead produces a muddy olive, so keep it translucent. */
+  --color-secondary-container: rgba(255, 255, 153, 0.16);
+  --color-on-secondary-container: #ffff99;
 
-  --color-outline: #6d8a8f;
-  --color-outline-variant: #24454d;
+  --color-outline: #9494d8;
+  --color-outline-variant: #2f2f9c;
   --color-error: #ff8a80;
-  --color-on-error: #07191e;
-  --color-error-container: #3b1512;
+  --color-on-error: #000066;
+  --color-error-container: #5c1a17;
   --color-on-error-container: #ffb4ab;
-  --color-tertiary: #b9d3d6;
-  --color-inverse-surface: #eaf6f4;
+  --color-tertiary: #d2d2f2;
+  --color-inverse-surface: #f6f6e9;
 }
 
 /* Material Symbols icon font */
