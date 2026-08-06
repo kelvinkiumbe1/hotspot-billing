@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/technicians")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('STAFF')")
 public class TechnicianController {
 
     private final TechnicianRepository technicians;

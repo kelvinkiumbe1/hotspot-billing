@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.JsonNode;
 
@@ -64,11 +65,13 @@ public class C2bController {
 
     // --- Admin reconciliation ---
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @GetMapping("/api/admin/c2b")
     public List<C2bPayment> all() {
         return c2bService.recent();
     }
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @GetMapping("/api/admin/c2b/unmatched")
     public List<C2bPayment> unmatched() {
         return c2bService.unmatched();
@@ -77,6 +80,7 @@ public class C2bController {
     public record ApplyRequest(@NotNull Long subscriberId, @Min(1) @Max(24) int months) {
     }
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @PostMapping("/api/admin/c2b/{id}/apply")
     public C2bPayment apply(@PathVariable Long id, @Valid @RequestBody ApplyRequest request, Principal principal) {
         return c2bService.applyManually(id, request.subscriberId(), request.months(), principal.getName());

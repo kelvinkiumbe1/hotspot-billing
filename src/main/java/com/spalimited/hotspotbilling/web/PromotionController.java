@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -47,11 +48,13 @@ public class PromotionController {
             @NotNull Instant endsAt) {
     }
 
+    @PreAuthorize("hasAuthority('OUTREACH')")
     @GetMapping("/api/admin/promotions")
     public List<Promotion> all() {
         return promotions.findTop20ByOrderByCreatedAtDesc();
     }
 
+    @PreAuthorize("hasAuthority('OUTREACH')")
     @PostMapping("/api/admin/promotions")
     @ResponseStatus(HttpStatus.CREATED)
     public Promotion create(@Valid @RequestBody PromotionRequest request) {
@@ -59,6 +62,7 @@ public class PromotionController {
         return promotionService.create(request.title(), request.discountPercent(), startsAt, request.endsAt());
     }
 
+    @PreAuthorize("hasAuthority('OUTREACH')")
     @PatchMapping("/api/admin/promotions/{id}/end")
     public Promotion end(@PathVariable Long id) {
         return promotionService.end(id);

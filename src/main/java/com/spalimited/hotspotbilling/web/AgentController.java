@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ public class AgentController {
 
     // --- Agents ---
 
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping("/agents")
     public List<Map<String, Object>> agents() {
         return agentService.agentScoreboard();
@@ -40,6 +42,7 @@ public class AgentController {
             String location) {
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PostMapping("/agents")
     @ResponseStatus(HttpStatus.CREATED)
     public Agent createAgent(@Valid @RequestBody AgentRequest request, Principal principal) {
@@ -49,6 +52,7 @@ public class AgentController {
         return agent;
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PatchMapping("/agents/{id}/toggle")
     public Agent toggleAgent(@PathVariable Long id, Principal principal) {
         Agent agent = agentService.toggleAgent(id);
@@ -60,6 +64,7 @@ public class AgentController {
     public record PayoutRequest(@NotNull @Min(1) BigDecimal amount) {
     }
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @PostMapping("/agents/{id}/commission")
     public Agent payCommission(@PathVariable Long id, @Valid @RequestBody PayoutRequest request, Principal principal) {
         Agent agent = agentService.recordCommissionPayout(id, request.amount());
@@ -68,6 +73,7 @@ public class AgentController {
         return agent;
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @DeleteMapping("/agents/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAgent(@PathVariable Long id, Principal principal) {
@@ -77,6 +83,7 @@ public class AgentController {
 
     // --- Batches ---
 
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping("/batches")
     public List<Map<String, Object>> batches() {
         return agentService.batchList();
@@ -92,6 +99,7 @@ public class AgentController {
             String note) {
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PostMapping("/batches")
     @ResponseStatus(HttpStatus.CREATED)
     public VoucherBatch createBatch(@Valid @RequestBody BatchRequest request, Principal principal) {
@@ -106,6 +114,7 @@ public class AgentController {
     public record AssignRequest(Long agentId) {
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PatchMapping("/batches/{id}/assign")
     public VoucherBatch assignBatch(@PathVariable Long id, @RequestBody AssignRequest request, Principal principal) {
         VoucherBatch batch = agentService.assignBatch(id, request.agentId());
@@ -114,6 +123,7 @@ public class AgentController {
         return batch;
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping("/batches/{id}/vouchers")
     public List<Voucher> batchVouchers(@PathVariable Long id) {
         return agentService.vouchersInBatch(id);

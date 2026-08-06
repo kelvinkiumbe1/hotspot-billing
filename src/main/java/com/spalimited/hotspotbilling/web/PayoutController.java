@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -46,6 +47,7 @@ public class PayoutController {
 
     // --- Admin side ---
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @GetMapping("/api/admin/payouts")
     public List<PayoutRequest> all() {
         return payouts.findAllByOrderByCreatedAtDesc();
@@ -54,6 +56,7 @@ public class PayoutController {
     public record StatusBody(@NotNull PayoutRequest.Status status) {
     }
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @PatchMapping("/api/admin/payouts/{id}/status")
     public PayoutRequest setStatus(@PathVariable Long id, @Valid @RequestBody StatusBody body) {
         PayoutRequest payout = payouts.findById(id)

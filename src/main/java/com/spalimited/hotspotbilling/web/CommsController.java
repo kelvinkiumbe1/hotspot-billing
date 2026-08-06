@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -26,6 +27,7 @@ import java.util.*;
 @RequestMapping("/api/admin/comms")
 @RequiredArgsConstructor
 @Slf4j
+@PreAuthorize("hasAuthority('OUTREACH')")
 public class CommsController {
 
     private final OutboxService outboxService;

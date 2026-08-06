@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/admin/sms")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('OUTREACH')")
 public class SmsController {
 
     private final SmsService smsService;

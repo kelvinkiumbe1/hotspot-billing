@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -42,6 +43,11 @@ public class AdminController {
 
     // --- Dashboard ---
 
+    /**
+     * Deliberately open to every office role: the overview is the landing
+     * page, and a support agent seeing headline counts is harmless. The
+     * detail behind each figure is guarded on its own endpoint.
+     */
     @GetMapping("/stats")
     public Map<String, Object> stats() {
         return Map.of(
@@ -54,6 +60,7 @@ public class AdminController {
                 "activePlans", planRepository.findByActiveTrueOrderByPriceAsc().size());
     }
 
+    @PreAuthorize("hasAuthority('FINANCE')")
     @GetMapping("/payments")
     public List<Payment> payments() {
         return paymentRepository.findTop100ByOrderByCreatedAtDesc();
@@ -84,17 +91,20 @@ public class AdminController {
             Set<Long> allowedRouterIds) {
     }
 
+    @PreAuthorize("hasAuthority('PRICING')")
     @GetMapping("/plans")
     public List<Plan> allPlans() {
         return planRepository.findAll();
     }
 
+    @PreAuthorize("hasAuthority('PRICING')")
     @PostMapping("/plans")
     @ResponseStatus(HttpStatus.CREATED)
     public Plan createPlan(@Valid @RequestBody PlanRequest request) {
         return planRepository.save(apply(Plan.builder().build(), request));
     }
 
+    @PreAuthorize("hasAuthority('PRICING')")
     @PutMapping("/plans/{id}")
     public Plan updatePlan(@PathVariable Long id, @Valid @RequestBody PlanRequest request) {
         return planRepository.save(apply(plan(id), request));
@@ -106,6 +116,17 @@ public class AdminController {
      * between the two.
      */
     private Plan apply(Plan plan, PlanRequest request) {
+        // Names are unique in the database; catching it here turns a constraint
+        // violation 500 into something the person typing can act on.
+        planRepository.findAll().stream()
+                .filter(existing -> existing.getName().equalsIgnoreCase(request.name().trim()))
+                .filter(existing -> !existing.getId().equals(plan.getId()))
+                .findFirst()
+                .ifPresent(clash -> {
+                    throw new IllegalArgumentException(
+                            "A package called \"" + clash.getName() + "\" already exists");
+                });
+
         int burstParts = 0;
         if (notBlank(request.burstLimit())) burstParts++;
         if (notBlank(request.burstThreshold())) burstParts++;
@@ -180,6 +201,7 @@ public class AdminController {
     }
 
     /** Cycles live → hidden → off, so one control covers all three states. */
+    @PreAuthorize("hasAuthority('PRICING')")
     @PatchMapping("/plans/{id}/toggle")
     public Plan togglePlan(@PathVariable Long id) {
         Plan plan = plan(id);
@@ -196,12 +218,37 @@ public class AdminController {
     public record AvailabilityRequest(@NotNull Plan.Availability availability) {
     }
 
+    @PreAuthorize("hasAuthority('PRICING')")
     @PatchMapping("/plans/{id}/availability")
     public Plan setAvailability(@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request) {
         Plan plan = plan(id);
         plan.setAvailability(request.availability());
         plan.setActive(request.availability() != Plan.Availability.OFF);
         return planRepository.save(plan);
+    }
+
+    /**
+     * Removes a package that was never sold. Anything with vouchers or
+     * payments against it is refused — deleting it would orphan the records
+     * that explain past revenue. Withdraw it with availability OFF instead.
+     */
+    @PreAuthorize("hasAuthority('PRICING')")
+    @DeleteMapping("/plans/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePlan(@PathVariable Long id) {
+        Plan plan = plan(id);
+        long vouchers = voucherRepository.findAll().stream()
+                .filter(v -> v.getPlan() != null && id.equals(v.getPlan().getId()))
+                .count();
+        long payments = paymentRepository.findAll().stream()
+                .filter(p -> p.getPlan() != null && id.equals(p.getPlan().getId()))
+                .count();
+        if (vouchers > 0 || payments > 0) {
+            throw new IllegalStateException("\"" + plan.getName() + "\" has " + vouchers
+                    + " voucher(s) and " + payments + " payment(s) against it. Set it to Off instead,"
+                    + " so the history stays intact.");
+        }
+        planRepository.delete(plan);
     }
 
     private Plan plan(Long id) {
@@ -216,12 +263,14 @@ public class AdminController {
                                   @Min(1) @Max(44640) Integer customMinutes) {
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping("/vouchers")
     public List<Voucher> vouchers() {
         return voucherRepository.findTop100ByOrderByCreatedAtDesc();
     }
 
     /** Headline counts for the voucher page, over the whole stock not just a page of it. */
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping("/vouchers/summary")
     public Map<String, Object> voucherSummary() {
         List<Voucher> all = voucherRepository.findAll();
@@ -252,6 +301,7 @@ public class AdminController {
      * The whole stock as CSV, for handing to a reseller or keeping a record
      * outside the system. Streamed as a download rather than JSON.
      */
+    @PreAuthorize("hasAuthority('SELL')")
     @GetMapping(value = "/vouchers/export", produces = "text/csv")
     public org.springframework.http.ResponseEntity<String> exportVouchers(
             @RequestParam(required = false) String status) {
@@ -297,6 +347,7 @@ public class AdminController {
      * Disables many active vouchers at once, and deletes unused ones. Each
      * id is reported separately so one failure does not hide the rest.
      */
+    @PreAuthorize("hasAuthority('SELL')")
     @PostMapping("/vouchers/bulk-revoke")
     public Map<String, Object> bulkRevoke(@Valid @RequestBody BulkRequest request) {
         List<String> done = new java.util.ArrayList<>();
@@ -325,6 +376,7 @@ public class AdminController {
         return Map.of("revoked", done, "skipped", skipped);
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PostMapping("/vouchers/bulk-delete")
     public Map<String, Object> bulkDelete(@Valid @RequestBody BulkRequest request) {
         List<String> done = new java.util.ArrayList<>();
@@ -350,6 +402,7 @@ public class AdminController {
         return Map.of("deleted", done, "skipped", skipped);
     }
 
+    @PreAuthorize("hasAuthority('SELL')")
     @PostMapping("/vouchers/generate")
     @ResponseStatus(HttpStatus.CREATED)
     public List<Voucher> generateVouchers(@Valid @RequestBody GenerateRequest request,
@@ -376,6 +429,7 @@ public class AdminController {
      * Disables an active voucher: kicks the device off the router, removes
      * the hotspot user and marks the voucher expired.
      */
+    @PreAuthorize("hasAuthority('SELL')")
     @PatchMapping("/vouchers/{id}/revoke")
     public Voucher revokeVoucher(@PathVariable Long id) {
         Voucher voucher = voucherRepository.findById(id)
@@ -390,6 +444,7 @@ public class AdminController {
     }
 
     /** Clears a voucher's MAC lock so the customer can switch devices. */
+    @PreAuthorize("hasAuthority('SELL')")
     @PatchMapping("/vouchers/{id}/unbind")
     public Voucher unbindVoucher(@PathVariable Long id) {
         Voucher voucher = voucherRepository.findById(id)
@@ -399,6 +454,7 @@ public class AdminController {
     }
 
     /** Removes a voucher that was never sold or used (e.g. a bad batch). */
+    @PreAuthorize("hasAuthority('SELL')")
     @DeleteMapping("/vouchers/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteVoucher(@PathVariable Long id) {

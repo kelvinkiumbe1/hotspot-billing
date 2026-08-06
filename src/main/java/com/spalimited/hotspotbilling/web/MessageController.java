@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -79,6 +80,7 @@ public class MessageController {
     // --- Admin side ---
 
     /** One row per technician: last message, unread count. Sorted, most recent first. */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @GetMapping("/api/admin/messages/channels")
     public List<Map<String, Object>> channels() {
         return technicians.findAllByOrderByCreatedAtAsc().stream()
@@ -104,6 +106,7 @@ public class MessageController {
     }
 
     /** A technician's channel; opening it marks their messages read. */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @GetMapping("/api/admin/messages/{technician}")
     @Transactional
     public List<DirectMessage> channel(@PathVariable String technician) {
@@ -114,6 +117,7 @@ public class MessageController {
         return channel;
     }
 
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PostMapping(value = "/api/admin/messages/{technician}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DirectMessage reply(

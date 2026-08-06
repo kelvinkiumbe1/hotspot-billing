@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -19,6 +20,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/admin/fiber")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('NETWORK')")
 public class FiberController {
 
     private final FiberNodeRepository nodes;

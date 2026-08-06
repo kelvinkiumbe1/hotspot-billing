@@ -17,6 +17,7 @@ import AnalyticsPage from './admin/Analytics.jsx'
 import VouchersPage from './admin/Vouchers.jsx'
 import CommunicationsPage from './admin/Communications.jsx'
 import FiberPage from './admin/Fiber.jsx'
+import StaffPage from './admin/Staff.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -245,53 +246,54 @@ const NAV_GROUPS = [
     label: null,
     items: [
       { key: 'overview', label: 'Overview', icon: 'dashboard' },
-      { key: 'analytics', label: 'Analytics', icon: 'insights' },
+      { key: 'analytics', label: 'Analytics', icon: 'insights', need: 'FINANCE' },
     ],
   },
   {
     label: 'Customers',
     items: [
-      { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
-      { key: 'leads', label: 'Leads', icon: 'person_search' },
-      { key: 'support', label: 'Tickets', icon: 'support_agent' },
+      { key: 'subscribers', label: 'Subscribers', icon: 'lan', need: 'CUSTOMERS' },
+      { key: 'leads', label: 'Leads', icon: 'person_search', need: 'CUSTOMERS' },
+      { key: 'support', label: 'Tickets', icon: 'support_agent', need: 'CUSTOMERS' },
     ],
   },
   {
     label: 'Network',
     items: [
-      { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering' },
-      { key: 'plans', label: 'Plans', icon: 'inventory_2' },
-      { key: 'routers', label: 'Routers', icon: 'router' },
-      { key: 'equipment', label: 'Equipment', icon: 'inventory_2' },
-      { key: 'fiber', label: 'Fiber Map', icon: 'polyline' },
-      { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
+      { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering', need: 'NETWORK' },
+      { key: 'plans', label: 'Plans', icon: 'inventory_2', need: 'PRICING' },
+      { key: 'routers', label: 'Routers', icon: 'router', need: 'NETWORK' },
+      { key: 'equipment', label: 'Equipment', icon: 'inventory_2', need: 'NETWORK' },
+      { key: 'fiber', label: 'Fiber Map', icon: 'polyline', need: 'NETWORK' },
+      { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { key: 'finance', label: 'Billing', icon: 'receipt_long' },
-      { key: 'payments', label: 'Payments', icon: 'payments' },
-      { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
-      { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
-      { key: 'agents', label: 'Agents', icon: 'storefront' },
+      { key: 'finance', label: 'Billing', icon: 'receipt_long', need: 'FINANCE' },
+      { key: 'payments', label: 'Payments', icon: 'payments', need: 'FINANCE' },
+      { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
+      { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
+      { key: 'agents', label: 'Agents', icon: 'storefront', need: 'SELL' },
     ],
   },
   {
     label: 'Outreach',
     items: [
-      { key: 'outbox', label: 'Outbox', icon: 'outbox' },
-      { key: 'messages', label: 'Team Chat', icon: 'chat' },
-      { key: 'branding', label: 'Campaigns', icon: 'campaign' },
+      { key: 'outbox', label: 'Outbox', icon: 'outbox', need: 'OUTREACH' },
+      { key: 'messages', label: 'Team Chat', icon: 'chat', need: 'CUSTOMERS' },
+      { key: 'branding', label: 'Campaigns', icon: 'campaign', need: 'OUTREACH' },
     ],
   },
   {
     label: 'Organisation',
     items: [
-      { key: 'team', label: 'Team', icon: 'group' },
-      { key: 'branches', label: 'Branches', icon: 'add_business' },
-      { key: 'audit', label: 'Audit Log', icon: 'history' },
-      { key: 'settings', label: 'Settings', icon: 'settings' },
+      { key: 'team', label: 'Team', icon: 'group', need: 'STAFF' },
+      { key: 'staff', label: 'Staff Logins', icon: 'admin_panel_settings', need: 'STAFF' },
+      { key: 'branches', label: 'Branches', icon: 'add_business', need: 'FINANCE' },
+      { key: 'audit', label: 'Audit Log', icon: 'history', need: 'STAFF' },
+      { key: 'settings', label: 'Settings', icon: 'settings', need: 'SETTINGS' },
     ],
   },
 ]
@@ -299,7 +301,15 @@ const NAV_GROUPS = [
 const NAV = NAV_GROUPS.flatMap((g) => g.items)
 
 /** Unread/open counts for the destinations inside a collapsed group. */
-function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
+/** Destinations this role can actually use; untagged ones are open to all. */
+function allowedGroups(permissions) {
+  if (!permissions) return NAV_GROUPS
+  return NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.need || permissions.includes(i.need)) }))
+    .filter((g) => g.items.length > 0)
+}
+
+function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) {
   // The rail is taller than a laptop screen. A fade on the bottom edge shows
   // there is more below, but it must clear once you reach the end, otherwise
   // the last item looks disabled.
@@ -332,7 +342,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
         onScroll={measure}
         className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
       >
-        {NAV_GROUPS.map((group, gi) => (
+        {allowedGroups(permissions).map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
               <p className="px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50">
@@ -373,6 +383,16 @@ function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
         />
       </div>
       <div className="mt-4 pt-3 border-t border-surface-variant/20 shrink-0">
+        {me && (
+          <div className="px-4 pb-2">
+            <p className="text-sm text-surface-bright font-medium truncate">{me.fullName || me.username}</p>
+            <p className="text-[10px] font-semibold tracking-wider uppercase text-surface-variant/60">
+              {me.role === 'OWNER' ? 'Owner' : me.role === 'MANAGER' ? 'Manager'
+                : me.role === 'ACCOUNTANT' ? 'Accountant' : me.role === 'SUPPORT' ? 'Support' : me.role}
+              {me.breakGlass ? ' · fallback login' : ''}
+            </p>
+          </div>
+        )}
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10 rounded-lg cursor-pointer transition-colors"
@@ -463,6 +483,7 @@ const TAB_TITLES = {
   analytics: 'Analytics',
   outbox: 'Outbox',
   fiber: 'Fiber Map',
+  staff: 'Staff Logins',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -484,6 +505,30 @@ function Shell({ auth, onLogout }) {
   const [tab, setTab] = useState('overview')
   const [drawer, setDrawer] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  // Null until known, so nothing is hidden or shown on a guess.
+  const [me, setMe] = useState(null)
+
+  useEffect(() => {
+    api('/admin/staff/me', { auth })
+      .then(setMe)
+      // An older backend without the endpoint should not blank the whole
+      // rail, so fall back to every permission.
+      .catch(() => setMe({
+        username: 'admin',
+        role: 'OWNER',
+        permissions: ['STAFF', 'SETTINGS', 'FINANCE', 'CUSTOMERS', 'NETWORK', 'OUTREACH', 'SELL'],
+        breakGlass: false,
+      }))
+  }, [auth])
+
+  // If the current tab is not open to this role, fall back to the overview.
+  useEffect(() => {
+    if (!me) return
+    const item = NAV.find((i) => i.key === tab)
+    if (item?.need && !me.permissions.includes(item.need)) {
+      setTab('overview')
+    }
+  }, [me, tab])
 
   useEffect(() => {
     const load = () =>
@@ -502,19 +547,20 @@ function Shell({ auth, onLogout }) {
   }
 
   const badges = { messages: unreadMessages }
+  const permissions = me?.permissions
 
   return (
     <div className="bg-background text-on-background min-h-screen">
       {/* Desktop sidebar */}
       <nav className="h-screen w-64 fixed left-0 top-0 bg-inverse-surface shadow-md hidden md:flex flex-col z-40">
-        <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} />
+        <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />
       </nav>
 
       {/* Mobile drawer */}
       {drawer && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="w-64 bg-inverse-surface h-full shadow-xl">
-            <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} />
+            <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />
           </div>
           <div className="flex-1 bg-on-background/50" onClick={() => setDrawer(false)}></div>
         </div>
@@ -548,6 +594,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'analytics' && <AnalyticsPage auth={auth} />}
         {tab === 'outbox' && <CommunicationsPage auth={auth} />}
         {tab === 'fiber' && <FiberPage auth={auth} />}
+        {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <VouchersPage auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}

@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -66,6 +67,7 @@ public class SupportController {
 
     // --- Admin: manage tickets ---
 
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @GetMapping("/api/admin/tickets")
     public List<SupportTicket> all() {
         return tickets.findTop100ByOrderByUpdatedAtDesc();
@@ -84,6 +86,7 @@ public class SupportController {
      * A staff member raising a ticket on a customer's behalf — a walk-in
      * complaint, or a fault the team spotted before the customer called.
      */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PostMapping("/api/admin/tickets")
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
@@ -117,6 +120,7 @@ public class SupportController {
     }
 
     /** Replaces the assignee list; an empty set puts the ticket back in the pool. */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PatchMapping("/api/admin/tickets/{id}/assignees")
     @Transactional
     public SupportTicket assign(@PathVariable Long id, @RequestBody AssignRequest request, Principal principal) {
@@ -201,6 +205,7 @@ public class SupportController {
      * and which subjects come up most. Times are measured from the stored
      * messages rather than tracked separately, so they cannot drift.
      */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @GetMapping("/api/admin/tickets/analytics")
     @Transactional(readOnly = true)
     public Map<String, Object> analytics() {
@@ -296,6 +301,7 @@ public class SupportController {
     public record ReplyRequest(@NotBlank String body) {
     }
 
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PostMapping("/api/admin/tickets/{id}/reply")
     @Transactional
     public SupportTicket reply(@PathVariable Long id, @Valid @RequestBody ReplyRequest request) {
@@ -315,6 +321,7 @@ public class SupportController {
     public record StatusRequest(@NotNull SupportTicket.Status status) {
     }
 
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PatchMapping("/api/admin/tickets/{id}/status")
     @Transactional
     public SupportTicket setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {

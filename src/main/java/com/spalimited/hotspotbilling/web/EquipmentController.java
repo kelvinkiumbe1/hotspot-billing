@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/admin/equipment")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('NETWORK')")
 public class EquipmentController {
 
     private final EquipmentRepository equipment;

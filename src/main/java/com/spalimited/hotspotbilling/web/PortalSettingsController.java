@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -91,6 +92,7 @@ public class PortalSettingsController {
 
     // --- Admin: branding ---
 
+    @PreAuthorize("hasAuthority('SETTINGS')")
     @GetMapping("/api/admin/portal-settings")
     public PortalSettings adminSettings() {
         return portalSettings.settings();
@@ -108,6 +110,7 @@ public class PortalSettingsController {
             @Min(1) @Max(1440) int trialMinutes) {
     }
 
+    @PreAuthorize("hasAuthority('SETTINGS')")
     @PutMapping("/api/admin/portal-settings")
     public PortalSettings update(@Valid @RequestBody SettingsRequest request, Principal principal) {
         audit.record(principal, "portal.settings", "Updated captive-portal branding");
@@ -124,6 +127,7 @@ public class PortalSettingsController {
                 .build());
     }
 
+    @PreAuthorize("hasAuthority('SETTINGS')")
     @PostMapping(value = "/api/admin/portal-settings/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public PortalSettings uploadLogo(@RequestParam MultipartFile logo, Principal principal) throws IOException {
         if (logo == null || logo.isEmpty()) {
@@ -135,6 +139,7 @@ public class PortalSettingsController {
 
     // --- Admin: message templates ---
 
+    @PreAuthorize("hasAuthority('SETTINGS')")
     @GetMapping("/api/admin/templates")
     public List<NotificationTemplate> templates() {
         return notifications.all();
@@ -143,6 +148,7 @@ public class PortalSettingsController {
     public record TemplateRequest(@NotBlank String body, boolean enabled) {
     }
 
+    @PreAuthorize("hasAuthority('SETTINGS')")
     @PutMapping("/api/admin/templates/{key}")
     public NotificationTemplate updateTemplate(@PathVariable NotificationTemplate.Key key,
                                                @Valid @RequestBody TemplateRequest request,
