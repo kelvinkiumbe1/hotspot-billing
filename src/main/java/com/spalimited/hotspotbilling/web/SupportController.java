@@ -1,8 +1,12 @@
 package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.domain.SupportTicket;
+import com.spalimited.hotspotbilling.domain.Technician;
 import com.spalimited.hotspotbilling.domain.TicketMessage;
 import com.spalimited.hotspotbilling.repository.SupportTicketRepository;
+import com.spalimited.hotspotbilling.repository.TechnicianRepository;
+import com.spalimited.hotspotbilling.service.AuditService;
+import com.spalimited.hotspotbilling.service.SmsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.security.Principal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Support tickets. Customers open tickets through the public
@@ -26,6 +32,9 @@ import java.util.*;
 public class SupportController {
 
     private final SupportTicketRepository tickets;
+    private final TechnicianRepository technicians;
+    private final SmsService smsService;
+    private final AuditService audit;
 
     // --- Public: customers open tickets ---
 
@@ -60,6 +69,130 @@ public class SupportController {
     @GetMapping("/api/admin/tickets")
     public List<SupportTicket> all() {
         return tickets.findTop100ByOrderByUpdatedAtDesc();
+    }
+
+    public record AdminTicketRequest(
+            @NotBlank String customerName,
+            @NotBlank String phoneNumber,
+            @NotBlank String subject,
+            @NotBlank String message,
+            SupportTicket.Priority priority,
+            Set<Long> assigneeIds) {
+    }
+
+    /**
+     * A staff member raising a ticket on a customer's behalf — a walk-in
+     * complaint, or a fault the team spotted before the customer called.
+     */
+    @PostMapping("/api/admin/tickets")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    public SupportTicket createAsAdmin(@Valid @RequestBody AdminTicketRequest request, Principal principal) {
+        SupportTicket ticket = SupportTicket.builder()
+                .customerName(request.customerName())
+                .phoneNumber(request.phoneNumber())
+                .subject(request.subject())
+                .priority(request.priority() != null ? request.priority() : SupportTicket.Priority.MEDIUM)
+                .createdBy(principal.getName())
+                .build();
+        ticket.getMessages().add(TicketMessage.builder()
+                .ticket(ticket)
+                .fromAdmin(true)
+                .body(request.message())
+                .build());
+        applyAssignees(ticket, request.assigneeIds());
+        // A ticket someone is already on is not sitting untriaged; the assign
+        // endpoint does the same, so the two paths agree.
+        if (!ticket.getAssigneeIds().isEmpty()) {
+            ticket.setStatus(SupportTicket.Status.IN_PROGRESS);
+        }
+        SupportTicket saved = tickets.save(ticket);
+        notifyAssignees(saved, saved.getAssigneeIds());
+        audit.record(principal, "ticket.create", "Raised ticket \"" + saved.getSubject()
+                + "\" for " + saved.getCustomerName());
+        return saved;
+    }
+
+    public record AssignRequest(Set<Long> assigneeIds) {
+    }
+
+    /** Replaces the assignee list; an empty set puts the ticket back in the pool. */
+    @PatchMapping("/api/admin/tickets/{id}/assignees")
+    @Transactional
+    public SupportTicket assign(@PathVariable Long id, @RequestBody AssignRequest request, Principal principal) {
+        SupportTicket ticket = get(id);
+        Set<Long> before = new LinkedHashSet<>(ticket.getAssigneeIds());
+        applyAssignees(ticket, request.assigneeIds());
+
+        Set<Long> added = new LinkedHashSet<>(ticket.getAssigneeIds());
+        added.removeAll(before);
+        notifyAssignees(ticket, added);
+
+        // Picking up an unassigned ticket means work has started on it.
+        if (!ticket.getAssigneeIds().isEmpty() && ticket.getStatus() == SupportTicket.Status.OPEN) {
+            ticket.setStatus(SupportTicket.Status.IN_PROGRESS);
+        }
+        audit.record(principal, "ticket.assign", ticket.getAssigneeIds().isEmpty()
+                ? "Unassigned ticket " + id
+                : "Assigned ticket " + id + " to " + describe(ticket.getAssigneeIds()));
+        return tickets.save(ticket);
+    }
+
+    /** Only real, active technicians can hold a ticket. */
+    private void applyAssignees(SupportTicket ticket, Set<Long> requested) {
+        Set<Long> valid = new LinkedHashSet<>();
+        if (requested != null) {
+            for (Long technicianId : requested) {
+                Technician tech = technicians.findById(technicianId).orElseThrow(
+                        () -> new IllegalArgumentException("Unknown technician: " + technicianId));
+                if (!tech.isActive()) {
+                    throw new IllegalArgumentException(tech.getFullName() + " is disabled and cannot take tickets");
+                }
+                valid.add(technicianId);
+            }
+        }
+        ticket.getAssigneeIds().clear();
+        ticket.getAssigneeIds().addAll(valid);
+    }
+
+    /** Best-effort heads-up; a failed SMS must never block the assignment. */
+    private void notifyAssignees(SupportTicket ticket, Set<Long> technicianIds) {
+        for (Long technicianId : technicianIds) {
+            technicians.findById(technicianId)
+                    .filter(t -> t.getPhoneNumber() != null && !t.getPhoneNumber().isBlank())
+                    .ifPresent(t -> smsService.trySend(t.getPhoneNumber(),
+                            "New job assigned: " + ticket.getSubject()
+                                    + " for " + ticket.getCustomerName()
+                                    + " (" + ticket.getPhoneNumber() + ")."));
+        }
+    }
+
+    private String describe(Set<Long> technicianIds) {
+        return technicianIds.stream()
+                .map(id -> technicians.findById(id).map(Technician::getFullName).orElse("#" + id))
+                .collect(Collectors.joining(", "));
+    }
+
+    // --- Technician: my jobs ---
+
+    /** Tickets assigned to whoever is signed in on the technician app. */
+    @GetMapping("/api/tech/tickets")
+    @Transactional(readOnly = true)
+    public List<SupportTicket> myTickets(Principal principal) {
+        Long me = technicians.findByUsername(principal.getName())
+                .map(Technician::getId)
+                .orElse(null);
+        if (me == null) {
+            return List.of(); // the shared admin login has no technician row
+        }
+        return tickets.findTop100ByOrderByUpdatedAtDesc().stream()
+                .filter(t -> t.getAssigneeIds().contains(me))
+                .toList();
+    }
+
+    private SupportTicket get(Long id) {
+        return tickets.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown ticket: " + id));
     }
 
     /**

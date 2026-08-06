@@ -183,8 +183,10 @@ public class MikrotikService {
             return plan.getMikrotikProfile();
         }
         String name = "spa-plan-" + plan.getId();
-        String rateLimit = plan.getBandwidth() != null && !plan.getBandwidth().isBlank()
-                ? " rate-limit=" + plan.getBandwidth() : "";
+        // getRateLimitString() appends the burst triple when the plan has one;
+        // RouterOS takes it as a single space-separated value.
+        String rate = plan.getRateLimitString();
+        String rateLimit = rate != null ? " rate-limit=\"" + rate + "\"" : "";
         int sharedUsers = plan.getEffectiveMaxDevices();
         try {
             connection.execute(String.format(

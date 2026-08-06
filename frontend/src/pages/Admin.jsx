@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { INPUT_CLS, LABEL_CLS, PrimaryButton } from '../components/ui.jsx'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import RoutersPage from './admin/Routers.jsx'
@@ -811,28 +812,120 @@ function Overview({ auth, onNav }) {
 
 const DURATION_UNITS = { minutes: 1, hours: 60, days: 1440 }
 
-function PlanModal({ auth, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: '', price: '', durationValue: '', durationUnit: 'hours', mbps: '', maxDevices: 1 })
+const AVAILABILITY = [
+  { key: 'LIVE', label: 'Live', hint: 'Visible to customers and on sale.' },
+  { key: 'HIDDEN', label: 'Hidden', hint: 'Off the portal, but existing codes still work.' },
+  { key: 'OFF', label: 'Off', hint: 'Withdrawn - nobody can use it.' },
+]
+
+const FUP_ACTIONS = [
+  { key: 'THROTTLE', label: 'Slow them down' },
+  { key: 'BLOCK', label: 'Cut them off' },
+  { key: 'NOTIFY', label: 'Just warn me' },
+]
+
+/** One titled block of the plan form, matching how the fields group logically. */
+function FormSection({ title, hint, children }) {
+  return (
+    <section className="border-t border-outline-variant/60 pt-5 first:border-0 first:pt-0">
+      <h4 className="text-base font-bold text-on-surface">{title}</h4>
+      {hint && <p className="text-xs text-on-surface-variant mt-0.5 mb-3">{hint}</p>}
+      <div className={hint ? '' : 'mt-3'}>{children}</div>
+    </section>
+  )
+}
+
+function PlanModal({ auth, plan, onClose, onSaved }) {
+  const editing = Boolean(plan)
+  const [routers, setRouters] = useState([])
+  const [form, setForm] = useState(() => {
+    if (!plan) {
+      return {
+        name: '', type: 'HOTSPOT', availability: 'LIVE', price: '',
+        durationValue: '', durationUnit: 'hours',
+        mbps: '', rateLimit: '', maxDevices: 1,
+        burstLimit: '', burstThreshold: '', burstTime: '',
+        fupEnabled: false, fupLimitMb: '', fupAction: 'THROTTLE', fupRate: '',
+        scheduleEnabled: false, scheduleFrom: '23:00', scheduleTo: '06:00',
+        allowedRouterIds: [],
+      }
+    }
+    // Re-express stored minutes in the largest unit that divides cleanly.
+    const mins = plan.durationMinutes || 0
+    const unit = mins % 1440 === 0 && mins >= 1440 ? 'days' : mins % 60 === 0 && mins >= 60 ? 'hours' : 'minutes'
+    return {
+      name: plan.name || '',
+      type: plan.type || 'HOTSPOT',
+      availability: plan.availability || (plan.active ? 'LIVE' : 'OFF'),
+      price: plan.price ?? '',
+      durationValue: String(Math.round(mins / DURATION_UNITS[unit]) || ''),
+      durationUnit: unit,
+      mbps: '',
+      rateLimit: plan.bandwidth || '',
+      maxDevices: plan.maxDevices || 1,
+      burstLimit: plan.burstLimit || '',
+      burstThreshold: plan.burstThreshold || '',
+      burstTime: plan.burstTime || '',
+      fupEnabled: Boolean(plan.fupEnabled),
+      fupLimitMb: plan.fupLimitMb ?? '',
+      fupAction: plan.fupAction || 'THROTTLE',
+      fupRate: plan.fupRate || '',
+      scheduleEnabled: Boolean(plan.scheduleEnabled),
+      scheduleFrom: (plan.scheduleFrom || '23:00').slice(0, 5),
+      scheduleTo: (plan.scheduleTo || '06:00').slice(0, 5),
+      allowedRouterIds: plan.allowedRouterIds || [],
+    }
+  })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
+  useEffect(() => {
+    api('/admin/routers', { auth }).then(setRouters).catch(() => setRouters([]))
+  }, [auth])
+
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }))
   const totalMinutes = Math.round(Number(form.durationValue || 0) * DURATION_UNITS[form.durationUnit])
+
+  // A plain Mbps figure covers the common case; the raw string is there for
+  // asymmetric links the simple field cannot express.
+  const effectiveRate = form.rateLimit.trim() || (form.mbps ? form.mbps + 'M/' + form.mbps + 'M' : '')
+
+  const burstFilled = ['burstLimit', 'burstThreshold', 'burstTime'].filter((k) => form[k].trim()).length
+  const burstPartial = burstFilled > 0 && burstFilled < 3
 
   async function save(e) {
     e.preventDefault()
+    if (burstPartial) {
+      setError('Fill all three burst fields, or clear all three.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await api('/admin/plans', {
-        method: 'POST',
+      const body = {
+        name: form.name,
+        type: form.type,
+        availability: form.availability,
+        price: Number(form.price),
+        durationMinutes: totalMinutes,
+        bandwidth: effectiveRate || null,
+        maxDevices: Number(form.maxDevices) || 1,
+        burstLimit: form.burstLimit.trim() || null,
+        burstThreshold: form.burstThreshold.trim() || null,
+        burstTime: form.burstTime.trim() || null,
+        fupEnabled: form.fupEnabled,
+        fupLimitMb: form.fupEnabled && form.fupLimitMb ? Number(form.fupLimitMb) : null,
+        fupAction: form.fupEnabled ? form.fupAction : null,
+        fupRate: form.fupEnabled && form.fupAction === 'THROTTLE' ? form.fupRate.trim() || null : null,
+        scheduleEnabled: form.scheduleEnabled,
+        scheduleFrom: form.scheduleEnabled ? form.scheduleFrom : null,
+        scheduleTo: form.scheduleEnabled ? form.scheduleTo : null,
+        allowedRouterIds: form.allowedRouterIds.map(Number),
+      }
+      await api(editing ? '/admin/plans/' + plan.id : '/admin/plans', {
+        method: editing ? 'PUT' : 'POST',
         auth,
-        body: {
-          name: form.name,
-          price: Number(form.price),
-          durationMinutes: totalMinutes,
-          bandwidth: form.mbps ? `${form.mbps}M/${form.mbps}M` : null,
-          maxDevices: Number(form.maxDevices) || 1,
-        },
+        body,
       })
       onSaved()
     } catch (err) {
@@ -843,81 +936,237 @@ function PlanModal({ auth, onClose, onSaved }) {
   }
 
   const inputCls =
-    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]'
+    'w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all'
+  const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-1.5'
+  const hintCls = 'text-xs text-on-surface-variant mt-1'
 
   return (
-    <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
-          <h3 className="text-2xl font-bold text-on-background">Create New Plan</h3>
+    <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-start justify-center p-5 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col my-8">
+        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-start">
+          <div>
+            <h3 className="text-2xl font-bold text-on-background">
+              {editing ? 'Edit ' + plan.name : 'Create a package'}
+            </h3>
+            <p className="text-sm text-on-surface-variant mt-0.5">Speed limits, scheduling and router restrictions.</p>
+          </div>
           <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
             <Icon name="close" />
           </button>
         </div>
+
         <form onSubmit={save}>
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Plan Name</label>
-              <input className={inputCls} placeholder="e.g. 12 Hours Pass" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Price (KES)</label>
-                <input className={inputCls} placeholder="e.g. 80" type="number" min="1" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Duration</label>
-                <div className="flex gap-2">
-                  <input
-                    className={`${inputCls} flex-1 min-w-0`}
-                    placeholder="e.g. 8"
-                    type="number"
-                    min="1"
-                    step="1"
-                    required
-                    value={form.durationValue}
-                    onChange={(e) => setForm({ ...form, durationValue: e.target.value })}
-                  />
-                  <select
-                    className={`${inputCls} w-auto`}
-                    value={form.durationUnit}
-                    onChange={(e) => setForm({ ...form, durationUnit: e.target.value })}
-                  >
-                    <option value="minutes">Minutes</option>
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                  </select>
+          <div className="p-6 space-y-5">
+            <FormSection title="Identity">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Name *</label>
+                  <input className={inputCls} required placeholder="e.g. Home 10 Mbps" value={form.name} onChange={(e) => set({ name: e.target.value })} />
                 </div>
-                {totalMinutes > 0 && (
-                  <p className="text-xs font-semibold tracking-wider text-tertiary mt-1">
-                    = {formatDuration(totalMinutes)} · shown under "{planGroup(totalMinutes)}" on the portal
+                <div>
+                  <label className={labelCls}>Type *</label>
+                  <select className={inputCls} value={form.type} onChange={(e) => set({ type: e.target.value })}>
+                    <option value="HOTSPOT">Hotspot</option>
+                    <option value="PPPOE">PPPoE</option>
+                  </select>
+                  <p className={hintCls}>
+                    {form.type === 'HOTSPOT'
+                      ? 'Sold as vouchers on the captive portal.'
+                      : 'Assigned to PPPoE subscribers by the office.'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className={labelCls}>Availability</label>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABILITY.map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => set({ availability: a.key })}
+                      aria-pressed={form.availability === a.key}
+                      className={'px-4 py-2 rounded-full text-sm cursor-pointer transition-colors ' + (
+                        form.availability === a.key
+                          ? 'bg-primary-container text-on-primary-container font-semibold'
+                          : 'border border-outline-variant text-on-surface hover:bg-surface-container-high'
+                      )}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                <p className={hintCls}>{AVAILABILITY.find((a) => a.key === form.availability)?.hint}</p>
+              </div>
+            </FormSection>
+
+            <FormSection title="Pricing">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Price (KES) *</label>
+                  <input className={inputCls} type="number" min="1" step="0.01" required value={form.price} onChange={(e) => set({ price: e.target.value })} />
+                  <p className={hintCls}>Must be at least 1 - a paid package cannot cost 0.</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Duration *</label>
+                  <div className="flex gap-2">
+                    <input className={inputCls + ' flex-1 min-w-0'} type="number" min="1" step="1" required placeholder="e.g. 8" value={form.durationValue} onChange={(e) => set({ durationValue: e.target.value })} />
+                    <select className={inputCls + ' w-auto'} value={form.durationUnit} onChange={(e) => set({ durationUnit: e.target.value })}>
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
+                  <p className={hintCls}>
+                    {totalMinutes > 0
+                      ? '= ' + formatDuration(totalMinutes) + ' from activation - listed under "' + planGroup(totalMinutes) + '"'
+                      : 'How long access lasts from activation.'}
+                  </p>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection title="Speed">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>Speed (Mbps)</label>
+                  <input className={inputCls} type="number" min="1" placeholder="e.g. 5" value={form.mbps} onChange={(e) => set({ mbps: e.target.value })} disabled={Boolean(form.rateLimit.trim())} />
+                </div>
+                <div>
+                  <label className={labelCls}>Or rate-limit string</label>
+                  <input className={inputCls} placeholder="5M/5M" value={form.rateLimit} onChange={(e) => set({ rateLimit: e.target.value })} />
+                  <p className={hintCls}>MikroTik format, down/up.</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Devices per account</label>
+                  <input className={inputCls} type="number" min="1" max="10" value={form.maxDevices} onChange={(e) => set({ maxDevices: e.target.value })} />
+                  <p className={hintCls}>Simultaneous devices.</p>
+                </div>
+              </div>
+              {effectiveRate && (
+                <p className="mt-3 text-xs text-on-surface-variant">
+                  Router will receive{' '}
+                  <code className="font-mono text-on-surface">
+                    {effectiveRate}{burstFilled === 3 ? ' ' + form.burstLimit + ' ' + form.burstThreshold + ' ' + form.burstTime : ''}
+                  </code>
+                </p>
+              )}
+
+              <div className="mt-4 p-4 rounded-lg bg-surface-container-low/60 border border-outline-variant">
+                <p className="text-sm font-semibold">Burst <span className="font-normal text-on-surface-variant">optional</span></p>
+                <p className="text-xs text-on-surface-variant mt-0.5 mb-3">
+                  Lets a subscriber briefly exceed their rate-limit. Fill all three to enable, or leave all three blank.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelCls}>Burst limit</label>
+                    <input className={inputCls} placeholder="10M/10M" value={form.burstLimit} onChange={(e) => set({ burstLimit: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Burst threshold</label>
+                    <input className={inputCls} placeholder="5M/5M" value={form.burstThreshold} onChange={(e) => set({ burstThreshold: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Burst time</label>
+                    <input className={inputCls} placeholder="30/30" value={form.burstTime} onChange={(e) => set({ burstTime: e.target.value })} />
+                  </div>
+                </div>
+                {burstPartial && (
+                  <p className="mt-2 text-xs text-error">
+                    RouterOS rejects a partial burst - fill all three, or clear all three.
                   </p>
                 )}
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Bandwidth Limit</label>
-                <div className="relative">
-                  <input className={`${inputCls} pr-16`} placeholder="e.g. 5" type="number" min="1" value={form.mbps} onChange={(e) => setForm({ ...form, mbps: e.target.value })} />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold tracking-wider text-on-surface-variant">Mbps</span>
+            </FormSection>
+
+            <FormSection title="Fair use policy">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Toggle checked={form.fupEnabled} onChange={(e) => set({ fupEnabled: e.target.checked })} />
+                <span className="text-sm">Enforce a monthly data limit</span>
+              </label>
+              {form.fupEnabled && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelCls}>Monthly limit (MB) *</label>
+                    <input className={inputCls} type="number" min="1" required value={form.fupLimitMb} onChange={(e) => set({ fupLimitMb: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Then</label>
+                    <select className={inputCls} value={form.fupAction} onChange={(e) => set({ fupAction: e.target.value })}>
+                      {FUP_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+                    </select>
+                  </div>
+                  {form.fupAction === 'THROTTLE' && (
+                    <div>
+                      <label className={labelCls}>Reduced speed *</label>
+                      <input className={inputCls} required placeholder="1M/1M" value={form.fupRate} onChange={(e) => set({ fupRate: e.target.value })} />
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs font-semibold tracking-wider text-tertiary mt-1">Applied as the MikroTik rate limit (e.g. 5M/5M).</p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Devices Allowed</label>
-                <input className={inputCls} type="number" min="1" max="10" required value={form.maxDevices} onChange={(e) => setForm({ ...form, maxDevices: e.target.value })} />
-                <p className="text-xs font-semibold tracking-wider text-tertiary mt-1">Simultaneous devices per voucher — the router enforces this.</p>
-              </div>
-            </div>
+              )}
+            </FormSection>
+
+            <FormSection title="Schedule">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Toggle checked={form.scheduleEnabled} onChange={(e) => set({ scheduleEnabled: e.target.checked })} />
+                <span className="text-sm">Restrict when this plan can be used</span>
+              </label>
+              {form.scheduleEnabled && (
+                <>
+                  <div className="mt-4 flex flex-wrap items-end gap-3">
+                    <div>
+                      <label className={labelCls}>From</label>
+                      <input className={inputCls} type="time" value={form.scheduleFrom} onChange={(e) => set({ scheduleFrom: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>To</label>
+                      <input className={inputCls} type="time" value={form.scheduleTo} onChange={(e) => set({ scheduleTo: e.target.value })} />
+                    </div>
+                  </div>
+                  <p className={hintCls}>
+                    {form.scheduleFrom > form.scheduleTo
+                      ? 'Crosses midnight - usable ' + form.scheduleFrom + ' until ' + form.scheduleTo + ' the next morning.'
+                      : 'Usable between ' + form.scheduleFrom + ' and ' + form.scheduleTo + '.'}
+                    {' '}Outside that window it is hidden from the portal.
+                  </p>
+                </>
+              )}
+            </FormSection>
+
+            <FormSection title="Router restriction" hint="Limit this plan to certain routers. Leave empty to allow it everywhere.">
+              {routers.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">No routers configured yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {routers.map((r) => {
+                    const checked = form.allowedRouterIds.map(String).includes(String(r.id))
+                    return (
+                      <label key={r.id} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-outline-variant cursor-pointer hover:bg-surface-container-high">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => set({
+                            allowedRouterIds: e.target.checked
+                              ? [...form.allowedRouterIds, r.id]
+                              : form.allowedRouterIds.filter((id) => String(id) !== String(r.id)),
+                          })}
+                        />
+                        <span className="text-sm">{r.name}<span className="text-on-surface-variant"> - {r.host}</span></span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </FormSection>
+
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
+
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">
+            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-base font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={busy} className="px-6 py-3 rounded-lg text-lg font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[48px] disabled:opacity-60 cursor-pointer">
-              {busy ? 'Saving…' : 'Save Plan'}
+            <button type="submit" disabled={busy || burstPartial} className="px-6 py-3 rounded-lg text-base font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer">
+              {busy ? 'Saving...' : editing ? 'Save changes' : 'Create package'}
             </button>
           </div>
         </form>
@@ -935,31 +1184,41 @@ function Toggle({ checked, onChange }) {
   )
 }
 
+const PLAN_AVAILABILITY_STYLES = {
+  LIVE: 'bg-secondary-container text-on-secondary-container',
+  HIDDEN: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20',
+  OFF: 'bg-surface-container-high text-on-surface-variant',
+}
+
+/** Availability as stored, falling back to the older active flag. */
+const planAvailability = (p) => p.availability || (p.active ? 'LIVE' : 'OFF')
+
 function Plans({ auth }) {
   const [plans, setPlans] = useState([])
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(false)
+  const [editing, setEditing] = useState(null)
 
   const load = () => api('/admin/plans', { auth }).then(setPlans).catch(() => {})
   useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = plans.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
-  const active = plans.filter((p) => p.active)
+  const active = plans.filter((p) => planAvailability(p) === 'LIVE')
   const avgPrice = plans.length ? Math.round(plans.reduce((a, p) => a + Number(p.price), 0) / plans.length) : 0
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-background">Data Packages</h2>
-          <p className="text-base text-on-surface-variant mt-1">Manage bandwidth profiles and pricing for your network.</p>
+          <h2 className="text-4xl font-bold tracking-tight text-on-background">Packages</h2>
+          <p className="text-base text-on-surface-variant mt-1">Speed limits, fair use, scheduling and pricing.</p>
         </div>
         <button
           onClick={() => setModal(true)}
           className="bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] cursor-pointer"
         >
           <Icon name="add" />
-          New Plan
+          New Package
         </button>
       </div>
 
@@ -1000,9 +1259,10 @@ function Plans({ auth }) {
                 <th className="border-b border-surface-variant/50">Plan Name</th>
                 <th className="border-b border-surface-variant/50">Price</th>
                 <th className="border-b border-surface-variant/50">Duration</th>
-                <th className="border-b border-surface-variant/50">Bandwidth</th>
-                <th className="border-b border-surface-variant/50">Status</th>
-                <th className="border-b border-surface-variant/50 text-right">Enabled</th>
+                <th className="border-b border-surface-variant/50">Speed</th>
+                <th className="border-b border-surface-variant/50">Rules</th>
+                <th className="border-b border-surface-variant/50">Availability</th>
+                <th className="border-b border-surface-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
@@ -1030,15 +1290,62 @@ function Plans({ auth }) {
                       <Icon name="devices" className="text-[14px]!" />
                       {p.effectiveMaxDevices || 1} device{(p.effectiveMaxDevices || 1) > 1 ? 's' : ''}
                     </div>
+                    {p.burstLimit && p.burstThreshold && p.burstTime && (
+                      <div className="text-xs text-on-surface-variant mt-1">Burst to {speedLabel(p.burstLimit)}</div>
+                    )}
                   </td>
-                  <td className=""><StatusPill status={p.active ? 'ACTIVE' : 'INACTIVE'} /></td>
+                  <td className="">
+                    <div className="flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
+                        {(p.type || 'HOTSPOT') === 'PPPOE' ? 'PPPoE' : 'Hotspot'}
+                      </span>
+                      {p.fupEnabled && p.fupLimitMb > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#b45309] text-[10px] font-bold uppercase tracking-wider"
+                          title={`Over ${p.fupLimitMb} MB a month: ${(p.fupAction || '').toLowerCase()}`}>
+                          FUP {p.fupLimitMb >= 1024 ? `${(p.fupLimitMb / 1024).toFixed(0)}GB` : `${p.fupLimitMb}MB`}
+                        </span>
+                      )}
+                      {p.scheduleEnabled && p.scheduleFrom && p.scheduleTo && (
+                        <span className="px-2 py-0.5 rounded-full bg-primary-container/25 text-primary text-[10px] font-bold uppercase tracking-wider">
+                          {String(p.scheduleFrom).slice(0, 5)}–{String(p.scheduleTo).slice(0, 5)}
+                        </span>
+                      )}
+                      {p.allowedRouterIds?.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
+                          {p.allowedRouterIds.length} router{p.allowedRouterIds.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${PLAN_AVAILABILITY_STYLES[planAvailability(p)]}`}>
+                      {planAvailability(p) === 'LIVE' ? 'Live' : planAvailability(p) === 'HIDDEN' ? 'Hidden' : 'Off'}
+                    </span>
+                  </td>
                   <td className="text-right">
-                    <Toggle checked={p.active} onChange={() => api(`/admin/plans/${p.id}/toggle`, { method: 'PATCH', auth }).then(load)} />
+                    <div className="flex gap-1.5 justify-end">
+                      <button
+                        onClick={() => setEditing(p)}
+                        className="px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer hover:bg-surface-container-high"
+                      >
+                        Edit
+                      </button>
+                      <select
+                        aria-label={`Availability for ${p.name}`}
+                        value={planAvailability(p)}
+                        onChange={(e) => api(`/admin/plans/${p.id}/availability`, { method: 'PATCH', auth, body: { availability: e.target.value } }).then(load)}
+                        className="bg-surface border border-outline-variant rounded-lg px-2 py-1.5 text-xs cursor-pointer"
+                      >
+                        <option value="LIVE">Live</option>
+                        <option value="HIDDEN">Hidden</option>
+                        <option value="OFF">Off</option>
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td className="text-on-surface-variant" colSpan={6}>No plans found.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={7}>No plans found.</td></tr>
               )}
             </tbody>
           </table>
@@ -1046,6 +1353,14 @@ function Plans({ auth }) {
       </div>
 
       {modal && <PlanModal auth={auth} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
+      {editing && (
+        <PlanModal
+          auth={auth}
+          plan={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load() }}
+        />
+      )}
     </div>
   )
 }
@@ -2272,9 +2587,153 @@ function TicketAnalytics({ auth }) {
   )
 }
 
+/** Avatar stack for whoever is on a job, with a "+N" once it gets crowded. */
+function AssigneeChips({ ids = [], technicians, empty = 'Unassigned' }) {
+  if (!ids.length) {
+    return <span className="text-xs text-on-surface-variant">{empty}</span>
+  }
+  const named = ids.map((id) => technicians.find((t) => String(t.id) === String(id))).filter(Boolean)
+  const shown = named.slice(0, 3)
+  return (
+    <span className="flex items-center gap-1" title={named.map((t) => t.fullName).join(', ')}>
+      {shown.map((t) => (
+        <span key={t.id} className="w-6 h-6 rounded-full bg-primary-container text-on-primary-container text-[10px] font-bold flex items-center justify-center">
+          {initials(t.fullName)}
+        </span>
+      ))}
+      {named.length > shown.length && (
+        <span className="text-xs text-on-surface-variant">+{named.length - shown.length}</span>
+      )}
+      {named.length === 0 && <span className="text-xs text-on-surface-variant">{ids.length} assigned</span>}
+    </span>
+  )
+}
+
+/** Pick any number of technicians for a ticket; empty means back in the pool. */
+function AssigneePicker({ technicians, value, onChange, disabled }) {
+  const selected = value.map(String)
+  const available = technicians.filter((t) => t.active)
+  if (available.length === 0) {
+    return (
+      <p className="text-xs text-on-surface-variant">
+        No active technicians yet — add one under Organisation → Team.
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {available.map((t) => {
+        const on = selected.includes(String(t.id))
+        return (
+          <button
+            key={t.id}
+            type="button"
+            disabled={disabled}
+            aria-pressed={on}
+            onClick={() => onChange(on
+              ? value.filter((id) => String(id) !== String(t.id))
+              : [...value, t.id])}
+            className={'px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors disabled:opacity-60 ' + (
+              on
+                ? 'bg-primary text-on-primary'
+                : 'border border-outline-variant text-on-surface hover:bg-surface-container-high'
+            )}
+          >
+            {on ? '\u2713 ' : ''}{t.fullName}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Staff raising a ticket themselves — a walk-in, or a fault we spotted. */
+function NewTicketForm({ auth, technicians, onCancel, onCreated }) {
+  const [form, setForm] = useState({
+    customerName: '', phoneNumber: '', subject: '', message: '', priority: 'MEDIUM',
+  })
+  const [assignees, setAssignees] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api('/admin/tickets', {
+        method: 'POST',
+        auth,
+        body: {
+          ...form,
+          phoneNumber: form.phoneNumber.replace(/\D/g, ''),
+          assigneeIds: assignees.map(Number),
+        },
+      })
+      onCreated()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-6 p-5 rounded-xl bg-surface-container-lowest border border-outline-variant space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label className={LABEL_CLS}>Customer name</label>
+          <input className={INPUT_CLS} required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Phone</label>
+          <input className={INPUT_CLS} required placeholder="0712345678" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} />
+        </div>
+        <div className="md:col-span-2">
+          <label className={LABEL_CLS}>Subject</label>
+          <input className={INPUT_CLS} required placeholder="e.g. No connection since morning" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="md:col-span-3">
+          <label className={LABEL_CLS}>What is the problem?</label>
+          <textarea className={INPUT_CLS + ' min-h-[80px]'} required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Priority</label>
+          <select className={INPUT_CLS} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Assign to</label>
+        <AssigneePicker technicians={technicians} value={assignees} onChange={setAssignees} />
+        <p className="text-xs text-on-surface-variant mt-2">
+          {assignees.length === 0
+            ? 'Leave empty to triage later. Whoever you pick gets a text with the details.'
+            : `${assignees.length} technician${assignees.length > 1 ? 's' : ''} will be texted the job details.`}
+        </p>
+      </div>
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex gap-2">
+        <PrimaryButton type="submit" disabled={busy}>{busy ? 'Creating\u2026' : 'Create ticket'}</PrimaryButton>
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg border border-outline-variant text-sm cursor-pointer hover:bg-surface-container-high">
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function Support({ auth }) {
   const [view, setView] = useState('inbox')
   const [tickets, setTickets] = useState(null)
+  const [technicians, setTechnicians] = useState([])
+  const [showNew, setShowNew] = useState(false)
+  const [savingAssignees, setSavingAssignees] = useState(false)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -2283,7 +2742,22 @@ function Support({ auth }) {
   const [showTemplates, setShowTemplates] = useState(false)
 
   const load = () => api('/admin/tickets', { auth }).then(setTickets).catch(() => setTickets([]))
-  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load()
+    api('/admin/technicians', { auth }).then(setTechnicians).catch(() => setTechnicians([]))
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function setAssignees(ticketId, assigneeIds) {
+    setSavingAssignees(true)
+    try {
+      await api(`/admin/tickets/${ticketId}/assignees`, {
+        method: 'PATCH', auth, body: { assigneeIds: assigneeIds.map(Number) },
+      })
+      await load()
+    } finally {
+      setSavingAssignees(false)
+    }
+  }
 
   const list = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -2346,6 +2820,9 @@ function Support({ auth }) {
               {f}
             </button>
           ))}
+          <PrimaryButton onClick={() => { setView('inbox'); setShowNew((v) => !v) }}>
+            <Icon name="add" /> New Ticket
+          </PrimaryButton>
           <div className="flex rounded-full border border-outline-variant overflow-hidden ml-1">
             {[['inbox', 'Inbox', 'inbox'], ['analytics', 'Analytics', 'insights']].map(([key, label, icon]) => (
               <button
@@ -2364,6 +2841,15 @@ function Support({ auth }) {
           </div>
         </div>
       </div>
+
+      {view === 'inbox' && showNew && (
+        <NewTicketForm
+          auth={auth}
+          technicians={technicians}
+          onCancel={() => setShowNew(false)}
+          onCreated={() => { setShowNew(false); load() }}
+        />
+      )}
 
       {view === 'analytics' && <TicketAnalytics auth={auth} />}
 
@@ -2408,6 +2894,7 @@ function Support({ auth }) {
                     <span className="text-sm text-on-surface-variant truncate">{t.customerName} ({t.phoneNumber})</span>
                   </div>
                   <TicketStatusPill status={t.status} />
+                  <AssigneeChips ids={t.assigneeIds} technicians={technicians} />
                 </div>
               </button>
             ))}
@@ -2451,7 +2938,25 @@ function Support({ auth }) {
                   <div>
                     <p className="text-xs">Opened</p>
                     <p className="font-medium text-on-surface">{fmtDate(selected.createdAt)}, {fmtTime(selected.createdAt)}</p>
+                    {selected.createdBy && <p className="text-xs">Raised by {selected.createdBy}</p>}
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">
+                    Assigned to
+                  </p>
+                  <AssigneePicker
+                    technicians={technicians}
+                    value={selected.assigneeIds || []}
+                    disabled={savingAssignees}
+                    onChange={(ids) => setAssignees(selected.id, ids)}
+                  />
+                  <p className="text-xs text-on-surface-variant mt-2">
+                    {(selected.assigneeIds || []).length === 0
+                      ? 'Nobody is on this yet. Picking someone moves it to In Progress and texts them.'
+                      : 'Tap a name to add or remove. New assignees get a text with the job details.'}
+                  </p>
                 </div>
               </div>
 
