@@ -9,6 +9,8 @@ import PayBillPage from './admin/PayBill.jsx'
 import AuditLogPage from './admin/AuditLog.jsx'
 import ActiveUsersPage from './admin/ActiveUsers.jsx'
 import BrandingPage from './admin/Branding.jsx'
+import LeadsPage from './admin/Leads.jsx'
+import AgentsPage from './admin/Agents.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -249,47 +251,47 @@ function Login({ onLogin }) {
 const NAV_GROUPS = [
   {
     label: null,
-    items: [
-      { key: 'overview', label: 'Overview', icon: 'dashboard' },
-      { key: 'active', label: 'Active Users', icon: 'group_work' },
-    ],
+    items: [{ key: 'overview', label: 'Overview', icon: 'dashboard' }],
   },
   {
-    label: 'Selling',
+    label: 'Customers',
     items: [
-      { key: 'plans', label: 'Plans', icon: 'wifi_tethering' },
-      { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
       { key: 'subscribers', label: 'Subscribers', icon: 'lan' },
-    ],
-  },
-  {
-    label: 'Money',
-    items: [
-      { key: 'payments', label: 'Payments', icon: 'payments' },
-      { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
-      { key: 'finance', label: 'Finance', icon: 'assessment' },
+      { key: 'leads', label: 'Leads', icon: 'person_search' },
+      { key: 'support', label: 'Tickets', icon: 'support_agent' },
     ],
   },
   {
     label: 'Network',
     items: [
+      { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering' },
+      { key: 'plans', label: 'Plans', icon: 'inventory_2' },
       { key: 'routers', label: 'Routers', icon: 'router' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month' },
-      { key: 'branches', label: 'Branches', icon: 'add_business' },
     ],
   },
   {
-    label: 'People',
+    label: 'Finance',
     items: [
-      { key: 'support', label: 'Support', icon: 'support_agent' },
+      { key: 'finance', label: 'Billing', icon: 'receipt_long' },
+      { key: 'payments', label: 'Payments', icon: 'payments' },
+      { key: 'paybill', label: 'PayBill', icon: 'account_balance' },
+      { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
+      { key: 'agents', label: 'Agents', icon: 'storefront' },
+    ],
+  },
+  {
+    label: 'Outreach',
+    items: [
       { key: 'messages', label: 'Messages', icon: 'chat' },
-      { key: 'team', label: 'Team', icon: 'group' },
+      { key: 'branding', label: 'Campaigns', icon: 'campaign' },
     ],
   },
   {
-    label: 'System',
+    label: 'Organisation',
     items: [
-      { key: 'branding', label: 'Branding', icon: 'palette' },
+      { key: 'team', label: 'Team', icon: 'group' },
+      { key: 'branches', label: 'Branches', icon: 'add_business' },
       { key: 'audit', label: 'Audit Log', icon: 'history' },
       { key: 'settings', label: 'Settings', icon: 'settings' },
     ],
@@ -298,7 +300,42 @@ const NAV_GROUPS = [
 
 const NAV = NAV_GROUPS.flatMap((g) => g.items)
 
+/** Unread/open counts for the destinations inside a collapsed group. */
+function groupBadge(group, badges) {
+  return group.items.reduce((sum, item) => sum + (badges[item.key] || 0), 0)
+}
+
 function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
+  // Seventeen destinations don't fit a laptop screen at once, so groups
+  // collapse and the one holding the current page opens itself.
+  const [collapsed, setCollapsed] = useState(() => {
+    const shut = new Set(NAV_GROUPS.map((g) => g.label).filter(Boolean))
+    NAV_GROUPS.forEach((g) => {
+      if (g.items.some((i) => i.key === tab)) shut.delete(g.label)
+    })
+    return shut
+  })
+
+  useEffect(() => {
+    const owner = NAV_GROUPS.find((g) => g.label && g.items.some((i) => i.key === tab))
+    if (owner) {
+      setCollapsed((prev) => {
+        if (!prev.has(owner.label)) return prev
+        const next = new Set(prev)
+        next.delete(owner.label)
+        return next
+      })
+    }
+  }, [tab])
+
+  const isOpen = (group) => !group.label || !collapsed.has(group.label)
+  const toggleGroup = (label) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      next.has(label) ? next.delete(label) : next.add(label)
+      return next
+    })
+
   return (
     <div className="flex flex-col h-full py-5 px-3">
       <div className="mb-5 px-4 flex items-center gap-3 shrink-0">
@@ -308,28 +345,41 @@ function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
           <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70">NETWORK MANAGER</p>
         </div>
       </div>
-      <nav className="flex flex-col gap-4 flex-1 overflow-y-auto pr-1">
+      <nav className="flex flex-col gap-1.5 flex-1 overflow-y-auto pr-1">
         {NAV_GROUPS.map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
-              <p className="px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50">
-                {group.label}
-              </p>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                aria-expanded={isOpen(group)}
+                className="w-full px-4 py-1.5 flex items-center gap-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 hover:text-surface-variant cursor-pointer transition-colors"
+              >
+                <span>{group.label}</span>
+                {groupBadge(group, badges) > 0 && !isOpen(group) && (
+                  <span className="min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {groupBadge(group, badges)}
+                  </span>
+                )}
+                <Icon
+                  name="expand_more"
+                  className={`ml-auto text-[16px]! transition-transform ${isOpen(group) ? '' : '-rotate-90'}`}
+                />
+              </button>
             )}
-            <ul className="flex flex-col gap-0.5">
+            <ul className={`flex flex-col gap-0.5 ${isOpen(group) ? '' : 'hidden'}`}>
               {group.items.map((item) => (
                 <li key={item.key}>
                   <button
                     onClick={() => onNav(item.key)}
                     aria-current={tab === item.key ? 'page' : undefined}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
                       tab === item.key
                         ? 'bg-primary-container text-on-primary-container font-semibold'
                         : 'text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10'
                     }`}
                   >
                     <Icon name={item.icon} filled={tab === item.key} className="text-[20px]!" />
-                    <span className="text-base">{item.label}</span>
+                    <span className="text-[15px] whitespace-nowrap">{item.label}</span>
                     {badges[item.key] > 0 && (
                       <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center">
                         {badges[item.key]}
@@ -426,20 +476,22 @@ function PayoutBell({ auth }) {
 
 const TAB_TITLES = {
   overview: 'Overview',
-  active: 'Active Users',
+  active: 'Live Sessions',
+  leads: 'Leads',
+  agents: 'Agents & Batches',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
   payments: 'Payments',
   paybill: 'PayBill',
-  finance: 'Finance',
+  finance: 'Billing',
   routers: 'Routers',
   branches: 'Branches',
-  support: 'Support',
+  support: 'Tickets',
   maintenance: 'Maintenance',
   messages: 'Messages',
   team: 'Team',
-  branding: 'Branding',
+  branding: 'Campaigns & Branding',
   audit: 'Audit Log',
   settings: 'Settings',
 }
@@ -506,6 +558,8 @@ function Shell({ auth, onLogout }) {
       <main className="md:ml-64 pt-24 px-5 md:px-8 pb-8 max-w-[1600px]">
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
+        {tab === 'leads' && <LeadsPage auth={auth} />}
+        {tab === 'agents' && <AgentsPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <Vouchers auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}

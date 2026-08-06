@@ -51,6 +51,9 @@ public class Voucher {
     /** Username of the admin/technician who generated it; null for customer purchases. */
     private String createdBy;
 
+    /** The printed batch this voucher belongs to, if it came from one. */
+    private Long batchId;
+
     @Builder.Default
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
