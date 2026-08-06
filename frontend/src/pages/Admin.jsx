@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
@@ -303,40 +303,23 @@ const NAV_GROUPS = [
 const NAV = NAV_GROUPS.flatMap((g) => g.items)
 
 /** Unread/open counts for the destinations inside a collapsed group. */
-function groupBadge(group, badges) {
-  return group.items.reduce((sum, item) => sum + (badges[item.key] || 0), 0)
-}
-
 function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
-  // Seventeen destinations don't fit a laptop screen at once, so groups
-  // collapse and the one holding the current page opens itself.
-  const [collapsed, setCollapsed] = useState(() => {
-    const shut = new Set(NAV_GROUPS.map((g) => g.label).filter(Boolean))
-    NAV_GROUPS.forEach((g) => {
-      if (g.items.some((i) => i.key === tab)) shut.delete(g.label)
-    })
-    return shut
-  })
+  // The rail is taller than a laptop screen. A fade on the bottom edge shows
+  // there is more below, but it must clear once you reach the end, otherwise
+  // the last item looks disabled.
+  const [moreBelow, setMoreBelow] = useState(false)
+  const railRef = useRef(null)
+
+  const measure = () => {
+    const el = railRef.current
+    if (el) setMoreBelow(el.scrollTop + el.clientHeight < el.scrollHeight - 4)
+  }
 
   useEffect(() => {
-    const owner = NAV_GROUPS.find((g) => g.label && g.items.some((i) => i.key === tab))
-    if (owner) {
-      setCollapsed((prev) => {
-        if (!prev.has(owner.label)) return prev
-        const next = new Set(prev)
-        next.delete(owner.label)
-        return next
-      })
-    }
-  }, [tab])
-
-  const isOpen = (group) => !group.label || !collapsed.has(group.label)
-  const toggleGroup = (label) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      next.has(label) ? next.delete(label) : next.add(label)
-      return next
-    })
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   return (
     <div className="flex flex-col h-full py-5 px-3">
@@ -347,28 +330,20 @@ function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
           <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70">NETWORK MANAGER</p>
         </div>
       </div>
-      <nav className="flex flex-col gap-1.5 flex-1 overflow-y-auto pr-1">
+      <div className="relative flex-1 min-h-0 flex">
+      <nav
+        ref={railRef}
+        onScroll={measure}
+        className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
+      >
         {NAV_GROUPS.map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
-              <button
-                onClick={() => toggleGroup(group.label)}
-                aria-expanded={isOpen(group)}
-                className="w-full px-4 py-1.5 flex items-center gap-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 hover:text-surface-variant cursor-pointer transition-colors"
-              >
-                <span>{group.label}</span>
-                {groupBadge(group, badges) > 0 && !isOpen(group) && (
-                  <span className="min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {groupBadge(group, badges)}
-                  </span>
-                )}
-                <Icon
-                  name="expand_more"
-                  className={`ml-auto text-[16px]! transition-transform ${isOpen(group) ? '' : '-rotate-90'}`}
-                />
-              </button>
+              <p className="px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50">
+                {group.label}
+              </p>
             )}
-            <ul className={`flex flex-col gap-0.5 ${isOpen(group) ? '' : 'hidden'}`}>
+            <ul className="flex flex-col gap-0.5">
               {group.items.map((item) => (
                 <li key={item.key}>
                   <button
@@ -394,6 +369,13 @@ function SidebarContent({ tab, onNav, onLogout, badges = {} }) {
           </div>
         ))}
       </nav>
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-inverse-surface to-transparent transition-opacity ${
+            moreBelow ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      </div>
       <div className="mt-4 pt-3 border-t border-surface-variant/20 shrink-0">
         <button
           onClick={onLogout}
