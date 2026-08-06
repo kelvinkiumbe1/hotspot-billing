@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* Design tokens from the Stitch design (Material 3 style palette) */
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --color-background: #f9f9f8;
+  --color-on-background: #1a1c1c;
+  --color-surface: #f9f9f8;
+  --color-on-surface: #1a1c1c;
+  --color-on-surface-variant: #3e4947;
+  --color-surface-bright: #f9f9f8;
+  --color-surface-dim: #dadad9;
+  --color-surface-variant: #e2e2e2;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f3f4f3;
+  --color-surface-container: #eeeeed;
+  --color-surface-container-high: #e8e8e7;
+  --color-surface-container-highest: #e2e2e2;
+  --color-primary: #005c55;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0f766e;
+  --color-on-primary-container: #a3faef;
+  --color-surface-tint: #006a63;
+  --color-secondary: #466800;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #b8f25a;
+  --color-on-secondary-container: #496d00;
+  --color-outline: #6e7977;
+  --color-outline-variant: #bdc9c6;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-inverse-surface: #2f3130;
+  --color-primary-fixed: #9cf2e8;
+  --color-primary-fixed-dim: #80d5cb;
+  --color-tertiary: #495167;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-on-background);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Material Symbols icon font */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* Keyboard focus visibility (WCAG) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Staggered entrance animation */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+.fade-up {
+  opacity: 0;
+  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Waiting-screen radar loader */
+@keyframes radar {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.radar-ping {
+  animation: radar 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Success-screen confetti */
+@keyframes confetti-fall {
+  0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .radar-ping,
+  .confetti-piece,
+  .fade-up,
+  .animate-ping,
+  .animate-pulse {
+    animation: none !important;
+  }
+  .fade-up { opacity: 1; }
+  * { transition-duration: 0.01ms !important; }
+}

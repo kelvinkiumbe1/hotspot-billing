@@ -1,0 +1,868 @@
+import { useEffect, useMemo, useState } from 'react'
+import { api } from '../api.js'
+import TaskNotes from '../components/TaskNotes.jsx'
+import ChatThread from '../components/ChatThread.jsx'
+import loginValley from '../assets/login-valley.jpg'
+
+/* ------------------------------------------------------------------ */
+/* Helpers (Field Connect — technician app)                            */
+/* ------------------------------------------------------------------ */
+
+function Icon({ name, filled = false, className = '' }) {
+  return (
+    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
+      {name}
+    </span>
+  )
+}
+
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function fmtTime(d) {
+  return new Date(d).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDuration(minutes) {
+  if (minutes < 60) return `${minutes} min`
+  if (minutes < 1440) {
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return m ? `${h} hr ${m} min` : `${h} hr`
+  }
+  const d = Math.floor(minutes / 1440)
+  const h = Math.floor((minutes % 1440) / 60)
+  return h ? `${d} day${d > 1 ? 's' : ''} ${h} hr` : `${d} day${d > 1 ? 's' : ''}`
+}
+
+function taskChip(task) {
+  if (task.status === 'COMPLETED') return { label: 'Completed', cls: 'bg-secondary-container text-on-secondary-container' }
+  const days = (new Date(task.scheduledStart) - Date.now()) / 86400000
+  if (days < 0) return { label: 'Overdue', cls: 'bg-error-container text-on-error-container' }
+  if (days <= 7) return { label: 'Upcoming', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
+  return { label: 'Planned', cls: 'bg-primary-container/20 text-primary' }
+}
+
+const VOUCHER_PILL = {
+  UNUSED: 'bg-surface-container-high text-on-surface-variant',
+  ACTIVE: 'bg-primary-fixed/40 text-primary',
+  USED: 'bg-secondary-container text-on-secondary-container',
+  EXPIRED: 'bg-error-container text-on-error-container',
+}
+
+function printVoucherCards(vouchers, planName) {
+  const cards = vouchers.map((v) => `
+    <div class="card">
+      <div class="head"><strong>SPA WiFi</strong><span>INTERNET ACCESS</span></div>
+      <div class="code-box"><small>ACCESS CODE</small><div class="code">${v.code}</div></div>
+      <div class="foot"><span>${planName}</span><span>Use as WiFi username &amp; password</span></div>
+    </div>`).join('')
+  const w = window.open('', '_blank')
+  w.document.write(`<!doctype html><html><head><title>Voucher batch — ${planName}</title><style>
+    body { font-family: Arial, sans-serif; margin: 10mm; }
+    .grid { display: flex; flex-wrap: wrap; gap: 6mm; }
+    .card { width: 85mm; height: 54mm; border: 1px dashed #6e7977; border-top: 3px solid #005c55; border-radius: 4mm;
+            padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;
+            page-break-inside: avoid; }
+    .head { display: flex; justify-content: space-between; color: #005c55; font-size: 12px; }
+    .code-box { text-align: center; border: 1px solid #bdc9c6; border-radius: 2mm; padding: 3mm; }
+    .code-box small { color: #6e7977; letter-spacing: 1px; font-size: 9px; }
+    .code { font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; letter-spacing: 3px; }
+    .foot { display: flex; justify-content: space-between; font-size: 10px; color: #3e4947; }
+  </style></head><body><div class="grid">${cards}</div><script>window.onload = () => window.print()<\/script></body></html>`)
+  w.document.close()
+}
+
+/* ------------------------------------------------------------------ */
+/* Root: login gate                                                    */
+/* ------------------------------------------------------------------ */
+
+export default function Tech() {
+  const [auth, setAuth] = useState(sessionStorage.getItem('techAuth'))
+  return auth
+    ? <TechShell auth={auth} onLogout={() => { sessionStorage.removeItem('techAuth'); setAuth(null) }} />
+    : <TechLogin onLogin={(a) => { sessionStorage.setItem('techAuth', a); setAuth(a) }} />
+}
+
+function TechLogin({ onLogin }) {
+  const [username, setUsername] = useState('technician')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    const candidate = btoa(`${username}:${password}`)
+    try {
+      await api('/tech/tasks', { auth: candidate })
+      onLogin(candidate)
+    } catch (err) {
+      setError(err.status === 401 ? 'Wrong username or password' : err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
+      <img src={loginValley} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-[#121f00]/60"></div>
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
+            <Icon name="engineering" filled className="text-on-secondary-container text-[32px]!" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Field Connect</h1>
+          <p className="text-sm text-white/75">SPA WiFi Technician App</p>
+        </div>
+
+        <form onSubmit={submit} className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-on-surface">Technician sign in</h2>
+          <div>
+            <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="tech-user">Username</label>
+            <input
+              id="tech-user"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="tech-pass">Password</label>
+            <input
+              id="tech-pass"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          {error && <p className="text-sm text-error">{error}</p>}
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full h-12 bg-primary text-on-primary rounded-lg text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+          >
+            {busy ? 'Signing in…' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Shell: light drawer (desktop) + bottom nav (mobile)                 */
+/* ------------------------------------------------------------------ */
+
+const TECH_NAV = [
+  { key: 'tasks', label: 'My Tasks', icon: 'task_alt' },
+  { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' },
+  { key: 'messages', label: 'Messages', icon: 'chat' },
+  { key: 'profile', label: 'Profile', icon: 'person' },
+]
+
+function TechShell({ auth, onLogout }) {
+  const [tab, setTab] = useState('tasks')
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    const load = () => api('/tech/messages/unread', { auth }).then((r) => setUnread(r.unread)).catch(() => {})
+    load()
+    const t = setInterval(load, 30000)
+    return () => clearInterval(t)
+  }, [auth, tab])
+
+  return (
+    <div className="bg-background text-on-background min-h-screen">
+      {/* Desktop drawer */}
+      <nav className="hidden md:flex h-screen w-72 rounded-r-xl bg-surface-container-lowest shadow-xl fixed inset-y-0 left-0 z-40 flex-col p-4">
+        <div className="flex items-center gap-4 mb-8 p-2">
+          <div className="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center shadow-sm">
+            <Icon name="engineering" filled className="text-on-secondary-container" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold text-primary">Field Connect</span>
+            <span className="text-sm text-on-surface-variant">SPA WiFi Technician</span>
+            <span className="text-xs font-semibold tracking-wider text-secondary flex items-center gap-1 mt-1">
+              <span className="w-2 h-2 rounded-full bg-secondary inline-block"></span> Online
+            </span>
+          </div>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {TECH_NAV.map((item) => (
+            <li key={item.key}>
+              <button
+                onClick={() => setTab(item.key)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${
+                  tab === item.key
+                    ? 'bg-secondary-container text-on-secondary-container font-bold shadow-[0_4px_12px_rgba(15,23,42,0.05)]'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <Icon name={item.icon} filled={tab === item.key} />
+                <span className="text-base">{item.label}</span>
+                {item.key === 'messages' && unread > 0 && (
+                  <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center">
+                    {unread}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-auto">
+          <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer">
+            <Icon name="logout" />
+            <span className="text-base">Logout</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile top bar */}
+      <header className="fixed top-0 w-full bg-surface shadow-sm z-40 md:hidden flex items-center justify-between px-5 h-14">
+        <h1 className="text-xl font-bold text-primary tracking-tight">Field Connect</h1>
+        <button onClick={onLogout} aria-label="Logout" className="p-2 text-on-surface-variant cursor-pointer">
+          <Icon name="logout" />
+        </button>
+      </header>
+
+      <main className="md:ml-72 pt-20 md:pt-8 px-5 md:px-8 pb-28 md:pb-8 max-w-5xl">
+        {tab === 'tasks' && <Tasks auth={auth} />}
+        {tab === 'vouchers' && <FieldVouchers auth={auth} />}
+        {tab === 'messages' && <TechMessages auth={auth} onRead={() => setUnread(0)} />}
+        {tab === 'profile' && <Profile auth={auth} onLogout={onLogout} />}
+      </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-4px_12px_rgba(15,23,42,0.05)] rounded-t-xl md:hidden">
+        {TECH_NAV.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            className={`flex flex-col items-center justify-center px-4 py-1 rounded-xl active:scale-95 transition-transform duration-150 cursor-pointer ${
+              tab === item.key ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant'
+            }`}
+          >
+            <span className="relative">
+              <Icon name={item.icon} filled={tab === item.key} />
+              {item.key === 'messages' && unread > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unread}
+                </span>
+              )}
+            </span>
+            <span className="text-xs font-semibold tracking-wider mt-1">{item.label === 'My Tasks' ? 'Tasks' : item.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Tasks (maintenance events)                                          */
+/* ------------------------------------------------------------------ */
+
+function Tasks({ auth }) {
+  const [tasks, setTasks] = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
+  const [ping, setPing] = useState(null)
+  const [pinging, setPinging] = useState(false)
+
+  const load = () => api('/tech/tasks', { auth }).then(setTasks).catch(() => setTasks([]))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selected = (tasks || []).find((t) => t.id === selectedId)
+
+  async function resolve() {
+    await api(`/tech/tasks/${selected.id}/complete`, { method: 'PATCH', auth }).catch(() => {})
+    load()
+  }
+
+  async function checkConnection() {
+    setPinging(true)
+    setPing(null)
+    try {
+      const r = await api('/tech/ping', { method: 'POST', auth })
+      setPing({ ok: true, message: r.message })
+    } catch (err) {
+      setPing({ ok: false, message: err.message })
+    } finally {
+      setPinging(false)
+    }
+  }
+
+  if (tasks === null) {
+    return <div className="animate-pulse bg-surface-container-high rounded-xl h-64"></div>
+  }
+
+  /* Detail view */
+  if (selected) {
+    const chip = taskChip(selected)
+    const done = selected.status === 'COMPLETED'
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <button onClick={() => { setSelectedId(null); setPing(null) }} className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors text-sm cursor-pointer">
+            <Icon name="arrow_back" className="text-[18px]!" />
+            My Tasks
+            <Icon name="chevron_right" className="text-[16px]!" />
+            <span className="text-on-surface font-medium">{selected.title}</span>
+          </button>
+          <span className="text-xs font-semibold tracking-wider text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">
+            ID: TK-{selected.id}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-6 max-w-3xl">
+          <section className={`bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-6 border-t-4 ${done ? 'border-secondary' : 'border-error'}`}>
+            <div className="flex justify-between items-start mb-6 gap-4 flex-wrap">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-on-surface mb-2">{selected.title}</h2>
+                <p className="text-base text-on-surface-variant">Scheduled maintenance task</p>
+              </div>
+              <span className={`text-xs font-semibold tracking-wider px-3 py-1.5 rounded-full ${chip.cls}`}>{chip.label}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-surface-container-low rounded-lg p-4 flex flex-col gap-1">
+                <span className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                  <Icon name="event" className="text-[16px]!" /> Scheduled
+                </span>
+                <span className="text-lg font-bold text-on-surface">{fmtDate(selected.scheduledStart)}</span>
+                <span className="text-sm text-on-surface-variant">{fmtTime(selected.scheduledStart)} – {fmtTime(selected.scheduledEnd)}</span>
+              </div>
+              <div className="bg-surface-container-low rounded-lg p-4 flex flex-col gap-1">
+                <span className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
+                  <Icon name="timer" className="text-[16px]!" /> Downtime
+                </span>
+                <span className={`text-[28px] font-bold ${done ? 'text-on-surface' : 'text-error'}`}>
+                  {selected.estimatedDowntimeMinutes != null ? `${selected.estimatedDowntimeMinutes}m` : '—'}
+                </span>
+              </div>
+            </div>
+
+            {selected.description && (
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-3">Issue Description</h3>
+                <p className="text-base text-on-surface-variant leading-relaxed bg-surface-container-low p-4 rounded-lg border border-surface-variant">
+                  {selected.description}
+                </p>
+              </div>
+            )}
+          </section>
+
+          <section className="bg-gradient-to-br from-surface to-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-6 flex flex-col sm:flex-row gap-4 border border-surface-variant">
+            <button
+              onClick={checkConnection}
+              disabled={pinging}
+              className="flex-1 bg-surface-container hover:bg-surface-container-high text-primary border border-outline-variant text-lg font-semibold h-12 rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+            >
+              <Icon name="network_check" /> {pinging ? 'Checking…' : 'Check Connection'}
+            </button>
+            {!done && (
+              <button
+                onClick={resolve}
+                className="flex-1 bg-primary text-on-primary text-lg font-semibold h-12 rounded-lg flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <Icon name="check_circle" /> Mark Resolved
+              </button>
+            )}
+          </section>
+
+          {ping && (
+            <div className={`flex items-center gap-2 text-sm font-semibold p-4 rounded-lg ${ping.ok ? 'bg-secondary-container/30 text-on-secondary-container' : 'bg-error-container text-on-error-container'}`}>
+              <Icon name={ping.ok ? 'check_circle' : 'error'} className="text-[18px]!" />
+              {ping.message}
+            </div>
+          )}
+
+          <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-6 border border-surface-variant">
+            <h3 className="text-lg font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <Icon name="forum" filled className="text-primary" />
+              Site Notes &amp; Photos
+            </h3>
+            <TaskNotes auth={auth} taskId={selected.id} />
+          </section>
+        </div>
+      </div>
+    )
+  }
+
+  /* List view */
+  const open = tasks.filter((t) => t.status !== 'COMPLETED')
+  const completed = tasks.filter((t) => t.status === 'COMPLETED')
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface mb-2">My Tasks</h2>
+        <p className="text-base text-on-surface-variant">Maintenance work assigned to the field team.</p>
+      </div>
+
+      {tasks.length === 0 && (
+        <div className="bg-surface-container-lowest rounded-xl p-8 shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex flex-col items-center text-center gap-3">
+          <Icon name="task_alt" className="text-[48px]! text-outline" />
+          <p className="text-on-surface-variant">No tasks yet — new maintenance scheduled by the admin will appear here.</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...open, ...completed].map((t) => {
+          const chip = taskChip(t)
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSelectedId(t.id)}
+              className={`text-left bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_16px_rgba(15,23,42,0.08)] cursor-pointer ${
+                t.status === 'COMPLETED' ? 'border-secondary opacity-75' : 'border-error'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <h3 className="text-lg font-semibold text-on-surface">{t.title}</h3>
+                <span className={`text-xs font-semibold tracking-wider px-2 py-1 rounded-full whitespace-nowrap ${chip.cls}`}>{chip.label}</span>
+              </div>
+              <p className="text-sm text-on-surface-variant flex items-center gap-2">
+                <Icon name="event" className="text-[16px]!" />
+                {fmtDate(t.scheduledStart)}, {fmtTime(t.scheduledStart)}
+                {t.estimatedDowntimeMinutes != null && <span>· ~{t.estimatedDowntimeMinutes}m downtime</span>}
+              </p>
+              {t.description && <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{t.description}</p>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Field voucher generator                                             */
+/* ------------------------------------------------------------------ */
+
+function FieldVouchers({ auth }) {
+  const [plans, setPlans] = useState([])
+  const [planId, setPlanId] = useState('')
+  const [qty, setQty] = useState(1)
+  const [prefix, setPrefix] = useState('')
+  const [codeLen, setCodeLen] = useState(8)
+  const [generated, setGenerated] = useState(null) // last batch
+  const [history, setHistory] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const loadHistory = () => api('/tech/vouchers', { auth }).then(setHistory).catch(() => {})
+  useEffect(() => {
+    api('/plans').then((ps) => { setPlans(ps); if (ps[0]) setPlanId(String(ps[0].id)) }).catch(() => {})
+    loadHistory()
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const plan = plans.find((p) => String(p.id) === String(planId))
+  const total = plan ? plan.price * qty : 0
+
+  async function generate() {
+    setBusy(true)
+    setError(null)
+    try {
+      const batch = await api('/tech/vouchers/generate', {
+        method: 'POST',
+        auth,
+        body: { planId: Number(planId), count: qty, prefix: prefix.trim() || null, codeLength: Number(codeLen) || 8 },
+      })
+      setGenerated(batch)
+      loadHistory()
+      printVoucherCards(batch, plan?.name || '')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const recent = useMemo(
+    () => [...history].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10),
+    [history]
+  )
+
+  return (
+    <div className="max-w-md md:max-w-2xl">
+      <div className="mb-6">
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface mb-2">Generate Vouchers</h2>
+        <p className="text-base text-on-surface-variant">Issue connectivity passes instantly to customers on-site.</p>
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant flex flex-col gap-4 mb-6">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold tracking-wider uppercase text-outline" htmlFor="field-plan">Select Plan</label>
+          <div className="relative">
+            <select
+              id="field-plan"
+              value={planId}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="w-full h-12 appearance-none bg-surface-container-low border border-surface-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            >
+              {['Hourly', 'Daily', 'Weekly', 'Monthly'].map((group) => {
+                const groupPlans = plans.filter((p) => {
+                  const m = p.durationMinutes
+                  const g = m < 1440 ? 'Hourly' : m < 7 * 1440 ? 'Daily' : m < 28 * 1440 ? 'Weekly' : 'Monthly'
+                  return g === group
+                })
+                if (!groupPlans.length) return null
+                return (
+                  <optgroup key={group} label={group}>
+                    {groupPlans.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} — KES {p.price}</option>
+                    ))}
+                  </optgroup>
+                )
+              })}
+            </select>
+            <Icon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold tracking-wider uppercase text-outline">Quantity</label>
+          <div className="flex items-center justify-between bg-surface-container-low border border-surface-variant rounded-lg h-12 px-2">
+            <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-10 h-10 flex items-center justify-center text-primary hover:bg-surface-variant rounded-md transition-colors active:scale-95 cursor-pointer" aria-label="Fewer">
+              <Icon name="remove" />
+            </button>
+            <span className="text-lg font-semibold text-on-background w-12 text-center tabular-nums">{qty}</span>
+            <button onClick={() => setQty(Math.min(20, qty + 1))} className="w-10 h-10 flex items-center justify-center text-primary hover:bg-surface-variant rounded-md transition-colors active:scale-95 cursor-pointer" aria-label="More">
+              <Icon name="add" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold tracking-wider uppercase text-outline" htmlFor="f-prefix">Code Prefix (optional)</label>
+            <input
+              id="f-prefix"
+              type="text"
+              maxLength={12}
+              value={prefix}
+              onChange={(e) => setPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              placeholder="e.g. SPA"
+              className="w-full h-12 bg-surface-container-low border border-surface-variant rounded-lg px-4 text-base font-mono uppercase text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold tracking-wider uppercase text-outline" htmlFor="f-len">Code Length</label>
+            <input
+              id="f-len"
+              type="number"
+              min={Math.max(6, prefix.length + 4)}
+              max="16"
+              value={codeLen}
+              onChange={(e) => setCodeLen(e.target.value)}
+              className="w-full h-12 bg-surface-container-low border border-surface-variant rounded-lg px-4 text-base text-on-surface tabular-nums focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="h-px bg-surface-variant my-1"></div>
+
+        <div className="flex justify-between items-center px-1">
+          <span className="text-base text-on-surface-variant">Total Value</span>
+          <span className="text-lg font-semibold text-primary tabular-nums">KES {total.toLocaleString()}</span>
+        </div>
+
+        {error && <p className="text-sm text-error">{error}</p>}
+
+        <button
+          onClick={generate}
+          disabled={busy || !planId}
+          className="w-full h-12 bg-primary text-on-primary rounded-lg text-lg font-semibold flex items-center justify-center gap-2 hover:bg-surface-tint transition-colors shadow-[0_8px_16px_rgba(15,23,42,0.08)] active:scale-95 disabled:opacity-60 cursor-pointer"
+        >
+          <Icon name="print" className="text-[20px]!" />
+          {busy ? 'Generating…' : 'Generate & Print'}
+        </button>
+      </div>
+
+      {generated && (
+        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant border-t-4 border-t-secondary relative overflow-hidden mb-6">
+          <div className="absolute -right-4 -top-4 opacity-10">
+            <Icon name="wifi" className="text-[100px]!" />
+          </div>
+          <div className="relative z-10 flex flex-col gap-3 text-center">
+            <span className="text-xs font-semibold tracking-wider uppercase text-outline">
+              Generated: {generated.length} × {plan?.name}
+            </span>
+            <div className="bg-surface-container-low p-3 rounded-lg font-mono text-[24px] tracking-widest font-bold text-on-background border border-surface-variant border-dashed">
+              {generated[0]?.code}
+            </div>
+            <p className="text-sm text-on-surface-variant">
+              {generated.length > 1 ? `+ ${generated.length - 1} more sent to the printer.` : 'Sent to the printer.'} Codes are also in the history below.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant overflow-hidden">
+        <div className="p-4 border-b border-surface-variant flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-on-surface">Recent Vouchers</h3>
+          <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold tracking-wider">Last {recent.length}</span>
+        </div>
+        <ul className="divide-y divide-surface-container-high">
+          {recent.map((v) => (
+            <li key={v.id} className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className={`font-mono tracking-[2px] text-base ${v.status === 'EXPIRED' ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{v.code}</span>
+                <p className="text-xs text-on-surface-variant mt-0.5">{v.plan?.name} · {fmtDate(v.createdAt)}, {fmtTime(v.createdAt)}</p>
+              </div>
+              <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full ${VOUCHER_PILL[v.status] || VOUCHER_PILL.UNUSED}`}>
+                {v.status?.charAt(0) + v.status?.slice(1).toLowerCase()}
+              </span>
+            </li>
+          ))}
+          {recent.length === 0 && <li className="p-4 text-sm text-on-surface-variant">No vouchers yet.</li>}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Messages: direct chat with the admin                                */
+/* ------------------------------------------------------------------ */
+
+function TechMessages({ auth, onRead }) {
+  const [thread, setThread] = useState(null)
+
+  useEffect(() => {
+    const load = () => api('/tech/messages', { auth }).then((m) => { setThread(m); onRead() }).catch(() => setThread([]))
+    load()
+    const t = setInterval(load, 15000)
+    return () => clearInterval(t)
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function send(text, file) {
+    const form = new FormData()
+    if (text) form.append('message', text)
+    if (file) form.append('photo', file)
+    await api('/tech/messages', { method: 'POST', auth, body: form })
+    const fresh = await api('/tech/messages', { auth })
+    setThread(fresh)
+  }
+
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-6">
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface mb-2">Messages</h2>
+        <p className="text-base text-on-surface-variant">Direct line to the SPA WiFi office — text and photos.</p>
+      </div>
+      <div className="bg-surface-container-lowest rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] border border-outline-variant/30 overflow-hidden flex flex-col h-[65vh]">
+        <div className="p-4 border-b border-outline-variant/30 flex items-center gap-3 bg-surface-bright">
+          <span className="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center text-sm font-bold">A</span>
+          <div>
+            <p className="text-base font-semibold text-on-surface">SPA WiFi Admin</p>
+            <p className="text-xs text-on-surface-variant">Usually replies within the day</p>
+          </div>
+        </div>
+        <ChatThread
+          messages={thread}
+          viewerIsAdmin={false}
+          onSend={send}
+          emptyHint="No messages yet — write to the office about anything: schedules, supplies, sick days."
+        />
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Profile: real stats + payout requests                               */
+/* ------------------------------------------------------------------ */
+
+const PAYOUT_PILL = {
+  REQUESTED: { label: 'Requested', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' },
+  PAID: { label: 'Paid', cls: 'bg-secondary-container text-on-secondary-container' },
+  REJECTED: { label: 'Rejected', cls: 'bg-error-container text-on-error-container' },
+}
+
+function Profile({ auth, onLogout }) {
+  const username = (() => { try { return atob(auth).split(':')[0] } catch { return 'technician' } })()
+  const [tasks, setTasks] = useState([])
+  const [payouts, setPayouts] = useState(null)
+  const [requesting, setRequesting] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const loadPayouts = () => api('/tech/payouts', { auth }).then(setPayouts).catch(() => setPayouts([]))
+  useEffect(() => {
+    api('/tech/tasks', { auth }).then(setTasks).catch(() => {})
+    loadPayouts()
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const completed = tasks.filter((t) => t.status === 'COMPLETED').length
+  const rate = tasks.length ? Math.round((completed / tasks.length) * 100) : null
+
+  async function requestPayout(e) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api('/tech/payouts', { method: 'POST', auth, body: { amount: Number(amount), note: note || null } })
+      setRequesting(false)
+      setAmount('')
+      setNote('')
+      loadPayouts()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="max-w-3xl flex flex-col gap-6">
+      {/* Hero */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-6 flex flex-col md:flex-row items-center gap-4 text-center md:text-left border-t-4 border-primary">
+        <div className="h-24 w-24 rounded-full bg-secondary-container border-4 border-surface shadow-sm shrink-0 relative flex items-center justify-center">
+          <span className="text-3xl font-bold text-on-secondary-container uppercase">{username.slice(0, 2)}</span>
+          <div className="absolute bottom-1 right-1 w-4 h-4 bg-primary rounded-full border-2 border-surface"></div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-bold text-on-surface capitalize">{username}</h2>
+          <div className="flex items-center justify-center md:justify-start gap-2 text-on-surface-variant text-base">
+            <Icon name="badge" filled className="text-primary text-[20px]!" />
+            Field Technician
+          </div>
+          <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container-low rounded-full w-max mx-auto md:mx-0">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+            <span className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase">Online &amp; Available</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Performance stats (computed from real tasks) */}
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 flex flex-col gap-3 col-span-2 md:col-span-1 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary-container opacity-10 rounded-bl-full -mr-4 -mt-4"></div>
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <Icon name="check_circle" filled className="text-primary" />
+            <span className="text-xs font-semibold tracking-wider uppercase">Resolution Rate</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-4xl font-bold tracking-tight text-on-surface">{rate != null ? `${rate}%` : '—'}</span>
+            <span className="text-sm text-on-surface-variant pb-1">all tasks</span>
+          </div>
+          <div className="w-full h-2 bg-surface-container-high rounded-full mt-auto overflow-hidden">
+            <div className="h-full bg-primary rounded-full" style={{ width: `${rate || 0}%` }}></div>
+          </div>
+        </div>
+        <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 flex flex-col gap-3 justify-between">
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <Icon name="task" filled className="text-primary" />
+            <span className="text-xs font-semibold tracking-wider uppercase">Tasks Done</span>
+          </div>
+          <span className="text-4xl font-bold tracking-tight text-on-surface">{completed}</span>
+          <span className="text-sm text-on-surface-variant">All-time total</span>
+        </div>
+        <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 flex flex-col gap-3 justify-between">
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <Icon name="pending_actions" className="text-[#b45309]" />
+            <span className="text-xs font-semibold tracking-wider uppercase">Open Tasks</span>
+          </div>
+          <span className="text-4xl font-bold tracking-tight text-on-surface">{tasks.length - completed}</span>
+          <span className="text-sm text-on-surface-variant">Awaiting resolution</span>
+        </div>
+      </section>
+
+      {/* Payouts */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] overflow-hidden">
+        <div className="p-4 border-b border-surface-container-high flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+            <Icon name="account_balance_wallet" filled className="text-primary" />
+            Payouts
+          </h3>
+          <button
+            onClick={() => { setRequesting(!requesting); setError(null) }}
+            className="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:bg-surface-tint transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Icon name="add" className="text-[18px]!" /> Request Payout
+          </button>
+        </div>
+
+        {requesting && (
+          <form onSubmit={requestPayout} className="p-4 border-b border-surface-container-high bg-surface-container-low/50 flex flex-col sm:flex-row gap-3 items-start sm:items-end flex-wrap">
+            <div className="flex-1 w-full sm:w-auto min-w-[140px]">
+              <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="payout-amount">Amount (KES)</label>
+              <input
+                id="payout-amount"
+                type="number"
+                min="1"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 12500"
+                className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            </div>
+            <div className="flex-[2] w-full sm:w-auto min-w-[180px]">
+              <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="payout-note">Note (optional)</label>
+              <input
+                id="payout-note"
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. Field work, week 32"
+                className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            </div>
+            <button type="submit" disabled={busy} className="h-12 px-6 rounded-lg bg-secondary text-on-secondary text-base font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.08)] active:scale-95 transition-transform disabled:opacity-60 cursor-pointer whitespace-nowrap">
+              {busy ? 'Sending…' : 'Submit'}
+            </button>
+            {error && <p className="text-sm text-error w-full">{error}</p>}
+          </form>
+        )}
+
+        <div className="flex flex-col">
+          {(payouts || []).map((p) => {
+            const pill = PAYOUT_PILL[p.status] || PAYOUT_PILL.REQUESTED
+            return (
+              <div key={p.id} className="p-4 flex items-center justify-between border-b border-surface-container-high hover:bg-surface-container-low transition-colors gap-3">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-base font-semibold text-on-surface">Payout request</span>
+                  <span className="text-sm text-on-surface-variant truncate">
+                    {fmtDate(p.createdAt)}{p.note ? ` · ${p.note}` : ''}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-base font-semibold text-primary tabular-nums">KES {Number(p.amount).toLocaleString()}</span>
+                  <span className={`text-xs font-semibold tracking-wider px-2 py-0.5 rounded-full ${pill.cls}`}>{pill.label}</span>
+                </div>
+              </div>
+            )
+          })}
+          {payouts !== null && payouts.length === 0 && (
+            <p className="p-4 text-sm text-on-surface-variant">No payout requests yet — tap "Request Payout" to submit one. The admin is notified instantly.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Account actions */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex flex-col overflow-hidden mb-6">
+        <button onClick={onLogout} className="p-4 flex items-center justify-between hover:bg-error-container transition-colors group text-error cursor-pointer">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors">
+              <Icon name="logout" />
+            </div>
+            <span className="text-lg font-semibold">Log Out</span>
+          </div>
+        </button>
+      </section>
+    </div>
+  )
+}
