@@ -32,7 +32,7 @@ function MetricCard({ icon, title, value, sub, subTone = '', color, series, labe
       </div>
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-on-surface">{value}</div>
+          <div className="font-mono text-2xl font-bold tracking-tight tabular-nums text-on-surface">{value}</div>
           {sub && <div className={`text-xs mt-1 ${subTone || 'text-on-surface-variant'}`}>{sub}</div>}
         </div>
         <div className="w-32 sm:w-40 shrink-0">

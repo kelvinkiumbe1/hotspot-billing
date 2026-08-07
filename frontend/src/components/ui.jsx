@@ -115,7 +115,7 @@ export function StatCard({ label, value, accent, hint }) {
       <p className="text-[11px] font-medium tracking-[0.04em] uppercase text-on-surface-variant truncate">
         {label}
       </p>
-      <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">
+      <div className="font-mono text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">
         {value}
       </div>
       {hint && <p className="text-[11px] text-on-surface-variant mt-0.5 truncate" title={hint}>{hint}</p>}
