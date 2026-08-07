@@ -692,190 +692,276 @@ function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wid
   )
 }
 
+/** Fourteen days of takings as a bar strip. Deliberately unlabelled — it
+ *  answers "is today normal?", and axes would cost more room than that
+ *  question is worth here. */
+function Sparkline({ series }) {
+  const peak = Math.max(1, ...series.map((d) => Number(d.amount)))
+  return (
+    <div className="flex items-end gap-[3px] h-10" aria-hidden="true">
+      {series.map((d, i) => {
+        const value = Number(d.amount)
+        const last = i === series.length - 1
+        return (
+          <div
+            key={d.date}
+            title={`${d.date}: ${fmtKES(value)}`}
+            style={{ height: `${Math.max(6, (value / peak) * 100)}%` }}
+            className={`flex-1 rounded-[2px] ${
+              last ? 'bg-primary' : value > 0 ? 'bg-primary/30' : 'bg-surface-container-highest'
+            }`}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+const SEVERITY = {
+  critical: { dot: 'bg-error', text: 'text-error' },
+  warning: { dot: 'bg-[#FDBF2D]', text: 'text-[#FDBF2D]' },
+  info: { dot: 'bg-on-surface-variant', text: 'text-on-surface-variant' },
+}
+
+/** Panel shell. One radius, one border, no shadows — depth comes from the
+ *  panel sitting a step lighter than the canvas. */
+function Panel({ title, action, children, className = '' }) {
+  return (
+    <section className={`bg-surface-container-lowest border border-outline-variant rounded-lg ${className}`}>
+      {title && (
+        <header className="flex items-center justify-between gap-3 px-4 h-11 border-b border-outline-variant">
+          <h3 className="text-[13px] font-semibold text-on-surface">{title}</h3>
+          {action}
+        </header>
+      )}
+      {children}
+    </section>
+  )
+}
+
 function Overview({ auth, onNav }) {
-  const [stats, setStats] = useState(null)
-  const [payments, setPayments] = useState([])
-  const [range, setRange] = useState(30)
+  const [data, setData] = useState(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    api('/admin/stats', { auth }).then(setStats).catch(() => {})
-    api('/admin/payments', { auth }).then(setPayments).catch(() => {})
+    let alive = true
+    const load = () =>
+      api('/admin/overview', { auth })
+        .then((d) => alive && setData(d))
+        .catch(() => alive && setFailed(true))
+    load()
+    // A dashboard that goes stale while you watch it is worse than no
+    // dashboard; 30s is often enough to catch a router dropping.
+    const t = setInterval(load, 30000)
+    return () => { alive = false; clearInterval(t) }
   }, [auth])
 
-  const recent = useMemo(
-    () => [...payments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5),
-    [payments]
-  )
-
-  if (!stats) {
+  if (failed) {
     return (
-      <div>
-        <div className="mb-8">
-          <Skeleton className="h-10 w-64 mb-3" />
-          <Skeleton className="h-5 w-96" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-          <Skeleton className="h-32 xl:col-span-2" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-        </div>
-        <Skeleton className="h-64" />
+      <div className="max-w-md">
+        <h2 className="text-2xl font-semibold mb-2">Cannot reach the server</h2>
+        <p className="text-sm text-on-surface-variant">
+          The backend is not answering. Everything else in here will be empty until it does.
+        </p>
       </div>
     )
   }
 
-  const totalVouchers = (stats.activeVouchers || 0) + (stats.unusedVouchers || 0)
-  const utilization = totalVouchers ? Math.round((stats.activeVouchers / totalVouchers) * 100) : 0
+  if (!data) {
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+        <Skeleton className="h-40 xl:col-span-2" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-72 xl:col-span-2" />
+        <Skeleton className="h-72" />
+      </div>
+    )
+  }
 
-  // Revenue trend: successful payments in the last 30 days vs the 30 days before that
-  const now = Date.now()
-  const revenueIn = (fromDays, toDays) =>
-    payments
-      .filter((p) => p.status === 'SUCCESS')
-      .filter((p) => {
-        const age = (now - new Date(p.createdAt)) / 86400000
-        return age >= toDays && age < fromDays
-      })
-      .reduce((a, p) => a + Number(p.amount), 0)
-  const rev30 = revenueIn(30, 0)
-  const prev30 = revenueIn(60, 30)
-  const trend = prev30 > 0 ? Math.round(((rev30 - prev30) / prev30) * 100) : null
+  const money = data.money
+  const sessions = data.sessions
+  const attention = data.attention || []
+  const change = money?.changePercent
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-4xl font-bold tracking-tight text-on-surface">Overview</h2>
-        <p className="text-base text-on-surface-variant mt-2">Monitor your hotspot network performance.</p>
-      </div>
+    <div className="space-y-3">
+      {/* Row one: money is the largest thing on the page, faults sit beside
+          it. Sized by importance rather than split into equal boxes. */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+        {money && (
+          <Panel className="xl:col-span-2 flex flex-col">
+            <div className="flex flex-wrap items-start justify-between gap-6 p-4 pb-3">
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
+                  Collected today
+                </p>
+                <p className="text-[40px] leading-none font-semibold tabular-nums mt-1.5 text-on-surface">
+                  {fmtKES(money.today)}
+                </p>
+                <p className="text-xs mt-2">
+                  {change === null || change === undefined ? (
+                    <span className="text-on-surface-variant">
+                      Nothing yesterday to compare against
+                    </span>
+                  ) : (
+                    <span className={Number(change) >= 0 ? 'text-secondary' : 'text-error'}>
+                      {Number(change) >= 0 ? '▲' : '▼'} {Math.abs(Number(change))}% on yesterday
+                      <span className="text-on-surface-variant"> · {fmtKES(money.yesterday)} then</span>
+                    </span>
+                  )}
+                </p>
+              </div>
 
-      {/* KPI bento grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-        <KpiCard label="Total Revenue" icon="payments" iconClass="text-primary" value={stats.totalRevenue} format={fmtKES} accent="border-primary" wide index={0} trend={trend} />
-        <KpiCard label="Successful" icon="check_circle" iconClass="text-secondary" value={stats.successfulPayments} index={1} />
-        <KpiCard label="Pending" icon="pending" iconClass="text-tertiary" value={stats.pendingPayments} index={2} />
-        <KpiCard label="Failed" icon="error" iconClass="text-error" value={stats.failedPayments} accent="border-error" index={3} />
-      </div>
+              <dl className="flex gap-8 border-l border-outline-variant pl-6">
+                <div>
+                  <dt className="text-[11px] text-on-surface-variant">Sold today</dt>
+                  <dd className="text-2xl font-semibold tabular-nums mt-0.5">{money.sold}</dd>
+                </div>
+                {sessions && (
+                  <div>
+                    <dt className="text-[11px] text-on-surface-variant">Online now</dt>
+                    <dd className="text-2xl font-semibold tabular-nums mt-0.5">{sessions.total}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
 
-      {/* Vouchers + chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        <div className="lg:col-span-1 flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex-1">
-            <div className="flex justify-between items-start mb-4">
-              <CardLabel>Active Vouchers</CardLabel>
-              <Icon name="wifi" className="text-primary" />
+            {/* Pinned to the foot of the panel so the card has no dead half
+                when it sits beside a taller neighbour. */}
+            <div className="mt-auto px-4 pb-3">
+              <Sparkline series={money.series} />
+              <div className="flex justify-between text-[10px] text-on-surface-variant mt-1.5">
+                <span>{money.series[0]?.date}</span>
+                <span>today</span>
+              </div>
             </div>
-            <div className="text-4xl font-bold tracking-tight text-on-surface mb-4">{stats.activeVouchers}</div>
-            <div className="w-full bg-surface-variant rounded-full h-2 mb-2">
-              <div className="bg-primary h-2 rounded-full" style={{ width: `${utilization}%` }}></div>
-            </div>
-            <p className="text-sm text-on-surface-variant text-right">{utilization}% utilization</p>
-          </div>
-          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex-1">
-            <div className="flex justify-between items-start mb-4">
-              <CardLabel>Unused Vouchers</CardLabel>
-              <Icon name="inbox" className="text-outline" />
-            </div>
-            <div className="text-4xl font-bold tracking-tight text-on-surface mb-2">{stats.unusedVouchers}</div>
-            <button
-              onClick={() => onNav('vouchers')}
-              className="mt-4 text-xs font-semibold tracking-wider text-primary border border-primary px-4 py-2 rounded-lg hover:bg-primary/5 transition-colors w-full h-12 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Icon name="add" className="text-[18px]!" />
-              GENERATE NEW
-            </button>
-          </div>
-        </div>
+          </Panel>
+        )}
 
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] relative overflow-hidden flex flex-col">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0"></div>
-          <div className="relative z-10 mb-6 flex justify-between items-end">
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Revenue Trend</h3>
-              <p className="text-sm text-on-surface-variant">Last {range} days performance</p>
+        <Panel title="Needs attention" className={money ? '' : 'xl:col-span-3'}>
+          {attention.length === 0 ? (
+            <div className="px-4 py-6 flex items-center gap-2.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+              <p className="text-sm text-on-surface-variant">Everything is running.</p>
             </div>
-            <div className="flex gap-2">
-              {[7, 30].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setRange(d)}
-                  className={`px-3 py-1 text-xs font-semibold tracking-wider rounded-full cursor-pointer transition-colors ${
-                    range === d ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant hover:bg-surface-dim'
-                  }`}
-                >
-                  {d}D
-                </button>
+          ) : (
+            <ul>
+              {attention.map((a, i) => (
+                <li key={i} className="border-b border-outline-variant last:border-0">
+                  <button
+                    onClick={() => onNav(a.tab)}
+                    className="w-full text-left px-4 py-2.5 flex items-start gap-2.5 hover:bg-surface-container-low cursor-pointer transition-colors group"
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${SEVERITY[a.severity]?.dot}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="text-[13px] font-medium block group-hover:text-primary transition-colors">
+                        {a.title}
+                      </span>
+                      <span className="text-xs text-on-surface-variant block truncate">{a.detail}</span>
+                    </span>
+                    <Icon name="chevron_right" className="text-[16px]! text-on-surface-variant mt-0.5" />
+                  </button>
+                </li>
               ))}
-            </div>
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col">
-            <RevenueChart payments={payments} days={range} />
-          </div>
-        </div>
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      {/* Recent payments */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] overflow-hidden">
-        <div className="p-6 border-b border-outline-variant/30 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-on-surface">Recent Payments</h3>
-          <button
-            onClick={() => onNav('payments')}
-            className="text-xs font-semibold tracking-wider text-primary hover:underline flex items-center gap-1 cursor-pointer"
+      {/* Row two: who is on the network, and what is left to sell. */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+        {sessions && (
+          <Panel
+            title="On the network now"
+            className="xl:col-span-2"
+            action={
+              <button onClick={() => onNav('active')}
+                className="text-xs text-on-surface-variant hover:text-primary cursor-pointer transition-colors">
+                All sessions
+              </button>
+            }
           >
-            VIEW ALL <Icon name="arrow_forward" className="text-[16px]!" />
-          </button>
-        </div>
-        <div className="overflow-x-auto table-scroll">
-          <table className="data-table w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="font-semibold">Phone</th>
-                <th className="font-semibold">Plan</th>
-                <th className="font-semibold">Amount</th>
-                <th className="font-semibold">Status</th>
-                <th className="font-semibold">Time</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-on-surface divide-y divide-outline-variant/20">
-              {recent.map((p) => (
-                <tr key={p.id} className="hover:bg-surface-container-low/50 transition-colors">
-                  <td className="font-medium">{p.phoneNumber}</td>
-                  <td className="">{p.plan?.name}</td>
-                  <td className="font-medium tabular-nums">{fmtKES(p.amount)}</td>
-                  <td className=""><StatusPill status={p.status} /></td>
-                  <td className="text-on-surface-variant">{relativeTime(p.createdAt)}</td>
-                </tr>
-              ))}
-              {recent.length === 0 && (
-                <tr><td className="text-on-surface-variant" colSpan={5}>No payments yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            {sessions.subscribers.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-on-surface-variant">
+                {sessions.hotspotActive > 0
+                  ? `No fixed-line subscribers online. ${sessions.hotspotActive} hotspot voucher${
+                      sessions.hotspotActive === 1 ? ' is' : 's are'} in use.`
+                  : 'Nobody is connected. Sessions appear here within a minute of someone coming online.'}
+              </p>
+            ) : (
+              <div className="overflow-x-auto table-scroll">
+                <table className="data-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Account</th>
+                      <th>Speed</th>
+                      <th className="text-right">Data used</th>
+                      <th className="text-right">Seen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessions.subscribers.slice(0, 6).map((r) => (
+                      <tr key={r.user}>
+                        <td>
+                          <span className="font-mono text-[12px]">{r.user}</span>
+                          <span className="text-on-surface-variant"> · {r.name}</span>
+                        </td>
+                        <td className="text-on-surface-variant">{r.plan || '—'}</td>
+                        <td className="text-right tabular-nums">
+                          {r.dataMb >= 1024 ? `${(r.dataMb / 1024).toFixed(1)} GB` : `${r.dataMb} MB`}
+                        </td>
+                        <td className="text-right text-on-surface-variant">{relativeTime(r.since)}</td>
+                      </tr>
+                    ))}
+                    {sessions.hotspotActive > 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-on-surface-variant">
+                          plus {sessions.hotspotActive} hotspot voucher
+                          {sessions.hotspotActive === 1 ? '' : 's'} in use
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        )}
+
+        {data.stock && (
+          <Panel
+            title="Voucher stock"
+            action={
+              <button onClick={() => onNav('vouchers')}
+                className="text-xs text-primary hover:underline cursor-pointer">
+                Generate
+              </button>
+            }
+          >
+            <div className="p-4 flex items-end gap-6">
+              <div>
+                <p className="text-[32px] leading-none font-semibold tabular-nums">{data.stock.unused}</p>
+                <p className="text-xs text-on-surface-variant mt-1">unsold</p>
+              </div>
+              <div>
+                <p className="text-[32px] leading-none font-semibold tabular-nums text-on-surface-variant">
+                  {data.stock.active}
+                </p>
+                <p className="text-xs text-on-surface-variant mt-1">in use</p>
+              </div>
+            </div>
+            {data.stock.unused === 0 && (
+              <p className="px-4 pb-4 text-xs text-error">
+                Nothing left to sell. Print a batch before a customer asks.
+              </p>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* Plans                                                               */
-/* ------------------------------------------------------------------ */
-
-const DURATION_UNITS = { minutes: 1, hours: 60, days: 1440 }
-
-const AVAILABILITY = [
-  { key: 'LIVE', label: 'Live', hint: 'Visible to customers and on sale.' },
-  { key: 'HIDDEN', label: 'Hidden', hint: 'Off the portal, but existing codes still work.' },
-  { key: 'OFF', label: 'Off', hint: 'Withdrawn - nobody can use it.' },
-]
-
-const FUP_ACTIONS = [
-  { key: 'THROTTLE', label: 'Slow them down' },
-  { key: 'BLOCK', label: 'Cut them off' },
-  { key: 'NOTIFY', label: 'Just warn me' },
-]
-
-/** One titled block of the plan form, matching how the fields group logically. */
 function FormSection({ title, hint, children }) {
   return (
     <section className="border-t border-outline-variant/60 pt-5 first:border-0 first:pt-0">
