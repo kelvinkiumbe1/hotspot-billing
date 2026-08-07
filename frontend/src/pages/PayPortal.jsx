@@ -96,9 +96,9 @@ export default function PayPortal() {
   const total = selected ? selected.monthlyFee * Number(months || 0) : 0
 
   return (
-    <div className="relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 py-10 overflow-hidden">
+    <div className="portal-theme relative bg-background text-on-background min-h-screen flex flex-col items-center justify-center px-5 py-10 overflow-hidden">
       <img src={loginFiber} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#00201d]/75"></div>
+      <div className="absolute inset-0 bg-black/75"></div>
 
       <div className="relative z-10 w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
@@ -180,11 +180,11 @@ export default function PayPortal() {
                 </div>
                 <div className="flex-1 text-right pb-1">
                   <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
-                  <p className="text-2xl font-bold text-primary tabular-nums">KES {total.toLocaleString()}</p>
+                  <p className="font-mono text-2xl font-bold text-primary tabular-nums">KES {total.toLocaleString()}</p>
                 </div>
               </div>
               {error && <p className="text-sm text-error">{error}</p>}
-              <button onClick={pay} disabled={busy || !selected} className="w-full h-12 bg-gradient-to-r from-secondary to-[#578200] text-on-secondary rounded-lg text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer">
+              <button onClick={pay} disabled={busy || !selected} className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-primary rounded-lg text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer">
                 <Icon name="send_money" /> Pay with M-Pesa
               </button>
               <button onClick={() => { setStep('phone'); setError(null) }} className="text-sm text-primary hover:underline cursor-pointer">
@@ -202,7 +202,7 @@ export default function PayPortal() {
                 </div>
               </div>
               <h2 className="text-xl font-bold text-on-surface">Check your phone</h2>
-              <p className="text-sm text-on-surface-variant">Enter your M-Pesa PIN to complete the payment of KES {total.toLocaleString()}.</p>
+              <p className="text-sm text-on-surface-variant">Enter your M-Pesa PIN to complete the payment of <span className="font-mono font-semibold text-on-surface">KES {total.toLocaleString()}</span>.</p>
             </div>
           )}
 

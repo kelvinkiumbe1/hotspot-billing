@@ -49,9 +49,9 @@ export default function MyAccount() {
 
   if (!creds || !data) {
     return (
-      <div className="relative bg-inverse-surface min-h-screen flex flex-col items-center justify-center px-5 py-10 overflow-hidden">
+      <div className="portal-theme relative bg-background min-h-screen flex flex-col items-center justify-center px-5 py-10 overflow-hidden">
         <img src={loginFiber} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-[#00201d]/75"></div>
+        <div className="absolute inset-0 bg-black/75"></div>
         <div className="relative z-10 w-full max-w-sm">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center mb-4">
@@ -90,7 +90,7 @@ export default function MyAccount() {
   const overdue = days < 0 || a.status === 'SUSPENDED'
 
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface border-b border-outline-variant flex items-center justify-between px-5 h-16 sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <Icon name="wifi" className="text-primary" />
@@ -122,7 +122,7 @@ export default function MyAccount() {
             </div>
             <div>
               <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Monthly fee</p>
-              <p className="text-lg font-bold text-on-surface tabular-nums">{fmtKES(a.monthlyFee)}</p>
+              <p className="font-mono text-lg font-bold text-on-surface tabular-nums">{fmtKES(a.monthlyFee)}</p>
             </div>
             <div>
               <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Speed</p>
@@ -133,7 +133,7 @@ export default function MyAccount() {
               <p className="text-lg font-bold text-on-surface">{a.lastSeenOnlineAt ? relativeTime(a.lastSeenOnlineAt) : '—'}</p>
             </div>
           </div>
-          <a href="/pay" className="mt-6 w-full h-12 bg-gradient-to-r from-secondary to-[#578200] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 transition-all">
+          <a href="/pay" className="mt-6 w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 transition-all">
             <Icon name="payments" /> Pay with M-Pesa
           </a>
         </section>
@@ -148,8 +148,8 @@ export default function MyAccount() {
                   <p className="text-xs text-on-surface-variant mt-0.5">Issued {i.issuedOn} · due {i.dueOn}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-base font-semibold tabular-nums">{fmtKES(i.amount)}</p>
-                  <span className={`text-xs font-semibold ${i.status === 'PAID' ? 'text-secondary' : i.status === 'CANCELLED' ? 'text-on-surface-variant' : 'text-[#b45309]'}`}>
+                  <p className="font-mono text-base font-semibold tabular-nums">{fmtKES(i.amount)}</p>
+                  <span className={`text-xs font-semibold ${i.status === 'PAID' ? 'text-secondary' : i.status === 'CANCELLED' ? 'text-on-surface-variant' : 'text-[#f59e0b]'}`}>
                     {i.status === 'PAID' ? 'Paid' : i.status === 'CANCELLED' ? 'Cancelled' : 'Unpaid'}
                   </span>
                 </div>
@@ -165,7 +165,7 @@ export default function MyAccount() {
             {data.payments.map((p, i) => (
               <li key={i} className="p-4 flex justify-between items-center gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-on-surface">{fmtKES(p.amount)} · {p.months} month{p.months > 1 ? 's' : ''}</p>
+                  <p className="text-sm font-semibold text-on-surface"><span className="font-mono">{fmtKES(p.amount)}</span> · {p.months} month{p.months > 1 ? 's' : ''}</p>
                   <p className="text-xs text-on-surface-variant mt-0.5">
                     {p.method === 'MPESA' ? 'M-Pesa' : 'Cash'}{p.receipt ? ` · ${p.receipt}` : ''} · {fmtDate(p.date)}, {fmtTime(p.date)}
                   </p>

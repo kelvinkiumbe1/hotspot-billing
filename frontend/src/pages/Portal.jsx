@@ -302,11 +302,11 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
           <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Price</p>
           {discounted != null && discounted < plan.price ? (
             <>
-              <p className="text-sm text-on-surface-variant line-through">KES {plan.price}</p>
-              <p className={`font-semibold text-[#ffd479] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
+              <p className="font-mono text-sm text-on-surface-variant line-through">KES {plan.price}</p>
+              <p className={`font-mono font-semibold text-[#ffd479] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
             </>
           ) : (
-            <p className={`font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
+            <p className={`font-mono font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
           )}
         </div>
       </div>
@@ -361,8 +361,8 @@ function CustomTimeCard({ custom, promo, onBuy }) {
           </div>
           <div className="text-right pb-1">
             <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
-            {valid && price < basePrice && <p className="text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
-            <p className={`text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#ffd479]' : 'text-primary') : 'text-outline'}`}>
+            {valid && price < basePrice && <p className="font-mono text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
+            <p className={`font-mono text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#ffd479]' : 'text-primary') : 'text-outline'}`}>
               KES {valid ? price : '—'}
             </p>
           </div>
@@ -541,7 +541,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
           <h2 className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">Selected Plan Summary</h2>
           <div className="flex justify-between items-center">
             <span className="text-lg font-semibold">{plan.name} Access</span>
-            <span className="text-lg font-semibold text-primary">KES {plan.price}</span>
+            <span className="font-mono text-lg font-semibold text-primary">KES {plan.price}</span>
           </div>
         </div>
 
@@ -660,7 +660,9 @@ function WaitingScreen({ onCancel }) {
 /* Screen 4 — Success (voucher code)                                   */
 /* ------------------------------------------------------------------ */
 
-const CONFETTI_COLORS = ['#005c55', '#466800', '#0f766e', '#b8f25a']
+// Amber-family + white, matching the brand — the old set was teal/green
+// from before the rebrand and fought the whole portal palette.
+const CONFETTI_COLORS = ['#fdbf2d', '#e0aa22', '#ffd479', '#ffffff']
 
 function Confetti() {
   const pieces = useMemo(
