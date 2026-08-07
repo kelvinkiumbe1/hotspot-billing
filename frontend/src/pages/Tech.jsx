@@ -811,7 +811,7 @@ function FieldVouchers({ auth }) {
 
         <div className="flex justify-between items-center px-1">
           <span className="text-base text-on-surface-variant">Total Value</span>
-          <span className="text-lg font-semibold text-primary tabular-nums">KES {total.toLocaleString()}</span>
+          <span className="font-mono text-lg font-semibold text-primary tabular-nums">KES {total.toLocaleString()}</span>
         </div>
 
         {error && <p className="text-sm text-error">{error}</p>}
@@ -1016,7 +1016,7 @@ function TechSubscribers({ auth }) {
                     <label className="text-xs text-on-surface-variant">Months:</label>
                     <input type="number" min="1" max="12" value={months} onChange={(e) => setMonths(e.target.value)}
                       className="h-9 w-16 bg-surface border border-outline-variant rounded-lg px-2 text-sm text-center tabular-nums focus:outline-none focus:border-primary" />
-                    <span className="text-xs font-semibold text-primary tabular-nums">= KES {(Number(s.monthlyFee) * (Number(months) || 0)).toLocaleString()}</span>
+                    <span className="font-mono text-xs font-semibold text-primary tabular-nums">= KES {(Number(s.monthlyFee) * (Number(months) || 0)).toLocaleString()}</span>
                     <button onClick={() => recordCash(s.id)} className="h-9 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold cursor-pointer">
                       Record Cash
                     </button>
@@ -1156,7 +1156,7 @@ function Profile({ auth, onLogout }) {
             <span className="text-xs font-semibold tracking-wider uppercase">Resolution Rate</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-4xl font-bold tracking-tight text-on-surface">{rate != null ? `${rate}%` : '—'}</span>
+            <span className="font-mono text-4xl font-bold tracking-tight text-on-surface">{rate != null ? `${rate}%` : '—'}</span>
             <span className="text-sm text-on-surface-variant pb-1">all tasks</span>
           </div>
           <div className="w-full h-2 bg-surface-container-high rounded-full mt-auto overflow-hidden">
@@ -1168,15 +1168,15 @@ function Profile({ auth, onLogout }) {
             <Icon name="task" filled className="text-primary" />
             <span className="text-xs font-semibold tracking-wider uppercase">Tasks Done</span>
           </div>
-          <span className="text-4xl font-bold tracking-tight text-on-surface">{completed}</span>
+          <span className="font-mono text-4xl font-bold tracking-tight text-on-surface">{completed}</span>
           <span className="text-sm text-on-surface-variant">All-time total</span>
         </div>
         <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 flex flex-col gap-3 justify-between">
           <div className="flex items-center gap-2 text-on-surface-variant">
-            <Icon name="pending_actions" className="text-[#b45309]" />
+            <Icon name="pending_actions" className="text-[#f59e0b]" />
             <span className="text-xs font-semibold tracking-wider uppercase">Open Tasks</span>
           </div>
-          <span className="text-4xl font-bold tracking-tight text-on-surface">{tasks.length - completed}</span>
+          <span className="font-mono text-4xl font-bold tracking-tight text-on-surface">{tasks.length - completed}</span>
           <span className="text-sm text-on-surface-variant">Awaiting resolution</span>
         </div>
       </section>
@@ -1241,7 +1241,7 @@ function Profile({ auth, onLogout }) {
                   </span>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="text-base font-semibold text-primary tabular-nums">KES {Number(p.amount).toLocaleString()}</span>
+                  <span className="font-mono text-base font-semibold text-primary tabular-nums">KES {Number(p.amount).toLocaleString()}</span>
                   <span className={`text-xs font-semibold tracking-wider px-2 py-0.5 rounded-full ${pill.cls}`}>{pill.label}</span>
                 </div>
               </div>
