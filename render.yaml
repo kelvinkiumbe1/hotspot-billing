@@ -1,0 +1,66 @@
+# Render Blueprint — one web service (the app image) + one Postgres.
+# Render terminates HTTPS for you, so there is no Caddy edge here; this
+# deploys a single tenant. Point Render at this repo (New → Blueprint) and it
+# reads this file. Values marked `sync: false` are filled in the dashboard so
+# secrets never live in git.
+#
+# Note on cost: Render bills per service, so each additional ISP tenant is
+# another web service + database (~$14/mo each). Fine for one tenant / a demo;
+# for several ISPs a single VM running deploy/new-tenant.sh is far cheaper.
+
+databases:
+  - name: spa-db
+    # Any PAID plan — the free database is deleted after 90 days. Adjust the
+    # plan name in the dashboard if Render reports it changed.
+    plan: basic-256mb
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: spa-wifi
+    runtime: docker
+    plan: starter          # the paid, non-sleeping web plan
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Touches the database, so a 200 means genuinely serving, not just booted.
+    healthCheckPath: /api/plans
+    envVars:
+      # --- Database. Username/password are injected from the managed DB;
+      # --- DB_URL is pasted once (see RENDER.md) because it needs the
+      # --- jdbc: prefix the managed connection string does not carry.
+      - key: DB_USERNAME
+        fromDatabase:
+          name: spa-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: spa-db
+          property: password
+      - key: DB_URL
+        sync: false
+
+      # --- First Owner login + break-glass. Set strong values; never admin123.
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: TECH_USERNAME
+        value: technician
+      - key: TECH_PASSWORD
+        sync: false
+
+      # --- Passkeys. Must match the exact host the app is served on.
+      # --- For the default Render URL that is <service>.onrender.com; update
+      # --- both if you add a custom domain.
+      - key: WEBAUTHN_RP_ID
+        sync: false        # e.g. spa-wifi.onrender.com  (no https://)
+      - key: WEBAUTHN_ORIGINS
+        sync: false        # e.g. https://spa-wifi.onrender.com
+      - key: WEBAUTHN_ENROLLMENT_REQUIRED
+        value: "false"     # flip to "true" once you've signed in once and want it forced
+      - key: APP_CORS_ALLOWED_ORIGIN_PATTERNS
+        sync: false        # https://spa-wifi.onrender.com
+
+      # --- M-Pesa is deferred; sandbox defaults keep the app happy until then.
+      - key: MPESA_BASE_URL
+        value: https://sandbox.safaricom.co.ke
