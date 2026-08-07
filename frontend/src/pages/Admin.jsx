@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
-import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard } from '../components/ui.jsx'
+import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard, AreaSparkline } from '../components/ui.jsx'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import RoutersPage from './admin/Routers.jsx'
@@ -706,30 +706,6 @@ function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wid
   )
 }
 
-/** Fourteen days of takings as a bar strip. Deliberately unlabelled — it
- *  answers "is today normal?", and axes would cost more room than that
- *  question is worth here. */
-function Sparkline({ series }) {
-  const peak = Math.max(1, ...series.map((d) => Number(d.amount)))
-  return (
-    <div className="flex items-end gap-[3px] h-10" aria-hidden="true">
-      {series.map((d, i) => {
-        const value = Number(d.amount)
-        const last = i === series.length - 1
-        return (
-          <div
-            key={d.date}
-            title={`${d.date}: ${fmtKES(value)}`}
-            style={{ height: `${Math.max(6, (value / peak) * 100)}%` }}
-            className={`flex-1 rounded-[2px] ${
-              last ? 'bg-primary' : value > 0 ? 'bg-primary/30' : 'bg-surface-container-highest'
-            }`}
-          />
-        )
-      })}
-    </div>
-  )
-}
 
 const SEVERITY = {
   critical: { dot: 'bg-error', text: 'text-error' },
@@ -809,7 +785,7 @@ function Overview({ auth, onNav }) {
                 <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                   Collected today
                 </p>
-                <p className="text-[40px] leading-none font-semibold tabular-nums mt-1.5 text-on-surface">
+                <p className="font-mono text-[40px] leading-none font-semibold tabular-nums mt-1.5 text-on-surface">
                   {fmtKES(money.today)}
                 </p>
                 <p className="text-xs mt-2">
@@ -829,12 +805,12 @@ function Overview({ auth, onNav }) {
               <dl className="flex gap-8 border-l border-outline-variant pl-6">
                 <div>
                   <dt className="text-[11px] text-on-surface-variant">Sold today</dt>
-                  <dd className="text-2xl font-semibold tabular-nums mt-0.5">{money.sold}</dd>
+                  <dd className="font-mono text-2xl font-semibold tabular-nums mt-0.5">{money.sold}</dd>
                 </div>
                 {sessions && (
                   <div>
                     <dt className="text-[11px] text-on-surface-variant">Online now</dt>
-                    <dd className="text-2xl font-semibold tabular-nums mt-0.5">{sessions.total}</dd>
+                    <dd className="font-mono text-2xl font-semibold tabular-nums mt-0.5">{sessions.total}</dd>
                   </div>
                 )}
               </dl>
@@ -843,7 +819,13 @@ function Overview({ auth, onNav }) {
             {/* Pinned to the foot of the panel so the card has no dead half
                 when it sits beside a taller neighbour. */}
             <div className="mt-auto px-4 pb-3">
-              <Sparkline series={money.series} />
+              <AreaSparkline
+                data={money.series.map((s) => Number(s.amount))}
+                labels={money.series.map((s) => s.date)}
+                color="var(--color-primary)"
+                height={48}
+                format={fmtKES}
+              />
               <div className="flex justify-between text-[10px] text-on-surface-variant mt-1.5">
                 <span>{money.series[0]?.date}</span>
                 <span>today</span>
@@ -954,11 +936,11 @@ function Overview({ auth, onNav }) {
           >
             <div className="p-4 flex items-end gap-6">
               <div>
-                <p className="text-[32px] leading-none font-semibold tabular-nums">{data.stock.unused}</p>
+                <p className="font-mono text-[32px] leading-none font-semibold tabular-nums">{data.stock.unused}</p>
                 <p className="text-xs text-on-surface-variant mt-1">unsold</p>
               </div>
               <div>
-                <p className="text-[32px] leading-none font-semibold tabular-nums text-on-surface-variant">
+                <p className="font-mono text-[32px] leading-none font-semibold tabular-nums text-on-surface-variant">
                   {data.stock.active}
                 </p>
                 <p className="text-xs text-on-surface-variant mt-1">in use</p>
