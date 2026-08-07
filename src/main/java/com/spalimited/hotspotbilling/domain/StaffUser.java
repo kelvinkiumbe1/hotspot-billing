@@ -73,6 +73,15 @@ public class StaffUser {
 
     private Instant totpConfirmedAt;
 
+    // --- Passkeys (WebAuthn) ---
+
+    /**
+     * Stable per-user handle the authenticator ties its passkey to
+     * (base64url of 32 random bytes). Minted lazily on first enrolment and
+     * never reused, so it is not the username or the database id.
+     */
+    private String webauthnUserHandle;
+
     // --- Lockout ---
 
     @Builder.Default

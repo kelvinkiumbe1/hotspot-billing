@@ -110,6 +110,17 @@ public class AuthService {
         return new Session(issue(user, userAgent, ip), Instant.now().plus(TOKEN_LIFETIME), user);
     }
 
+    /**
+     * Mints a session for a user who has already proved themselves by other
+     * means — a verified passkey assertion. No password is involved, so the
+     * caller (WebAuthnService) is responsible for the verification; this only
+     * issues the token and resets the failure count.
+     */
+    public Session startSession(StaffUser user, String userAgent, String ip) {
+        attempts.recordSuccess(user.getId());
+        return new Session(issue(user, userAgent, ip), Instant.now().plus(TOKEN_LIFETIME), user);
+    }
+
     // No @Transactional here: this is called from within the same class, and
     // Spring's transactions work through a proxy that self-invocation skips.
     // The annotation would read as protection that is not there. The save

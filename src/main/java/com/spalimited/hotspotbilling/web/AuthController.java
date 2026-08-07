@@ -6,6 +6,7 @@ import com.spalimited.hotspotbilling.service.AuthService;
 import com.spalimited.hotspotbilling.service.PasswordPolicy;
 import com.spalimited.hotspotbilling.service.TotpService;
 import com.spalimited.hotspotbilling.service.PortalSettingsService;
+import com.spalimited.hotspotbilling.service.WebAuthnService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,7 @@ public class AuthController {
     private final TotpService totp;
     private final PasswordEncoder encoder;
     private final PortalSettingsService portalSettings;
+    private final WebAuthnService webAuthn;
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password, String code) {
     }
@@ -58,6 +60,11 @@ public class AuthController {
             out.put("role", user.getRole());
             out.put("permissions", user.getPermissions().stream().sorted().toList());
             out.put("twoFactor", user.isTotpEnabled());
+            // The sign-in screen uses these to run the passkey flow: whether
+            // this account already has one, and whether policy makes enrolling
+            // one mandatory before it reaches the dashboard.
+            out.put("hasPasskeys", webAuthn.hasPasskeys(user.getId()));
+            out.put("passkeyEnrollmentRequired", webAuthn.enrollmentRequiredFor(user));
             return ResponseEntity.ok(out);
 
         } catch (AuthService.TotpRequiredException e) {

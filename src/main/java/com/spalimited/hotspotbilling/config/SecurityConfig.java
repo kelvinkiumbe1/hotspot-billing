@@ -62,6 +62,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/tech/**").hasAnyRole("ADMIN", "TECHNICIAN")
+                        // Enrolling or listing passkeys is done by an already
+                        // signed-in person; the /login/** ceremony below is not.
+                        .requestMatchers("/api/auth/passkey/register/**").authenticated()
+                        .requestMatchers("/api/auth/passkey/credentials/**").authenticated()
                         .anyRequest().permitAll())
                 // Plain 401 JSON without a WWW-Authenticate: Basic header —
                 // that header makes browsers open their native login popup

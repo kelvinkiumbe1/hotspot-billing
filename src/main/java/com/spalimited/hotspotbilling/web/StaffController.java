@@ -5,6 +5,7 @@ import com.spalimited.hotspotbilling.repository.StaffUserRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.AuthService;
 import com.spalimited.hotspotbilling.service.PasswordPolicy;
+import com.spalimited.hotspotbilling.service.WebAuthnService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class StaffController {
     private final PasswordEncoder encoder;
     private final AuditService audit;
     private final AuthService authService;
+    private final WebAuthnService webAuthn;
 
     /**
      * Who am I and what may I do — the UI hides what the server would refuse.
@@ -240,6 +242,10 @@ public class StaffController {
         // reopened while the password an attacker was guessing still works.
         boolean wasLocked = member.isLocked();
         authService.unlock(member);
+        // Passwords are the recovery path for passkeys too: a lost device is
+        // fixed by an owner resetting the password, which clears the stale
+        // passkeys so the person re-enrols a new one on their next sign-in.
+        webAuthn.clearForUser(member.getId());
 
         audit.record(principal, "staff.password", wasLocked
                 ? "Reset the password for " + member.getFullName() + " and unlocked the account"

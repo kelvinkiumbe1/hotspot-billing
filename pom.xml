@@ -71,6 +71,14 @@
 			<version>3.0.7</version>
 		</dependency>
 
+		<!-- WebAuthn / passkeys: vetted ceremony + signature verification.
+		     Hand-rolling COSE/CBOR crypto for a login path would be reckless. -->
+		<dependency>
+			<groupId>com.webauthn4j</groupId>
+			<artifactId>webauthn4j-core</artifactId>
+			<version>0.28.5.RELEASE</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
