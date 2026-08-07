@@ -1,0 +1,87 @@
+# One ISP = one copy of this stack: its own app container, its own database.
+# Nothing is shared between tenants except the edge proxy, so a bug in the
+# application cannot show one ISP another's customers.
+#
+# Never run this by hand — use deploy/new-tenant.sh, which writes the env
+# file and picks a free port. Run it from the repository root:
+#   docker compose -p spa-<slug> --env-file deploy/tenants/<slug>.env \
+#     -f deploy/tenant/docker-compose.yml up -d
+
+name: spa-${TENANT_SLUG}
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # The app must not start against a database still initialising, or
+      # Hibernate's schema update fails and the container restart-loops.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  app:
+    image: ${APP_IMAGE:-spa-billing:latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Seeds the first Owner login, then stays as the break-glass account.
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      TECH_USERNAME: ${TECH_USERNAME:-technician}
+      TECH_PASSWORD: ${TECH_PASSWORD}
+
+      # This ISP's own Daraja app. Their customers' money goes to their
+      # shortcode, never through ours.
+      MPESA_BASE_URL: ${MPESA_BASE_URL:-https://sandbox.safaricom.co.ke}
+      MPESA_CONSUMER_KEY: ${MPESA_CONSUMER_KEY:-}
+      MPESA_CONSUMER_SECRET: ${MPESA_CONSUMER_SECRET:-}
+      MPESA_SHORT_CODE: ${MPESA_SHORT_CODE:-}
+      MPESA_PASSKEY: ${MPESA_PASSKEY:-}
+      MPESA_PAYBILL: ${MPESA_PAYBILL:-}
+      MPESA_CALLBACK_URL: https://${TENANT_DOMAIN}/api/payments/mpesa/callback
+
+      # This ISP's own gateways, so message costs land on their account.
+      SMS_ENABLED: ${SMS_ENABLED:-false}
+      SMS_USERNAME: ${SMS_USERNAME:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+
+      PORTAL_URL: https://${TENANT_DOMAIN}
+      ALERT_PHONE: ${ALERT_PHONE:-}
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - internal
+      # The edge proxy reaches the app over this shared network. The app
+      # publishes no host port, so it is only reachable through Caddy.
+      - edge
+
+volumes:
+  db-data:
+  uploads:
+
+networks:
+  internal:
+  edge:
+    external: true
+    name: spa-edge

@@ -35,3 +35,10 @@ build/
 ### App data (local database files, uploaded photos) ###
 data/
 uploads/
+
+# Built UI copied in at image build time, never committed
+src/main/resources/static/
+
+# Per-tenant credentials and database dumps
+deploy/tenants/
+backups/

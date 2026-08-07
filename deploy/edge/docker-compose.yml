@@ -1,0 +1,37 @@
+# The shared edge. One Caddy instance terminates HTTPS for every tenant
+# subdomain and forwards to that tenant's app container by name.
+#
+# Caddy obtains and renews certificates automatically, which is the reason
+# to use it here rather than nginx: with a new subdomain per ISP, manual
+# certificate handling would become the thing that breaks.
+#
+#   docker network create spa-edge     # once
+#   docker compose -f deploy/edge/docker-compose.yml up -d
+
+name: spa-edge
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./tenants.d:/etc/caddy/tenants.d:ro
+      # Certificates must survive a restart, or Let's Encrypt rate limits
+      # will lock you out after a few redeploys.
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  edge:
+    external: true
+    name: spa-edge

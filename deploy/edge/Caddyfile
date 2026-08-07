@@ -1,0 +1,28 @@
+# Per-tenant site blocks live in tenants.d and are written by
+# deploy/new-tenant.sh, so adding an ISP does not mean editing this file.
+
+{
+	# Replace with your own address: Let's Encrypt sends expiry warnings here.
+	email admin@example.com
+}
+
+(tenant_defaults) {
+	encode gzip
+
+	# The captive portal and admin are the same origin, so a frame from
+	# elsewhere has no legitimate reason to embed them.
+	header {
+		X-Frame-Options DENY
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Uploaded photos can be large and M-Pesa callbacks must not be cut off
+	# mid-request.
+	request_body {
+		max_size 10MB
+	}
+}
+
+import /etc/caddy/tenants.d/*.caddy
