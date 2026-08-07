@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard, AreaSparkline } from '../components/ui.jsx'
+import { enrollPasskey, passkeyLogin, passkeySupported } from '../passkey.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import RoutersPage from './admin/Routers.jsx'
@@ -168,6 +169,28 @@ function Login({ onLogin }) {
   const [needCode, setNeedCode] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  // Set when a password sign-in succeeds but policy makes the account enrol a
+  // passkey before it reaches the dashboard.
+  const [enroll, setEnroll] = useState(null) // { token }
+  const canPasskey = passkeySupported()
+
+  async function usePasskey() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await passkeyLogin(username)
+      onLogin('Bearer ' + res.token)
+    } catch (err) {
+      // A cancelled browser prompt throws NotAllowedError — not worth alarming.
+      if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+        setError('Passkey sign-in was cancelled.')
+      } else {
+        setError(err.status === 400 ? 'No passkey is set up for this account. Use your password.' : (err.message || 'Passkey sign-in failed.'))
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -180,7 +203,12 @@ function Login({ onLogin }) {
         method: 'POST',
         body: { username, password, code: code || undefined },
       })
-      onLogin('Bearer ' + res.token)
+      const token = 'Bearer ' + res.token
+      if (res.passkeyEnrollmentRequired && canPasskey) {
+        setEnroll({ token })
+        return
+      }
+      onLogin(token)
     } catch (err) {
       if (err.status === 428) {
         // Password was right; the account has two-factor on. Ask for the code
@@ -204,6 +232,10 @@ function Login({ onLogin }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (enroll) {
+    return <EnrollPasskey token={enroll.token} onDone={() => onLogin(enroll.token)} canPasskey={canPasskey} />
   }
 
   return (
@@ -279,10 +311,94 @@ function Login({ onLogin }) {
           >
             {busy ? 'Signing in…' : needCode ? 'Verify & Sign In' : 'Sign In'}
           </button>
+          {canPasskey && !needCode && (
+            <>
+              <div className="flex items-center gap-3 my-1">
+                <span className="h-px flex-1 bg-outline-variant" />
+                <span className="text-[11px] uppercase tracking-wider text-on-surface-variant">or</span>
+                <span className="h-px flex-1 bg-outline-variant" />
+              </div>
+              <button
+                type="button"
+                onClick={usePasskey}
+                disabled={busy}
+                className="w-full h-12 bg-surface border border-outline-variant text-on-surface rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-surface-container-high active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+              >
+                <Icon name="fingerprint" className="text-[20px]! text-primary" />
+                Sign in with a passkey
+              </button>
+            </>
+          )}
           <p className="text-xs text-on-surface-variant flex items-center gap-1.5 justify-center">
             <Icon name="lock" className="text-[14px]!" /> Restricted area — authorized staff only.
           </p>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Shown once, straight after a first password sign-in, when policy requires a
+ * passkey. The password got them this far (and stays their recovery path); a
+ * passkey is what they use from now on.
+ */
+function EnrollPasskey({ token, onDone, canPasskey }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function enable() {
+    setBusy(true)
+    setError(null)
+    try {
+      await enrollPasskey(token, `${navigator.platform || 'This device'}`)
+      onDone()
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+        setError('That was cancelled. Try again — a passkey is required for this account.')
+      } else {
+        setError(err.message || 'Could not set up the passkey. Try again.')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="admin-theme relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
+      <img src={loginFiber} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-black/70"></div>
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant border-t-2 border-t-primary p-6 flex flex-col gap-4 text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center mx-auto">
+            <Icon name="fingerprint" className="text-primary text-[36px]!" />
+          </div>
+          <h2 className="text-lg font-semibold text-on-surface">Set up your passkey</h2>
+          <p className="text-sm text-on-surface-variant">
+            Use this device's fingerprint, face or PIN to sign in from now on — faster than a
+            password, and it can't be phished. Your password stays as backup.
+          </p>
+          {error && <p className="text-sm text-error">{error}</p>}
+          {canPasskey ? (
+            <button
+              onClick={enable}
+              disabled={busy}
+              className="w-full h-12 bg-primary text-on-primary rounded-lg text-base font-semibold flex items-center justify-center gap-2 hover:bg-surface-tint active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+            >
+              <Icon name="fingerprint" className="text-[20px]!" />
+              {busy ? 'Waiting for your device…' : 'Set up passkey'}
+            </button>
+          ) : (
+            <>
+              <p className="text-xs text-error">
+                This browser can't create a passkey (it needs a secure HTTPS connection).
+              </p>
+              <button onClick={onDone} className="w-full h-11 border border-outline-variant text-on-surface rounded-lg text-sm font-semibold hover:bg-surface-container-high cursor-pointer">
+                Continue for now
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
