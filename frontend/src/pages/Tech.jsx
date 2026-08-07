@@ -97,7 +97,10 @@ function TechLogin({ onLogin }) {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const candidate = btoa(`${username}:${password}`)
+    // Technicians authenticate with Basic for now — their accounts live in a
+    // separate table that the token/passkey flow does not cover yet. Store the
+    // full header so api() sends it verbatim, same as the office side.
+    const candidate = 'Basic ' + btoa(`${username}:${password}`)
     try {
       await api('/tech/tasks', { auth: candidate })
       onLogin(candidate)

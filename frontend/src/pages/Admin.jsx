@@ -146,8 +146,14 @@ function Skeleton({ className = '' }) {
 
 export default function Admin() {
   const [auth, setAuth] = useState(sessionStorage.getItem('adminAuth'))
+  function logout() {
+    // Best-effort server-side revocation; the session ends locally regardless.
+    api('/auth/logout', { method: 'POST', auth }).catch(() => {})
+    sessionStorage.removeItem('adminAuth')
+    setAuth(null)
+  }
   return auth
-    ? <Shell auth={auth} onLogout={() => { sessionStorage.removeItem('adminAuth'); setAuth(null) }} />
+    ? <Shell auth={auth} onLogout={logout} />
     : <Login onLogin={(a) => { sessionStorage.setItem('adminAuth', a); setAuth(a) }} />
 }
 
@@ -158,6 +164,8 @@ export default function Admin() {
 function Login({ onLogin }) {
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [needCode, setNeedCode] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -165,11 +173,33 @@ function Login({ onLogin }) {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const candidate = btoa(`${username}:${password}`)
     try {
-      await api('/admin/stats', { auth: candidate })
-      onLogin(candidate)
+      // Primary path: exchange the password (and a one-time code where the
+      // account has one) for a session token.
+      const res = await api('/auth/login', {
+        method: 'POST',
+        body: { username, password, code: code || undefined },
+      })
+      onLogin('Bearer ' + res.token)
     } catch (err) {
+      if (err.status === 428) {
+        // Password was right; the account has two-factor on. Ask for the code
+        // rather than reporting a failure.
+        setNeedCode(true)
+        setError(needCode ? 'That code is not right. Try the current one.' : null)
+        return
+      }
+      // The break-glass account from application.properties is not a database
+      // row, so /auth/login cannot mint it a token. Fall back to Basic so a
+      // broken staff table can never lock an owner out entirely.
+      if (err.status === 401 && !needCode) {
+        const basic = 'Basic ' + btoa(`${username}:${password}`)
+        try {
+          await api('/admin/stats', { auth: basic })
+          onLogin(basic)
+          return
+        } catch { /* fall through to the normal error */ }
+      }
       setError(err.status === 401 ? 'Wrong username or password' : err.message)
     } finally {
       setBusy(false)
@@ -221,13 +251,33 @@ function Login({ onLogin }) {
               className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
+          {needCode && (
+            <div>
+              <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="admin-code">
+                Authenticator code
+              </label>
+              <input
+                id="admin-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="6-digit code"
+                autoFocus
+                className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base font-mono tracking-[0.3em] text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <p className="text-xs text-on-surface-variant mt-1.5">From your authenticator app.</p>
+            </div>
+          )}
           {error && <p className="text-sm text-error">{error}</p>}
           <button
             type="submit"
             disabled={busy}
             className="w-full h-12 bg-primary text-on-primary rounded-lg text-lg font-semibold  hover:bg-surface-tint active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
           >
-            {busy ? 'Signing in…' : 'Sign In'}
+            {busy ? 'Signing in…' : needCode ? 'Verify & Sign In' : 'Sign In'}
           </button>
           <p className="text-xs text-on-surface-variant flex items-center gap-1.5 justify-center">
             <Icon name="lock" className="text-[14px]!" /> Restricted area — authorized staff only.

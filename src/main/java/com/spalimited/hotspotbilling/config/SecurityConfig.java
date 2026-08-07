@@ -142,11 +142,18 @@ public class SecurityConfig {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-    /** Allows the Vite dev server to call the API during development. */
+    /**
+     * Lets the Vite dev server call the API. A pattern rather than a fixed
+     * port because Vite hops to 5174/5175 when 5173 is taken, and a mismatch
+     * shows up as a 403 "Invalid CORS request" on the login POST only (GETs
+     * are same-origin through the proxy and carry no Origin header, so they
+     * slip past — which hides the problem until the first POST). In production
+     * the built frontend is served same-origin, so none of this applies.
+     */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
