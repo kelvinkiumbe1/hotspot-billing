@@ -50,15 +50,23 @@ That creates the database, starts the container, writes the Caddy site
 block, reloads the proxy, and prints the generated owner password **once**.
 HTTPS is issued automatically the first time the domain is visited.
 
-Then, before they can take money:
+Then hand them the owner login and let them finish it themselves:
+**Settings → Payment Gateways**, where they enter their own Daraja
+credentials, press *Test credentials*, and switch the gateway on. Nothing
+in the env file needs editing and nothing needs restarting.
 
-1. Get their **own** Daraja consumer key, secret, shortcode and passkey
-   into `deploy/tenants/acme.env`.
-2. Set `MPESA_BASE_URL=https://api.safaricom.co.ke`. Left on sandbox, the
-   app will appear to work and collect nothing.
-3. Register the callback in their Daraja app:
-   `https://acme.yourdomain.co.ke/api/payments/mpesa/callback`
-4. Re-run the compose command the script printed.
+The only step left to you is registering the callback in their Daraja
+app, because that lives on Safaricom's side:
+
+    https://acme.yourdomain.co.ke/api/payments/mpesa/callback
+
+An operator with no Daraja access at all can still trade: the Paybill and
+Till gateways show payment instructions on the portal and are reconciled
+by hand.
+
+The `MPESA_*` variables in the env file remain as a fallback for
+deployments configured before this existed. A gateway saved in the admin
+always wins.
 
 **Their money must go to their own shortcode.** Collecting into your
 account and paying them out makes you a payment aggregator, which in Kenya

@@ -20,6 +20,7 @@ import FiberPage from './admin/Fiber.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import TaxSettingsPage from './admin/TaxSettings.jsx'
+import PaymentGatewaysPage from './admin/PaymentGateways.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -296,6 +297,7 @@ const NAV_GROUPS = [
       { key: 'staff', label: 'Staff Logins', icon: 'admin_panel_settings', need: 'STAFF' },
       { key: 'branches', label: 'Branches', icon: 'add_business', need: 'FINANCE' },
       { key: 'audit', label: 'Audit Log', icon: 'history', need: 'STAFF' },
+      { key: 'gateways', label: 'Payment Gateways', icon: 'credit_card', need: 'SETTINGS' },
       { key: 'vat', label: 'VAT', icon: 'percent', need: 'SETTINGS' },
       { key: 'settings', label: 'Settings', icon: 'settings', need: 'SETTINGS' },
     ],
@@ -490,6 +492,7 @@ const TAB_TITLES = {
   staff: 'Staff Logins',
   ledger: 'Customer Ledger',
   vat: 'VAT',
+  gateways: 'Payment Gateways',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -603,6 +606,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'vat' && <TaxSettingsPage auth={auth} />}
+        {tab === 'gateways' && <PaymentGatewaysPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <VouchersPage auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
