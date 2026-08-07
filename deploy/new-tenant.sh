@@ -83,6 +83,16 @@ WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_ACCESS_TOKEN=
 
 ALERT_PHONE=
+
+# --- Passkeys. rp-id/origins are derived from the domain in the compose
+# --- file. Flip this to true to force every staff member to enrol a
+# --- passkey on first sign-in (safe once the domain is on HTTPS, which it
+# --- is the moment Caddy issues a certificate for it).
+WEBAUTHN_ENROLLMENT_REQUIRED=false
+
+# --- M-Pesa callback source allowlist. The app already defaults to
+# --- Safaricom's published ranges; set this only if told otherwise.
+MPESA_CALLBACK_ALLOWED_IPS=196.201.212.0/24,196.201.213.0/24,196.201.214.0/24
 EOF
 
 # Caddy resolves the container by name on the shared network. Compose names

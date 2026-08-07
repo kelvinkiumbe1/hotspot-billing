@@ -68,6 +68,21 @@ services:
 
       PORTAL_URL: https://${TENANT_DOMAIN}
       ALERT_PHONE: ${ALERT_PHONE:-}
+
+      # Passkeys are bound to the exact domain, so the relying-party id and
+      # origin must be this tenant's — not the localhost default. Without
+      # these, passkey enrolment and sign-in fail on the live site.
+      WEBAUTHN_RP_ID: ${TENANT_DOMAIN}
+      WEBAUTHN_ORIGINS: https://${TENANT_DOMAIN}
+      WEBAUTHN_ENROLLMENT_REQUIRED: ${WEBAUTHN_ENROLLMENT_REQUIRED:-false}
+
+      # Only this tenant's own https origin may drive the API from a browser.
+      APP_CORS_ALLOWED_ORIGIN_PATTERNS: https://${TENANT_DOMAIN}
+
+      # Which sources may post to the public M-Pesa callbacks. Defaults to
+      # Safaricom's published ranges inside the app; override here only if
+      # Safaricom gives this ISP a different set.
+      MPESA_CALLBACK_ALLOWED_IPS: ${MPESA_CALLBACK_ALLOWED_IPS:-196.201.212.0/24,196.201.213.0/24,196.201.214.0/24}
     volumes:
       - uploads:/app/uploads
     networks:
