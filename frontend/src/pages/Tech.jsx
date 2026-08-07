@@ -247,7 +247,11 @@ function TechShell({ auth, onLogout }) {
         </button>
       </header>
 
-      <main className="md:ml-72 pt-20 md:pt-8 px-5 md:px-8 pb-28 md:pb-8 max-w-5xl">
+      {/* The cap only bites past 2560px. Below that the content fills the
+          screen, so the office opening this on a monitor does not get a
+          narrow column with a wide empty band beside it. Individual screens
+          set their own narrower cap where reading width matters. */}
+      <main className="md:ml-72 pt-20 md:pt-8 px-5 md:px-8 pb-28 md:pb-8 max-w-[2400px]">
         {tab === 'tasks' && <Tasks auth={auth} />}
         {tab === 'jobs' && <Jobs auth={auth} />}
         {tab === 'vouchers' && perms.vouchersAllowed && <FieldVouchers auth={auth} />}
@@ -932,7 +936,9 @@ function TechSubscribers({ auth }) {
   if (subs === null) return <div className="animate-pulse bg-surface-container-high rounded-xl h-64"></div>
 
   return (
-    <div className="max-w-3xl">
+    // Wider than the other tech screens because this one is a list rather
+    // than a form — the office reads it on a monitor.
+    <div className="max-w-6xl">
       <div className="flex justify-between items-start gap-4 mb-6 flex-wrap">
         <div>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface mb-2">Subscribers</h2>

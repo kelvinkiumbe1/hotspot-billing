@@ -601,7 +601,11 @@ function Shell({ auth, onLogout }) {
       </header>
 
       {/* Content */}
-      <main className="md:ml-64 pt-24 px-5 md:px-8 pb-8 max-w-[1600px]">
+      {/* Matches the fluid top bar above, which is calc(100%-16rem). A cap
+          below that left the header running wider than the content under it.
+          2400px only bites on an ultrawide, where full-bleed table rows
+          would be a worse problem than a margin. */}
+      <main className="md:ml-64 pt-24 px-5 md:px-8 pb-8 max-w-[2400px]">
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'leads' && <LeadsPage auth={auth} />}
