@@ -2,8 +2,10 @@
 
 /* Design tokens from the Stitch design (Material 3 style palette) */
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "Roboto Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  /* Fira family (skill: "Dashboard Data" pairing) — Sans for all UI, Code for
+     data/codes/amounts. Self-hosted via @fontsource in main.jsx. */
+  --font-sans: "Fira Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "Cascadia Code", Consolas, monospace;
 
   --color-background: #f9f9f8;
   --color-on-background: #1a1c1c;
