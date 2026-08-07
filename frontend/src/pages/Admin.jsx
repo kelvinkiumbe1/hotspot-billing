@@ -2951,6 +2951,15 @@ function eventChipLabel(ev) {
   return { label: 'Planned', cls: 'bg-primary-container/20 text-primary' }
 }
 
+/** Solid status dot for the calendar chips — completed green, upcoming amber,
+ *  planned the brand amber. Matches the legend and eventChipLabel above. */
+function eventDot(ev) {
+  if (ev.status === 'COMPLETED') return 'bg-secondary'
+  const days = (new Date(ev.scheduledStart) - Date.now()) / 86400000
+  if (days >= 0 && days <= 7) return 'bg-[#f59e0b]'
+  return 'bg-primary'
+}
+
 function MaintenanceModal({ auth, onClose, onSaved }) {
   const [form, setForm] = useState({ title: '', description: '', date: '', start: '02:00', end: '04:00', downtime: 15 })
   const [error, setError] = useState(null)
@@ -3080,67 +3089,112 @@ function Maintenance({ auth }) {
     load()
   }
 
+  const goToday = () => { const d = new Date(); setCursor({ y: d.getFullYear(), m: d.getMonth() }) }
+  const viewingThisMonth = cursor.y === today.getFullYear() && cursor.m === today.getMonth()
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Maintenance Schedule</h2>
-          <p className="text-xs text-on-surface-variant">Plan and track network upgrades and downtime.</p>
-        </div>
-        <button
-          onClick={() => setModal(true)}
-          className="bg-primary hover:bg-surface-tint text-on-primary text-lg font-semibold px-4 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-sm cursor-pointer h-12"
-        >
-          <Icon name="add" />
-          Schedule New
-        </button>
-      </div>
+      <PageHeader title="Maintenance" subtitle="Plan and track network upgrades and downtime.">
+        <PrimaryButton onClick={() => setModal(true)}>
+          <Icon name="add" className="text-[18px]!" />
+          Schedule
+        </PrimaryButton>
+      </PageHeader>
 
       <div className="flex flex-col xl:flex-row gap-6 items-start">
         {/* Calendar */}
-        <div className="flex-1 w-full bg-surface-container-lowest rounded-lg border border-outline-variant border border-surface-container-highest overflow-hidden">
-          <div className="p-4 border-b border-surface-container-high flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <button onClick={() => shift(-1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant cursor-pointer" aria-label="Previous month">
-                <Icon name="chevron_left" />
+        <div className="flex-1 w-full bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
+          <div className="px-4 h-14 border-b border-outline-variant flex justify-between items-center gap-3">
+            <div className="flex items-center gap-1">
+              <button onClick={() => shift(-1)} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-container-high transition-colors text-on-surface-variant cursor-pointer" aria-label="Previous month">
+                <Icon name="chevron_left" className="text-[20px]!" />
               </button>
-              <h3 className="text-lg font-semibold text-on-background w-44 text-center">{MONTH_NAMES[cursor.m]} {cursor.y}</h3>
-              <button onClick={() => shift(1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant cursor-pointer" aria-label="Next month">
-                <Icon name="chevron_right" />
+              <h3 className="text-sm font-semibold text-on-surface w-36 text-center tabular-nums">{MONTH_NAMES[cursor.m]} {cursor.y}</h3>
+              <button onClick={() => shift(1)} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-container-high transition-colors text-on-surface-variant cursor-pointer" aria-label="Next month">
+                <Icon name="chevron_right" className="text-[20px]!" />
+              </button>
+              <button
+                onClick={goToday}
+                disabled={viewingThisMonth}
+                className="ml-1 h-8 px-3 rounded-md border border-outline-variant text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default"
+              >
+                Today
               </button>
             </div>
-            <div className="hidden sm:flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-3">
               {[['bg-primary', 'Planned'], ['bg-[#f59e0b]', 'Upcoming'], ['bg-secondary', 'Completed']].map(([dot, label]) => (
                 <div key={label} className="flex items-center gap-1.5">
-                  <span className={`w-3 h-3 rounded-full ${dot}`}></span>
-                  <span className="text-xs font-semibold tracking-wider text-on-surface-variant">{label}</span>
+                  <span className={`w-2 h-2 rounded-full ${dot}`}></span>
+                  <span className="text-[11px] font-medium text-on-surface-variant">{label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-[1px] bg-surface-container-high">
-            {DAY_NAMES.map((d) => (
-              <div key={d} className="bg-surface p-2 text-center text-xs font-semibold tracking-wider text-on-surface-variant">{d}</div>
+          {/* Weekday header */}
+          <div className="grid grid-cols-7 border-b border-outline-variant">
+            {DAY_NAMES.map((d, i) => (
+              <div
+                key={d}
+                className={`py-2 text-center text-[11px] font-semibold tracking-wider uppercase ${
+                  i === 0 || i === 6 ? 'text-on-surface-variant/60' : 'text-on-surface-variant'
+                }`}
+              >
+                {d}
+              </div>
             ))}
+          </div>
+
+          {/* Day grid */}
+          <div className="grid grid-cols-7">
             {Array.from({ length: cellCount }, (_, i) => {
               const day = i - firstDay + 1
               const inMonth = day >= 1 && day <= daysInMonth
+              const weekend = i % 7 === 0 || i % 7 === 6
               const dayEvents = inMonth ? byDay[`${cursor.y}-${cursor.m}-${day}`] || [] : []
+              const shown = dayEvents.slice(0, 3)
+              const overflow = dayEvents.length - shown.length
+              const isCurrentDay = isToday(day)
               return (
-                <div key={i} className={`bg-surface-container-lowest p-2 min-h-[90px] ${isToday(day) ? 'ring-2 ring-primary ring-inset' : ''}`}>
+                <div
+                  key={i}
+                  className={`min-h-[104px] p-1.5 flex flex-col gap-1 border-b border-r border-outline-variant [&:nth-child(7n)]:border-r-0 ${
+                    inMonth ? (weekend ? 'bg-surface-container-lowest/40' : 'bg-surface-container-lowest') : 'bg-surface-dim/40'
+                  }`}
+                >
                   {inMonth && (
                     <>
-                      <span className={`text-sm ${isToday(day) ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>{day}</span>
-                      {dayEvents.map((ev) => (
+                      <span
+                        className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full shrink-0 ${
+                          isCurrentDay ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant'
+                        }`}
+                      >
+                        {day}
+                      </span>
+                      {shown.map((ev) => {
+                        const active = selectedId === ev.id
+                        return (
+                          <button
+                            key={ev.id}
+                            onClick={() => setSelectedId(ev.id)}
+                            title={ev.title}
+                            className={`w-full text-left rounded px-1.5 py-1 flex items-center gap-1.5 cursor-pointer transition-colors ${
+                              active ? 'bg-primary/15 ring-1 ring-primary' : 'bg-surface-container hover:bg-surface-container-high'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${eventDot(ev)}`} />
+                            <span className="text-[11px] leading-tight text-on-surface truncate">{ev.title}</span>
+                          </button>
+                        )
+                      })}
+                      {overflow > 0 && (
                         <button
-                          key={ev.id}
-                          onClick={() => setSelectedId(ev.id)}
-                          className={`mt-1 w-full text-left border rounded p-1 cursor-pointer transition-colors ${eventTone(ev)} ${selectedId === ev.id ? 'ring-1 ring-primary' : ''}`}
+                          onClick={() => setSelectedId(dayEvents[shown.length].id)}
+                          className="text-[11px] text-on-surface-variant hover:text-primary text-left px-1.5 cursor-pointer"
                         >
-                          <p className="text-[10px] font-semibold tracking-wider leading-tight truncate">{ev.title}</p>
+                          +{overflow} more
                         </button>
-                      ))}
+                      )}
                     </>
                   )}
                 </div>
@@ -3151,7 +3205,7 @@ function Maintenance({ auth }) {
 
         {/* Detail panel */}
         <aside className="w-full xl:w-96 shrink-0">
-          <div className="bg-surface-container-lowest rounded-lg border border-outline-variant border border-surface-container-high">
+          <div className="bg-surface-container-lowest rounded-lg border border-outline-variant">
             {!selected ? (
               <div className="p-8 flex flex-col items-center text-center gap-3">
                 <Icon name="calendar_month" className="text-[48px]! text-outline" />
@@ -3159,7 +3213,7 @@ function Maintenance({ auth }) {
               </div>
             ) : (
               <>
-                <div className="p-6 border-b border-surface-container-high">
+                <div className="p-6 border-b border-outline-variant">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-lg font-semibold text-on-background">Maintenance Details</h3>
@@ -3205,14 +3259,14 @@ function Maintenance({ auth }) {
                     <span className="text-xs font-semibold tracking-wider uppercase text-outline block mb-3">Site Notes &amp; Photos</span>
                     <TaskNotes auth={auth} taskId={selected.id} />
                   </div>
-                  <div className="pt-4 border-t border-surface-container-high flex flex-col gap-3">
+                  <div className="pt-4 border-t border-outline-variant flex flex-col gap-2.5">
                     {selected.status !== 'COMPLETED' && (
-                      <button onClick={complete} className="w-full h-12 bg-primary hover:bg-surface-tint text-on-primary rounded-lg text-lg font-semibold  transition-all cursor-pointer flex justify-center items-center gap-2">
-                        <Icon name="check_circle" />
+                      <button onClick={complete} className="w-full h-10 bg-primary hover:opacity-90 text-on-primary rounded-md text-sm font-semibold transition-opacity active:scale-[0.98] cursor-pointer flex justify-center items-center gap-1.5">
+                        <Icon name="check_circle" className="text-[18px]!" />
                         Mark Completed
                       </button>
                     )}
-                    <button onClick={remove} className="w-full h-12 border border-error text-error hover:bg-error/5 rounded-lg text-lg font-semibold transition-colors cursor-pointer">
+                    <button onClick={remove} className="w-full h-10 border border-error/60 text-error hover:bg-error/10 rounded-md text-sm font-semibold transition-colors cursor-pointer">
                       Delete Event
                     </button>
                   </div>
