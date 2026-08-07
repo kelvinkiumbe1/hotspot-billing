@@ -146,6 +146,17 @@ and it has no rollback. **Take a backup before upgrading a live tenant** —
 see below — and consider moving to Flyway migrations before you have real
 money flowing through several ISPs.
 
+## Before you tell a tenant they are live
+
+```bash
+./deploy/preflight.sh acme
+```
+
+Checks the things that fail silently: Daraja still on sandbox, empty
+M-Pesa credentials, a default password, a domain that does not resolve, a
+callback Safaricom cannot reach, no router configured, no backups. Exits
+non-zero if anything would stop them trading, so it can gate a release.
+
 ## Backups
 
 ```bash
