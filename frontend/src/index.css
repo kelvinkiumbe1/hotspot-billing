@@ -272,3 +272,12 @@ body {
 .admin-theme .data-table td {
   font-variant-numeric: tabular-nums;
 }
+
+/* Right-aligned table cells are numeric by convention in these tables
+   (amounts, counts, balances), so route them to the Fira Code data font
+   in one place — every admin table picks up the fintech treatment without
+   touching each cell. The :has() guards skip the odd right-aligned action
+   column, whose buttons/links should stay in the UI font. */
+.admin-theme .data-table td.text-right:not(:has(button)):not(:has(a)) {
+  font-family: var(--font-mono);
+}

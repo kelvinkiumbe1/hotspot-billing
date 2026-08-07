@@ -1405,7 +1405,7 @@ function Plans({ auth }) {
                     <div className="text-lg font-semibold text-on-background">{p.name}</div>
                     {p.bandwidth && <div className="text-xs font-semibold tracking-wider text-on-surface-variant mt-1">Rate limit: {p.bandwidth}</div>}
                   </td>
-                  <td className="text-lg font-semibold tabular-nums">{fmtKES(p.price)}</td>
+                  <td className="font-mono text-lg font-semibold tabular-nums">{fmtKES(p.price)}</td>
                   <td className="">
                     <div>{formatDuration(p.durationMinutes)}</div>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
