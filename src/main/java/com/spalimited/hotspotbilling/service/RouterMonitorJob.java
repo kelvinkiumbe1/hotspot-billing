@@ -29,8 +29,7 @@ public class RouterMonitorJob {
     private final SmsService smsService;
     private final AuditService audit;
 
-    @org.springframework.beans.factory.annotation.Value("${app.alert-phone:}")
-    private String alertPhone;
+    private final MessagingSettingsService messagingSettings;
 
     @Scheduled(fixedDelay = 120_000, initialDelay = 20_000)
     @Transactional
@@ -61,12 +60,14 @@ public class RouterMonitorJob {
 
             if (wasOnline && !online) {
                 audit.system("router.offline", "Router " + router.getName() + " went offline: " + router.getLastError());
+                String alertPhone = messagingSettings.alertPhone();
                 if (alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "ALERT: SPA WiFi router '" + router.getName() + "' is offline.");
                 }
                 log.warn("Router {} went offline", router.getName());
             } else if (!wasOnline && online) {
                 audit.system("router.online", "Router " + router.getName() + " is back online");
+                String alertPhone = messagingSettings.alertPhone();
                 if (alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "Recovered: SPA WiFi router '" + router.getName() + "' is back online.");
                 }

@@ -1,6 +1,5 @@
 package com.spalimited.hotspotbilling.service;
 
-import com.spalimited.hotspotbilling.config.WhatsappProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -15,12 +14,13 @@ import java.util.Map;
 @Slf4j
 public class WhatsappService {
 
-    private final WhatsappProperties props;
+    private final MessagingSettingsService messagingSettings;
 
     public boolean isEnabled() {
-        return props.enabled()
-                && props.phoneNumberId() != null && !props.phoneNumberId().isBlank()
-                && props.accessToken() != null && !props.accessToken().isBlank();
+        var cfg = messagingSettings.whatsapp();
+        return cfg.enabled()
+                && cfg.phoneNumberId() != null && !cfg.phoneNumberId().isBlank()
+                && cfg.accessToken() != null && !cfg.accessToken().isBlank();
     }
 
     /** Returns true when the message was accepted by WhatsApp. */
@@ -28,11 +28,12 @@ public class WhatsappService {
         if (!isEnabled()) {
             return false;
         }
+        var cfg = messagingSettings.whatsapp();
         try {
-            RestClient client = RestClient.create(props.baseUrl());
+            RestClient client = RestClient.create(cfg.baseUrl());
             client.post()
-                    .uri("/" + props.phoneNumberId() + "/messages")
-                    .header("Authorization", "Bearer " + props.accessToken())
+                    .uri("/" + cfg.phoneNumberId() + "/messages")
+                    .header("Authorization", "Bearer " + cfg.accessToken())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of(
                             "messaging_product", "whatsapp",

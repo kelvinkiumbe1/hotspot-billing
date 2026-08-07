@@ -1,6 +1,5 @@
 package com.spalimited.hotspotbilling.service;
 
-import com.spalimited.hotspotbilling.config.SmsProperties;
 import com.spalimited.hotspotbilling.domain.OutboundMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,15 +27,16 @@ public class SmsService {
 
     private static final int BATCH_SIZE = 100;
 
-    private final SmsProperties props;
     private final WhatsappService whatsappService;
     private final OutboxService outboxService;
+    private final MessagingSettingsService messagingSettings;
     private final HttpClient http = HttpClient.newHttpClient();
 
     public boolean isEnabled() {
-        return props.enabled()
-                && props.username() != null && !props.username().isBlank()
-                && props.apiKey() != null && !props.apiKey().isBlank();
+        var cfg = messagingSettings.sms();
+        return cfg.enabled()
+                && cfg.username() != null && !cfg.username().isBlank()
+                && cfg.apiKey() != null && !cfg.apiKey().isBlank();
     }
 
     /** Sends to many recipients; returns how many numbers were submitted. */
@@ -101,17 +101,18 @@ public class SmsService {
     }
 
     private void dispatch(String to, String message) {
+        var cfg = messagingSettings.sms();
         try {
             StringBuilder form = new StringBuilder()
-                    .append("username=").append(encode(props.username()))
+                    .append("username=").append(encode(cfg.username()))
                     .append("&to=").append(encode(to))
                     .append("&message=").append(encode(message));
-            if (props.senderId() != null && !props.senderId().isBlank()) {
-                form.append("&from=").append(encode(props.senderId()));
+            if (cfg.senderId() != null && !cfg.senderId().isBlank()) {
+                form.append("&from=").append(encode(cfg.senderId()));
             }
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(props.baseUrl() + "/version1/messaging"))
-                    .header("apiKey", props.apiKey())
+                    .uri(URI.create(cfg.baseUrl() + "/version1/messaging"))
+                    .header("apiKey", cfg.apiKey())
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(form.toString()))

@@ -70,6 +70,63 @@ public class StaffController {
         return "OWNER";
     }
 
+    public record MyPasswordRequest(
+            @NotBlank String currentPassword,
+            @NotBlank @Size(min = 8, message = "Password must be at least 8 characters") String newPassword) {
+    }
+
+    /**
+     * Lets anyone change their own password. Without this, the only way to
+     * get a new one is to ask an owner — who then knows it, which rather
+     * defeats having separate logins.
+     *
+     * <p>The current password is required, so someone finding an unattended
+     * signed-in browser cannot lock the real owner out of their account.
+     */
+    @PatchMapping("/me/password")
+    public Map<String, String> changeMyPassword(@Valid @RequestBody MyPasswordRequest request,
+                                                Principal principal) {
+        StaffUser member = staff.findByUsernameAndActiveTrue(principal.getName())
+                .orElseThrow(() -> new IllegalStateException(
+                        "You are signed in with the fallback account from the config file, which has no "
+                                + "password to change here. Create a named login instead."));
+        if (!encoder.matches(request.currentPassword(), member.getPasswordHash())) {
+            throw new IllegalArgumentException("That is not your current password");
+        }
+        if (encoder.matches(request.newPassword(), member.getPasswordHash())) {
+            throw new IllegalArgumentException("The new password is the same as the old one");
+        }
+        member.setPasswordHash(encoder.encode(request.newPassword()));
+        staff.save(member);
+        audit.record(principal, "staff.password.self", "Changed their own password");
+        return Map.of("message", "Password changed. Use it the next time you sign in.");
+    }
+
+    public record MyProfileRequest(
+            @NotBlank String fullName,
+            String phoneNumber,
+            @Email(message = "That does not look like an email address") String email) {
+    }
+
+    /** Their own name and contact details — not their role, which is not theirs to set. */
+    @PatchMapping("/me")
+    public Map<String, Object> updateMyProfile(@Valid @RequestBody MyProfileRequest request,
+                                               Principal principal) {
+        StaffUser member = staff.findByUsernameAndActiveTrue(principal.getName())
+                .orElseThrow(() -> new IllegalStateException(
+                        "The fallback account has no profile to edit. Create a named login instead."));
+        member.setFullName(request.fullName());
+        member.setPhoneNumber(blankToNull(request.phoneNumber()));
+        member.setEmail(blankToNull(request.email()));
+        staff.save(member);
+        audit.record(principal, "staff.profile.self", "Updated their own details");
+        return Map.of("fullName", member.getFullName(), "message", "Saved.");
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('STAFF')")
     public List<Map<String, Object>> all() {

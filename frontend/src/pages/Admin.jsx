@@ -21,6 +21,7 @@ import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import TaxSettingsPage from './admin/TaxSettings.jsx'
 import PaymentGatewaysPage from './admin/PaymentGateways.jsx'
+import SettingsHub from './admin/SettingsHub.jsx'
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -287,7 +288,7 @@ const NAV_GROUPS = [
     items: [
       { key: 'outbox', label: 'Outbox', icon: 'outbox', need: 'OUTREACH' },
       { key: 'messages', label: 'Team Chat', icon: 'chat', need: 'CUSTOMERS' },
-      { key: 'branding', label: 'Campaigns', icon: 'campaign', need: 'OUTREACH' },
+      { key: 'promos', label: 'Promotions', icon: 'campaign', need: 'OUTREACH' },
     ],
   },
   {
@@ -297,8 +298,6 @@ const NAV_GROUPS = [
       { key: 'staff', label: 'Staff Logins', icon: 'admin_panel_settings', need: 'STAFF' },
       { key: 'branches', label: 'Branches', icon: 'add_business', need: 'FINANCE' },
       { key: 'audit', label: 'Audit Log', icon: 'history', need: 'STAFF' },
-      { key: 'gateways', label: 'Payment Gateways', icon: 'credit_card', need: 'SETTINGS' },
-      { key: 'vat', label: 'VAT', icon: 'percent', need: 'SETTINGS' },
       { key: 'settings', label: 'Settings', icon: 'settings', need: 'SETTINGS' },
     ],
   },
@@ -491,8 +490,6 @@ const TAB_TITLES = {
   fiber: 'Fiber Map',
   staff: 'Staff Logins',
   ledger: 'Customer Ledger',
-  vat: 'VAT',
-  gateways: 'Payment Gateways',
   plans: 'Plans',
   vouchers: 'Vouchers',
   subscribers: 'Subscribers',
@@ -505,7 +502,7 @@ const TAB_TITLES = {
   maintenance: 'Maintenance',
   messages: 'Team Chat',
   team: 'Team',
-  branding: 'Campaigns & Branding',
+  promos: 'Promotions & Branding',
   audit: 'Audit Log',
   settings: 'Settings',
 }
@@ -605,8 +602,6 @@ function Shell({ auth, onLogout }) {
         {tab === 'fiber' && <FiberPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
-        {tab === 'vat' && <TaxSettingsPage auth={auth} />}
-        {tab === 'gateways' && <PaymentGatewaysPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
         {tab === 'vouchers' && <VouchersPage auth={auth} />}
         {tab === 'subscribers' && <Subscribers auth={auth} />}
@@ -615,13 +610,15 @@ function Shell({ auth, onLogout }) {
         {tab === 'finance' && <FinancePage auth={auth} />}
         {tab === 'routers' && <RoutersPage auth={auth} />}
         {tab === 'branches' && <BranchesPage auth={auth} />}
-        {tab === 'branding' && <BrandingPage auth={auth} />}
+        {tab === 'promos' && <BrandingPage auth={auth} />}
         {tab === 'audit' && <AuditLogPage auth={auth} />}
         {tab === 'support' && <Support auth={auth} />}
         {tab === 'maintenance' && <Maintenance auth={auth} />}
         {tab === 'messages' && <Messages auth={auth} />}
         {tab === 'team' && <Team auth={auth} />}
-        {tab === 'settings' && <Settings auth={auth} />}
+        {tab === 'settings' && (
+          <SettingsHub auth={auth} me={me} mikrotikSection={<Settings auth={auth} />} />
+        )}
       </main>
     </div>
   )
