@@ -92,6 +92,24 @@ body {
   --color-inverse-surface: #f5f5f5;
 }
 
+/* The captive portal is a phone-width column by design — it opens inside
+   a small browser window on a customer's phone. On a desktop (demos, the
+   ISP sales pitch) that same column would otherwise float in flat black
+   and read as unfinished. A fixed, softly-lit backdrop turns the empty
+   side margins into something deliberate without widening the column, so
+   the phone experience is untouched. Below md the column fills the screen,
+   so the glow is desktop-only and there is nothing to fix on a phone. */
+@media (min-width: 768px) {
+  .portal-theme {
+    background-color: #000;
+    background-image:
+      radial-gradient(55rem 55rem at 12% -12%, rgba(253, 191, 45, 0.10), transparent 60%),
+      radial-gradient(45rem 45rem at 92% 112%, rgba(253, 191, 45, 0.07), transparent 55%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Field Connect (technician) theme: sand canvas, ruby-red ink.        */
 /* Content sits on near-white cards so the sand frames rather than     */
