@@ -130,17 +130,17 @@ export default function Finance({ auth }) {
       {tab === 'reports' && (!summary ? <Skeleton className="h-64" /> : (
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label={`Revenue (${days}d)`} value={fmtKES(summary.totalRevenue)} accent="border-t-primary"
+            <StatCard label={`Revenue (${days}d)`} value={fmtKES(summary.totalRevenue)} accent="border-l-primary"
               hint={`Vouchers ${fmtKES(summary.voucherRevenue)} · Subs ${fmtKES(summary.subscriptionRevenue)}`} />
-            <StatCard label={`Expenses (${days}d)`} value={fmtKES(summary.totalExpenses)} accent="border-t-error" />
+            <StatCard label={`Expenses (${days}d)`} value={fmtKES(summary.totalExpenses)} accent="border-l-error" />
             <StatCard label="Profit" value={fmtKES(summary.profit)}
-              accent={Number(summary.profit) >= 0 ? 'border-t-secondary' : 'border-t-error'} />
+              accent={Number(summary.profit) >= 0 ? 'border-l-secondary' : 'border-l-error'} />
             <StatCard label="Expected Monthly" value={fmtKES(summary.expectedMonthlyRevenue)}
               hint={`${summary.activeSubscribers} active subscriber(s)`} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex flex-col">
+            <div className="lg:col-span-2 bg-surface-container-lowest rounded-lg p-4  flex flex-col">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-on-surface">Revenue Trend</h3>
@@ -154,7 +154,7 @@ export default function Finance({ auth }) {
               <RevenueChart series={series} />
             </div>
 
-            <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+            <div className="bg-surface-container-lowest rounded-lg p-4 ">
               <h3 className="text-lg font-semibold text-on-surface mb-1">Open Receivables</h3>
               <p className="text-3xl font-bold text-[#b45309] tabular-nums mb-4">{fmtKES(summary.openReceivables)}</p>
               <h4 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Expenses by Category</h4>
@@ -180,7 +180,7 @@ export default function Finance({ auth }) {
             <PrimaryButton onClick={runInvoicing}><Icon name="receipt_long" /> Run Invoicing Now</PrimaryButton>
           </div>
           {invoices === null ? <Skeleton className="h-64" /> : (
-            <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+            <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
               <div className="overflow-x-auto table-scroll">
                 <table className="data-table w-full text-left border-collapse min-w-[800px]">
                   <thead>
@@ -235,7 +235,7 @@ export default function Finance({ auth }) {
 
       {tab === 'expenses' && (
         <div className="flex flex-col gap-6">
-          <form onSubmit={addExpense} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <form onSubmit={addExpense} className="bg-surface-container-lowest rounded-lg p-4  grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div className="md:col-span-2">
               <label className={LABEL_CLS}>Description</label>
               <input className={INPUT_CLS} required placeholder="e.g. Monthly bandwidth — Faiba" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })} />
@@ -260,7 +260,7 @@ export default function Finance({ auth }) {
           </form>
 
           {expenses === null ? <Skeleton className="h-48" /> : (
-            <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+            <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
               <div className="p-4 border-b border-surface-variant/30 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-on-surface">Recent Expenses</h3>
                 <button onClick={() => csvDownload(

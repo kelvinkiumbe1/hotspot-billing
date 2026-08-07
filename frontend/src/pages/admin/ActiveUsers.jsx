@@ -71,12 +71,12 @@ export default function ActiveUsers({ auth }) {
         </div>
       </PageHeader>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Online Now" value={data.total} accent="border-t-primary" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
+        <StatCard label="Online Now" value={data.total} accent="border-l-primary" />
         <StatCard label="Hotspot" value={data.hotspot} />
         <StatCard label="PPPoE" value={data.pppoe} />
         <StatCard label="Unreachable Routers" value={data.unreachableRouters}
-          accent={data.unreachableRouters ? 'border-t-error' : ''} />
+          accent={data.unreachableRouters ? 'border-l-error' : ''} />
       </div>
 
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -93,7 +93,7 @@ export default function ActiveUsers({ auth }) {
 
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>

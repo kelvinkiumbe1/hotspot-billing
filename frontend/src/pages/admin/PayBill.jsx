@@ -45,13 +45,13 @@ export default function PayBill({ auth }) {
     <div>
       <PageHeader title="PayBill Payments" subtitle="Money deposited straight to your PayBill, matched by account number." />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Payments Received" value={rows.length} accent="border-t-primary" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 mb-4">
+        <StatCard label="Payments Received" value={rows.length} accent="border-l-primary" />
         <StatCard label="Total Value" value={fmtKES(total)} />
-        <StatCard label="Needs Attention" value={unmatched.length} accent={unmatched.length ? 'border-t-[#f59e0b]' : ''} />
+        <StatCard label="Needs Attention" value={unmatched.length} accent={unmatched.length ? 'border-l-[#f59e0b]' : ''} />
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl p-4 mb-6 border border-outline-variant/30 flex items-start gap-3">
+      <div className="bg-surface-container-lowest rounded-lg p-4 mb-6 border border-outline-variant/30 flex items-start gap-3">
         <Icon name="info" className="text-primary text-[20px]! mt-0.5" />
         <p className="text-sm text-on-surface-variant">
           Tell customers to pay to your PayBill using their <strong className="text-on-surface">PPPoE username as the account number</strong> — the
@@ -62,7 +62,7 @@ export default function PayBill({ auth }) {
 
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>

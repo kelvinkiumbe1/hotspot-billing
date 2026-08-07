@@ -190,7 +190,7 @@ function Login({ onLogin }) {
 
         <form
           onSubmit={submit}
-          className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-primary p-6 flex flex-col gap-4"
+          className="bg-surface-container-lowest rounded-lg border border-outline-variant border-t-2 border-t-primary p-6 flex flex-col gap-4"
         >
           <h2 className="text-lg font-semibold text-on-surface">Sign in to Hotspot Manager</h2>
           <div>
@@ -224,7 +224,7 @@ function Login({ onLogin }) {
           <button
             type="submit"
             disabled={busy}
-            className="w-full h-12 bg-primary text-on-primary rounded-lg text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+            className="w-full h-12 bg-primary text-on-primary rounded-lg text-lg font-semibold  hover:bg-surface-tint active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
           >
             {busy ? 'Signing in…' : 'Sign In'}
           </button>
@@ -460,7 +460,7 @@ function PayoutBell({ auth }) {
                   {relativeTime(p.createdAt)}{p.note ? ` · ${p.note}` : ''}
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={() => act(p.id, 'PAID')} className="flex-1 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-surface-tint transition-colors cursor-pointer">
+                  <button onClick={() => act(p.id, 'PAID')} className="flex-1 px-3 py-1.5 rounded-md border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
                     Mark Paid
                   </button>
                   <button onClick={() => act(p.id, 'REJECTED')} className="flex-1 px-3 py-1.5 rounded-lg border border-error text-error text-xs font-semibold hover:bg-error/5 transition-colors cursor-pointer">
@@ -672,8 +672,8 @@ function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wid
   const shown = numeric ? counted : value
   return (
     <div
-      className={`bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up ${
-        accent ? `border-t-4 ${accent}` : ''
+      className={`bg-surface-container-lowest rounded-lg p-4  fade-up ${
+        accent ? `border-l-2 ${accent}` : ''
       } ${wide ? 'xl:col-span-2' : 'xl:col-span-1'}`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
@@ -681,7 +681,7 @@ function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wid
         <CardLabel>{label}</CardLabel>
         <Icon name={icon} className={iconClass} />
       </div>
-      <div className={`${wide ? 'text-4xl' : 'text-3xl'} font-bold tracking-tight text-on-surface tabular-nums`}>{format(shown)}</div>
+      <div className={`${wide ? 'text-[26px]' : 'text-[22px]'} leading-tight font-semibold text-on-surface tabular-nums`}>{format(shown)}</div>
       {trend != null && (
         <div className={`flex items-center gap-1 text-sm mt-2 ${trend >= 0 ? 'text-secondary' : 'text-error'}`}>
           <Icon name={trend >= 0 ? 'trending_up' : 'trending_down'} className="text-[16px]!" />
@@ -1299,10 +1299,10 @@ function PlanModal({ auth, plan, onClose, onSaved }) {
           </div>
 
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-base font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors cursor-pointer">
+            <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={busy || burstPartial} className="px-6 py-3 rounded-lg text-base font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer">
+            <button type="submit" disabled={busy || burstPartial} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer">
               {busy ? 'Saving...' : editing ? 'Save changes' : 'Create package'}
             </button>
           </div>
@@ -1345,14 +1345,14 @@ function Plans({ auth }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 mb-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-background">Packages</h2>
-          <p className="text-base text-on-surface-variant mt-1">Speed limits, fair use, scheduling and pricing.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Packages</h2>
+          <p className="text-xs text-on-surface-variant">Speed limits, fair use, scheduling and pricing.</p>
         </div>
         <button
           onClick={() => setModal(true)}
-          className="bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] cursor-pointer"
+          className="bg-primary text-on-primary text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap cursor-pointer"
         >
           <Icon name="add" />
           New Package
@@ -1360,30 +1360,30 @@ function Plans({ auth }) {
       </div>
 
       {/* Stat mini-cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 border-t-4 border-t-primary">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
+        <div className="bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant border-l-2 border-l-primary">
           <CardLabel>Active Plans</CardLabel>
-          <div className="text-4xl font-bold tracking-tight mt-2 text-on-background">{active.length}</div>
+          <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">{active.length}</div>
         </div>
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30">
+        <div className="bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant">
           <CardLabel>Total Plans</CardLabel>
-          <div className="text-4xl font-bold tracking-tight mt-2 text-on-background">{plans.length}</div>
+          <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">{plans.length}</div>
         </div>
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30">
+        <div className="bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant">
           <CardLabel>Avg. Price</CardLabel>
-          <div className="text-4xl font-bold tracking-tight mt-2 text-on-background">{fmtKES(avgPrice)}</div>
+          <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">{fmtKES(avgPrice)}</div>
         </div>
       </div>
 
       {/* Table card */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="p-4 border-b border-surface-variant/50 bg-surface-container-low/30">
           <div className="relative w-full sm:w-64">
             <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-surface border border-surface-variant rounded-lg pl-10 pr-4 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]"
+              className="w-full bg-surface border border-surface-variant rounded-lg pl-10 pr-4 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[40px]"
               placeholder="Search plans..."
               type="text"
             />
@@ -1539,7 +1539,7 @@ function SubscriberModal({ auth, onClose, onSaved }) {
   }
 
   const inputCls =
-    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]'
+    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2'
 
   return (
@@ -1600,10 +1600,10 @@ function SubscriberModal({ auth, onClose, onSaved }) {
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">
+            <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={busy} className="px-6 py-3 rounded-lg text-lg font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[48px] disabled:opacity-60 cursor-pointer">
+            <button type="submit" disabled={busy} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[40px] disabled:opacity-60 cursor-pointer">
               {busy ? 'Creating…' : 'Create Subscriber'}
             </button>
           </div>
@@ -1666,7 +1666,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-xl border-t-4 ${
+          <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-md border-l-2 ${
             st.label === 'Active' ? 'border-secondary' : st.label === 'Expiring' ? 'border-[#f59e0b]' : 'border-error'
           }`}>
             <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full mb-2 ${st.cls}`}>{st.label}</span>
@@ -1818,37 +1818,37 @@ function Subscribers({ auth }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 mb-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-background">Subscribers</h2>
-          <p className="text-base text-on-surface-variant mt-1">Monthly PPPoE home &amp; office customers.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Subscribers</h2>
+          <p className="text-xs text-on-surface-variant">Monthly PPPoE home &amp; office customers.</p>
         </div>
         <button
           onClick={() => setModal(true)}
-          className="bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] cursor-pointer"
+          className="bg-primary text-on-primary text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap cursor-pointer"
         >
           <Icon name="add" />
           Add Subscriber
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
         {[
-          ['Active', active.length, 'border-t-primary'],
+          ['Active', active.length, 'border-l-primary'],
           ['Suspended', subs.length - active.length, ''],
-          ['Expiring ≤3 days', expiring, 'border-t-[#f59e0b]'],
-          ['Monthly Revenue', fmtKES(mrr), 'border-t-secondary'],
+          ['Expiring ≤3 days', expiring, 'border-l-[#f59e0b]'],
+          ['Monthly Revenue', fmtKES(mrr), 'border-l-secondary'],
         ].map(([label, value, accent]) => (
-          <div key={label} className={`bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 ${accent ? `border-t-4 ${accent}` : ''}`}>
+          <div key={label} className={`bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant ${accent ? `border-l-2 ${accent}` : ''}`}>
             <CardLabel>{label}</CardLabel>
-            <div className="text-3xl font-bold tracking-tight mt-2 text-on-background tabular-nums">{value}</div>
+            <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">{value}</div>
           </div>
         ))}
       </div>
 
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>
@@ -1917,7 +1917,7 @@ function Subscribers({ auth }) {
                         </button>
                         <button
                           onClick={() => { setActionId(actionId === s.id ? null : s.id); setMonths(1); setDeleteId(null) }}
-                          className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-surface-tint transition-colors cursor-pointer"
+                          className="px-3 py-1.5 rounded-md border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer"
                         >
                           Take Payment
                         </button>
@@ -2053,7 +2053,7 @@ function PaymentDetail({ payment, onClose }) {
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-xl border-t-4 ${
+          <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-md border-l-2 ${
             payment.status === 'SUCCESS' ? 'border-secondary' : payment.status === 'FAILED' ? 'border-error' : 'border-outline'
           }`}>
             <div className={`w-12 h-12 rounded-full ${pill.bg} ${pill.text} flex items-center justify-center mb-3`}>
@@ -2126,8 +2126,8 @@ function Payments({ auth }) {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface mb-2">Payments Ledger</h2>
-          <p className="text-base text-on-surface-variant">Track and reconcile M-Pesa transactions</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Payments Ledger</h2>
+          <p className="text-xs text-on-surface-variant">Track and reconcile M-Pesa transactions</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {PAYMENT_FILTERS.map((f) => (
@@ -2146,7 +2146,7 @@ function Payments({ auth }) {
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] overflow-hidden border border-surface-variant">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden border border-surface-variant">
         <div className="p-4 border-b border-surface-variant flex flex-col sm:flex-row gap-4 justify-between items-center bg-surface-bright">
           <div className="relative w-full sm:w-72">
             <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -2278,7 +2278,7 @@ function TicketAnalytics({ auth }) {
 
   if (failed) {
     return (
-      <div className="p-8 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+      <div className="p-8 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
         <p className="text-on-surface-variant">Could not load ticket analytics. Is the server running?</p>
       </div>
     )
@@ -2301,14 +2301,14 @@ function TicketAnalytics({ auth }) {
           label="Awaiting First Reply"
           icon="hourglass_empty"
           value={data.awaitingFirstReply}
-          accent={data.awaitingFirstReply > 0 ? 'border-t-error' : undefined}
+          accent={data.awaitingFirstReply > 0 ? 'border-l-error' : undefined}
         />
         <KpiCard label="Median First Reply" icon="schedule" value={humanMinutes(data.medianFirstReplyMinutes)} />
         <KpiCard label="Average Time To Resolve" icon="task_alt" value={humanMinutes(data.avgResolveMinutes)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30">
+        <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
           <CardLabel>Tickets opened, last 14 days</CardLabel>
           <div className="mt-4 flex items-end gap-1.5 h-32">
             {data.perDay.map((d) => (
@@ -2328,7 +2328,7 @@ function TicketAnalytics({ auth }) {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 space-y-5">
+        <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant space-y-5">
           <div>
             <CardLabel>By status</CardLabel>
             <div className="mt-3 space-y-2">
@@ -2362,7 +2362,7 @@ function TicketAnalytics({ auth }) {
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30">
+      <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
         <CardLabel>What customers complain about most</CardLabel>
         {data.topSubjects.length === 0 ? (
           <p className="mt-3 text-sm text-on-surface-variant">No tickets yet.</p>
@@ -2475,7 +2475,7 @@ function NewTicketForm({ auth, technicians, onCancel, onCreated }) {
   }
 
   return (
-    <form onSubmit={submit} className="mb-6 p-5 rounded-xl bg-surface-container-lowest border border-outline-variant space-y-4">
+    <form onSubmit={submit} className="mb-6 p-5 rounded-lg bg-surface-container-lowest border border-outline-variant space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className={LABEL_CLS}>Customer name</label>
@@ -2599,8 +2599,8 @@ function Support({ auth }) {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface mb-2">Support Tickets</h2>
-          <p className="text-base text-on-surface-variant">Help customers with connection and payment issues.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Support Tickets</h2>
+          <p className="text-xs text-on-surface-variant">Help customers with connection and payment issues.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {view === 'inbox' && Object.keys(TICKET_FILTERS).map((f) => (
@@ -2651,7 +2651,7 @@ function Support({ auth }) {
 
       <div className={`grid grid-cols-1 lg:grid-cols-5 gap-6 items-start ${view === 'analytics' ? 'hidden' : ''}`}>
         {/* Ticket list */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-outline-variant/30 overflow-hidden">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="p-4 border-b border-outline-variant/30">
             <div className="relative">
               <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]!" />
@@ -2703,7 +2703,7 @@ function Support({ auth }) {
         </div>
 
         {/* Detail / conversation */}
-        <div className="lg:col-span-3 bg-surface-container-lowest rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] border border-outline-variant/30 overflow-hidden flex flex-col min-h-[400px]">
+        <div className="lg:col-span-3 bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden flex flex-col min-h-[400px]">
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
               <Icon name="support_agent" className="text-[48px]! text-outline" />
@@ -2797,7 +2797,7 @@ function Support({ auth }) {
                         <span className="text-xs font-medium">Quick Reply</span>
                       </button>
                       {showTemplates && (
-                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-[0_8px_16px_rgba(15,23,42,0.08)] z-50 overflow-hidden">
+                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-surface-container-lowest border border-outline-variant rounded-lg  z-50 overflow-hidden">
                           <div className="p-2 border-b border-outline-variant/20 bg-surface-container-low">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-2">Templates</span>
                           </div>
@@ -2893,7 +2893,7 @@ function MaintenanceModal({ auth, onClose, onSaved }) {
   }
 
   const inputCls =
-    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]'
+    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2'
 
   return (
@@ -2936,10 +2936,10 @@ function MaintenanceModal({ auth, onClose, onSaved }) {
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">
+            <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={busy} className="px-6 py-3 rounded-lg text-lg font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[48px] disabled:opacity-60 cursor-pointer">
+            <button type="submit" disabled={busy} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[40px] disabled:opacity-60 cursor-pointer">
               {busy ? 'Saving…' : 'Schedule'}
             </button>
           </div>
@@ -2996,8 +2996,8 @@ function Maintenance({ auth }) {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-background">Maintenance Schedule</h2>
-          <p className="text-base text-on-surface-variant mt-1">Plan and track network upgrades and downtime.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Maintenance Schedule</h2>
+          <p className="text-xs text-on-surface-variant">Plan and track network upgrades and downtime.</p>
         </div>
         <button
           onClick={() => setModal(true)}
@@ -3010,7 +3010,7 @@ function Maintenance({ auth }) {
 
       <div className="flex flex-col xl:flex-row gap-6 items-start">
         {/* Calendar */}
-        <div className="flex-1 w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-container-highest overflow-hidden">
+        <div className="flex-1 w-full bg-surface-container-lowest rounded-lg border border-outline-variant border border-surface-container-highest overflow-hidden">
           <div className="p-4 border-b border-surface-container-high flex justify-between items-center">
             <div className="flex items-center gap-2">
               <button onClick={() => shift(-1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant cursor-pointer" aria-label="Previous month">
@@ -3063,7 +3063,7 @@ function Maintenance({ auth }) {
 
         {/* Detail panel */}
         <aside className="w-full xl:w-96 shrink-0">
-          <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-container-high">
+          <div className="bg-surface-container-lowest rounded-lg border border-outline-variant border border-surface-container-high">
             {!selected ? (
               <div className="p-8 flex flex-col items-center text-center gap-3">
                 <Icon name="calendar_month" className="text-[48px]! text-outline" />
@@ -3119,7 +3119,7 @@ function Maintenance({ auth }) {
                   </div>
                   <div className="pt-4 border-t border-surface-container-high flex flex-col gap-3">
                     {selected.status !== 'COMPLETED' && (
-                      <button onClick={complete} className="w-full h-12 bg-primary hover:bg-surface-tint text-on-primary rounded-lg text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] transition-all cursor-pointer flex justify-center items-center gap-2">
+                      <button onClick={complete} className="w-full h-12 bg-primary hover:bg-surface-tint text-on-primary rounded-lg text-lg font-semibold  transition-all cursor-pointer flex justify-center items-center gap-2">
                         <Icon name="check_circle" />
                         Mark Completed
                       </button>
@@ -3186,13 +3186,13 @@ function Messages({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-4xl font-bold tracking-tight text-on-surface mb-2">Messages</h2>
-        <p className="text-base text-on-surface-variant">Direct chat with your field technicians.</p>
+        <h2 className="text-xl font-semibold tracking-tight text-on-surface">Messages</h2>
+        <p className="text-xs text-on-surface-variant">Direct chat with your field technicians.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Channel list */}
-        <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-outline-variant/30 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           {channels.map((c) => (
             <button
               key={c.username}
@@ -3233,7 +3233,7 @@ function Messages({ auth }) {
         </div>
 
         {/* Conversation */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] border border-outline-variant/30 overflow-hidden flex flex-col h-[70vh]">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden flex flex-col h-[70vh]">
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
               <Icon name="chat" className="text-[48px]! text-outline" />
@@ -3292,7 +3292,7 @@ function TechnicianModal({ auth, onClose, onSaved }) {
   }
 
   const inputCls =
-    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[48px]'
+    'w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2'
 
   return (
@@ -3341,10 +3341,10 @@ function TechnicianModal({ auth, onClose, onSaved }) {
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">
+            <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={busy} className="px-6 py-3 rounded-lg text-lg font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[48px] disabled:opacity-60 cursor-pointer">
+            <button type="submit" disabled={busy} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:bg-surface-tint shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all active:scale-95 min-h-[40px] disabled:opacity-60 cursor-pointer">
               {busy ? 'Creating…' : 'Create Account'}
             </button>
           </div>
@@ -3381,14 +3381,14 @@ function Team({ auth }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 mb-4">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-background">Team</h2>
-          <p className="text-base text-on-surface-variant mt-1">Field technician accounts for the Field Connect app.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Team</h2>
+          <p className="text-xs text-on-surface-variant">Field technician accounts for the Field Connect app.</p>
         </div>
         <button
           onClick={() => setModal(true)}
-          className="bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] cursor-pointer"
+          className="bg-primary text-on-primary text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap cursor-pointer"
         >
           <Icon name="person_add" />
           Add Technician
@@ -3397,7 +3397,7 @@ function Team({ auth }) {
 
       {resetMsg && <p className={`text-sm mb-4 ${resetMsg.ok ? 'text-surface-tint' : 'text-error'}`}>{resetMsg.text}</p>}
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full text-left border-collapse min-w-[700px]">
             <thead>
@@ -3578,11 +3578,11 @@ function PromotionCard({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[48px]'
+    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-[#f59e0b]">
+    <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-[#f59e0b]">
       <div className="flex items-center gap-3 mb-4">
         <Icon name="celebration" className="text-[#b45309] bg-[#f59e0b]/10 p-2 rounded-lg text-[40px]!" />
         <div>
@@ -3668,7 +3668,7 @@ function SmsCard({ auth }) {
   }
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+    <section className="bg-surface-container-lowest rounded-lg p-4 ">
       <div className="flex items-center gap-3 mb-4">
         <Icon name="sms" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
         <div>
@@ -3767,11 +3767,11 @@ function CustomPlanCard({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[48px]'
+    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary">
+    <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-secondary">
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
         <div className="flex items-center gap-3">
           <Icon name="timer" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
@@ -3897,19 +3897,19 @@ function Settings({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[48px]'
+    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <h2 className="text-4xl font-bold tracking-tight text-on-surface mb-2">MikroTik Integration</h2>
-        <p className="text-base text-on-surface-variant">Configure your router API credentials and network parameters.</p>
+        <h2 className="text-xl font-semibold tracking-tight text-on-surface">MikroTik Integration</h2>
+        <p className="text-xs text-on-surface-variant">Configure your router API credentials and network parameters.</p>
       </div>
 
       <div className="space-y-6 pb-24">
         {/* Master toggle */}
-        <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex items-center justify-between gap-4">
+        <section className="bg-surface-container-lowest rounded-lg p-4  flex items-center justify-between gap-4">
           <div>
             <p className="text-lg font-semibold text-on-surface">Enable MikroTik integration</p>
             <p className="text-sm text-on-surface-variant">When off, vouchers are issued without provisioning hotspot users on the router.</p>
@@ -3918,7 +3918,7 @@ function Settings({ auth }) {
         </section>
 
         {/* API credentials */}
-        <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-primary">
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-primary">
           <div className="flex items-center gap-3 mb-4">
             <Icon name="router" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
             <h3 className="text-lg font-semibold text-on-surface">MikroTik API Credentials</h3>
@@ -3971,7 +3971,7 @@ function Settings({ auth }) {
         </section>
 
         {/* Network settings */}
-        <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+        <section className="bg-surface-container-lowest rounded-lg p-4 ">
           <div className="flex items-center gap-3 mb-4">
             <Icon name="wifi" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
             <h3 className="text-lg font-semibold text-on-surface">Network Settings</h3>
@@ -3993,7 +3993,7 @@ function Settings({ auth }) {
         </section>
 
         {/* API security */}
-        <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+        <section className="bg-surface-container-lowest rounded-lg p-4 ">
           <div className="flex items-center gap-3 mb-4">
             <Icon name="security" className="text-primary bg-primary/10 p-2 rounded-lg text-[40px]!" />
             <h3 className="text-lg font-semibold text-on-surface">API Security</h3>
@@ -4045,7 +4045,7 @@ function Settings({ auth }) {
           type="button"
           onClick={save}
           disabled={!dirty || saving}
-          className="px-8 py-3 bg-primary text-on-primary rounded-xl text-lg font-semibold shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          className="px-8 py-3 bg-primary text-on-primary rounded-xl text-lg font-semibold  hover:bg-surface-tint transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           <Icon name="save" className="text-[20px]!" />
           {saving ? 'Saving…' : 'Save Changes'}

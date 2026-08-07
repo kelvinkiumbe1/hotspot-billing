@@ -171,7 +171,7 @@ export default function Leads({ auth }) {
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
       {showForm && (
-        <form onSubmit={create} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-6">
+        <form onSubmit={create} className="bg-surface-container-lowest rounded-lg p-4  grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-6">
           <div>
             <label className={LABEL_CLS}>Full Name</label>
             <input className={INPUT_CLS} required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
@@ -206,7 +206,7 @@ export default function Leads({ auth }) {
         </form>
       )}
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>

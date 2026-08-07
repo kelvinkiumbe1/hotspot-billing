@@ -414,13 +414,13 @@ export default function VouchersPage({ auth }) {
         </PrimaryButton>
       </PageHeader>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
         <StatCard label="Total" value={summary?.total ?? '—'} hint="codes generated" />
         <StatCard
           label="Redeemed"
           value={summary?.redeemed ?? '—'}
           hint={summary ? `${summary.redemptionPercent}% redemption rate` : ''}
-          accent="border-t-primary"
+          accent="border-l-primary"
         />
         <StatCard label="Unused" value={summary?.unused ?? '—'} hint="still redeemable" />
         <StatCard label="Batches" value={summary?.batches ?? '—'} hint="grouped print-runs" />
@@ -509,14 +509,14 @@ export default function VouchersPage({ auth }) {
       )}
 
       {rows.length === 0 ? (
-        <div className="p-10 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <div className="p-10 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
           <Icon name="confirmation_number" className="text-[40px]! text-on-surface-variant/40" />
           <p className="mt-2 text-on-surface-variant">
             {vouchers.length === 0 ? 'No vouchers yet — generate your first batch.' : 'Nothing matches these filters.'}
           </p>
         </div>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="overflow-x-auto table-scroll">
             <table className="data-table w-full">
               <thead>

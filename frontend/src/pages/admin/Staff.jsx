@@ -82,7 +82,7 @@ function AddStaffForm({ auth, onCancel, onCreated }) {
   }
 
   return (
-    <form onSubmit={submit} className="mb-6 p-5 rounded-xl bg-surface-container-lowest border border-outline-variant space-y-4">
+    <form onSubmit={submit} className="mb-6 p-5 rounded-lg bg-surface-container-lowest border border-outline-variant space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className={LABEL_CLS}>Full name</label>
@@ -209,8 +209,8 @@ export default function StaffPage({ auth, me }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Logins" value={rows.length} hint={`${rows.filter((r) => r.active).length} active`} accent="border-t-primary" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+        <StatCard label="Logins" value={rows.length} hint={`${rows.filter((r) => r.active).length} active`} accent="border-l-primary" />
         <StatCard label="Owners" value={owners} hint="can manage staff" />
         <StatCard
           label="Accountants"
@@ -234,7 +234,7 @@ export default function StaffPage({ auth, me }) {
         />
       )}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full">
             <thead>

@@ -104,7 +104,7 @@ function Composer({ auth, options, onCancel, onSent }) {
   return (
     // Padding at the foot so content can scroll clear of the sticky send bar.
     <div className="space-y-6 pb-4">
-      <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <h3 className="text-lg font-bold">Recipients</h3>
         <p className="text-sm text-on-surface-variant mt-0.5 mb-4">Who should receive this message?</p>
 
@@ -232,7 +232,7 @@ function Composer({ auth, options, onCancel, onSent }) {
         </div>
       )}
 
-      <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <h3 className="text-lg font-bold">Message</h3>
         <p className="text-sm text-on-surface-variant mt-0.5 mb-4">
           Use @variables to personalise each delivery.
@@ -264,7 +264,7 @@ function Composer({ auth, options, onCancel, onSent }) {
       {error && <p className="text-sm text-error">{error}</p>}
 
       {preview && (
-        <div className="bg-surface-container-lowest rounded-xl p-6 border border-primary/30">
+        <div className="bg-surface-container-lowest rounded-lg p-4 border border-primary/30">
           <p className="text-sm font-semibold mb-1">
             Would reach {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'}
           </p>
@@ -282,7 +282,7 @@ function Composer({ auth, options, onCancel, onSent }) {
         </div>
       )}
 
-      <div className="sticky bottom-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-wrap items-center gap-3 shadow-[0_8px_16px_rgba(15,23,42,0.08)]">
+      <div className="sticky bottom-4 bg-surface-container-lowest border border-outline-variant rounded-lg p-4 flex flex-wrap items-center gap-3 ">
         <span className="text-sm flex items-center gap-2">
           <Icon name={ready ? 'check_circle' : 'info'} className={`text-[18px]! ${ready ? 'text-secondary' : 'text-on-surface-variant'}`} />
           {ready
@@ -384,19 +384,19 @@ export default function CommunicationsPage({ auth }) {
         </PrimaryButton>
       </PageHeader>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
         <StatCard label="Sent Today" value={stats?.today ?? '—'} hint="in the last 24 hours" />
         <StatCard
           label="Accepted"
           value={stats?.sent ?? '—'}
           hint={stats?.successPercent != null ? `${stats.successPercent}% accepted by the gateway` : 'nothing sent yet'}
-          accent="border-t-primary"
+          accent="border-l-primary"
         />
         <StatCard
           label="Failed"
           value={stats?.failed ?? '—'}
           hint="rejected or not configured"
-          accent={stats?.failed > 0 ? 'border-t-error' : ''}
+          accent={stats?.failed > 0 ? 'border-l-error' : ''}
         />
         <StatCard label="Spend · 30d" value={stats ? fmtKES(stats.spend30d) : '—'} hint="what the gateway reported" />
       </div>
@@ -438,7 +438,7 @@ export default function CommunicationsPage({ auth }) {
       </div>
 
       {shown.length === 0 ? (
-        <div className="p-10 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <div className="p-10 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
           <Icon name="outbox" className="text-[40px]! text-on-surface-variant/40" />
           <p className="mt-2 text-on-surface-variant">
             {rows.length === 0
@@ -447,7 +447,7 @@ export default function CommunicationsPage({ auth }) {
           </p>
         </div>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="overflow-x-auto table-scroll">
             <table className="data-table w-full">
               <thead>

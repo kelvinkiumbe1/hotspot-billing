@@ -182,14 +182,14 @@ function Statement({ auth, subscriber, onBack }) {
         </div>
       </PageHeader>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
         <StatCard label="Charged" value={fmtKES(s.invoiced)} hint={`${s.entries} entries`} />
-        <StatCard label="Paid" value={fmtKES(s.paid)} accent="border-t-primary" />
+        <StatCard label="Paid" value={fmtKES(s.paid)} accent="border-l-primary" />
         <StatCard
           label={Number(s.balance) > 0 ? 'Owes' : Number(s.balance) < 0 ? 'In credit' : 'Balance'}
           value={fmtKES(Math.abs(Number(s.balance)))}
           hint={Number(s.balance) > 0 ? 'in arrears' : Number(s.balance) < 0 ? 'applies to the next invoice' : 'settled'}
-          accent={Number(s.balance) > 0 ? 'border-t-error' : ''}
+          accent={Number(s.balance) > 0 ? 'border-l-error' : ''}
         />
         <StatCard label="Last movement" value={s.lastEntry ? fmtDate(s.lastEntry) : '—'} hint="" />
       </div>
@@ -224,7 +224,7 @@ function Statement({ auth, subscriber, onBack }) {
         )}
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto table-scroll">
           <table className="data-table w-full">
             <thead>
@@ -307,18 +307,18 @@ export default function LedgerPage({ auth }) {
     <div>
       <PageHeader title="Customer ledger" subtitle="Who owes what, and who is paid ahead." />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
         <StatCard
           label="Total Owed"
           value={fmtKES(totals.owed)}
           hint={`${rows.filter((r) => r.owes).length} in arrears`}
-          accent={totals.owed > 0 ? 'border-t-error' : ''}
+          accent={totals.owed > 0 ? 'border-l-error' : ''}
         />
         <StatCard
           label="Held In Credit"
           value={fmtKES(totals.credit)}
           hint={`${rows.filter((r) => !r.owes).length} paid ahead`}
-          accent="border-t-primary"
+          accent="border-l-primary"
         />
         <StatCard label="Accounts With A Balance" value={rows.length} hint="settled ones are hidden" />
         <StatCard
@@ -337,14 +337,14 @@ export default function LedgerPage({ auth }) {
       />
 
       {shown.length === 0 ? (
-        <div className="p-10 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <div className="p-10 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
           <Icon name="check_circle" className="text-[40px]! text-secondary/60" />
           <p className="mt-2 text-on-surface-variant">
             {rows.length === 0 ? 'Every account is settled — nothing owed, nothing in credit.' : 'Nothing matches that search.'}
           </p>
         </div>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="overflow-x-auto table-scroll">
             <table className="data-table w-full">
               <thead>

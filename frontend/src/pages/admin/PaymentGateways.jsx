@@ -282,7 +282,7 @@ export default function PaymentGatewaysPage({ auth }) {
           const open = openKind === g.kind
           return (
             <div key={g.kind}
-              className={`bg-surface-container-lowest rounded-xl p-5 border transition-colors ${
+              className={`bg-surface-container-lowest rounded-lg p-4 border transition-colors ${
                 isActive ? 'border-primary' : 'border-outline-variant/40'
               } ${open ? 'lg:col-span-2' : ''}`}>
               <div className="flex items-start gap-3">
@@ -318,7 +318,7 @@ export default function PaymentGatewaysPage({ auth }) {
                 <div className="flex gap-2">
                   {s.configured && !isActive && (
                     <button onClick={() => activate(g.kind)}
-                      className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold cursor-pointer hover:opacity-90">
+                      className="px-3 py-1.5 rounded-md border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
                       Make active
                     </button>
                   )}

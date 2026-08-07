@@ -137,11 +137,11 @@ export default function Agents({ auth }) {
     <div>
       <PageHeader title="Agents & Batches" subtitle="Resellers who hold voucher stock, and the batches you print for them." />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active Agents" value={agents.filter((a) => a.active).length} hint={agents.length + ' on the books'} accent="border-t-primary" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
+        <StatCard label="Active Agents" value={agents.filter((a) => a.active).length} hint={agents.length + ' on the books'} accent="border-l-primary" />
         <StatCard label="Vouchers With Agents" value={totalStock} hint="Unused stock in the field" />
         <StatCard label="Sold By Agents" value={totalSold} hint={fmtKES(totalFace) + ' face value'} />
-        <StatCard label="Commission Owed" value={fmtKES(totalOwed)} hint="Not yet paid out" accent={totalOwed > 0 ? 'border-t-[#f59e0b]' : ''} />
+        <StatCard label="Commission Owed" value={fmtKES(totalOwed)} hint="Not yet paid out" accent={totalOwed > 0 ? 'border-l-[#f59e0b]' : ''} />
       </div>
 
       <nav className="flex gap-2 mb-6 flex-wrap">
@@ -166,7 +166,7 @@ export default function Agents({ auth }) {
             </PrimaryButton>
           </div>
           {showAgentForm && (
-            <form onSubmit={createAgent} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] grid grid-cols-1 md:grid-cols-5 gap-4 items-end mb-6">
+            <form onSubmit={createAgent} className="bg-surface-container-lowest rounded-lg p-4  grid grid-cols-1 md:grid-cols-5 gap-4 items-end mb-6">
               <div>
                 <label className={LABEL_CLS}>Full Name</label>
                 <input className={INPUT_CLS} required value={agentForm.fullName} onChange={(e) => setAgentForm({ ...agentForm, fullName: e.target.value })} />
@@ -189,7 +189,7 @@ export default function Agents({ auth }) {
             </form>
           )}
 
-          <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+          <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
             <div className="overflow-x-auto table-scroll">
               <table className="data-table w-full text-left border-collapse min-w-[950px]">
                 <thead>
@@ -252,7 +252,7 @@ export default function Agents({ auth }) {
       )}
 
       {tab === 'batches' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="overflow-x-auto table-scroll">
             <table className="data-table w-full text-left border-collapse min-w-[950px]">
               <thead>
@@ -304,7 +304,7 @@ export default function Agents({ auth }) {
       )}
 
       {tab === 'new' && (
-        <form onSubmit={createBatch} className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-primary grid grid-cols-1 md:grid-cols-3 gap-4 items-end max-w-3xl">
+        <form onSubmit={createBatch} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-primary grid grid-cols-1 md:grid-cols-3 gap-4 items-end max-w-3xl">
           <div>
             <label className={LABEL_CLS}>Plan</label>
             <select className={INPUT_CLS} value={batchForm.planId} onChange={(e) => setBatchForm({ ...batchForm, planId: e.target.value })}>

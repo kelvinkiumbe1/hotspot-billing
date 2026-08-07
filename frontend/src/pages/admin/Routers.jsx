@@ -102,7 +102,7 @@ function RouterModal({ auth, router, branches, onClose, onSaved }) {
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
           <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
-            <button type="button" onClick={onClose} className="px-6 py-3 rounded-lg text-lg font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[48px] cursor-pointer">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">Cancel</button>
             <PrimaryButton type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Router'}</PrimaryButton>
           </div>
         </form>
@@ -203,9 +203,9 @@ export default function Routers({ auth }) {
         </PrimaryButton>
       </PageHeader>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Routers" value={routers.length} accent="border-t-primary" />
-        <StatCard label="Online" value={`${online}/${routers.length}`} accent={online === routers.length ? 'border-t-secondary' : 'border-t-error'} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
+        <StatCard label="Routers" value={routers.length} accent="border-l-primary" />
+        <StatCard label="Online" value={`${online}/${routers.length}`} accent={online === routers.length ? 'border-l-secondary' : 'border-l-error'} />
         <StatCard label="Hotspot Sessions" value={totalHotspot} />
         <StatCard label="PPPoE Sessions" value={totalPppoe} />
       </div>
@@ -214,7 +214,7 @@ export default function Routers({ auth }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {routers.map((r) => (
-          <div key={r.id} className={`bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-l-4 ${r.online ? 'border-secondary' : r.enabled ? 'border-error' : 'border-outline-variant'}`}>
+          <div key={r.id} className={`bg-surface-container-lowest rounded-lg p-4  border-l-4 ${r.online ? 'border-secondary' : r.enabled ? 'border-error' : 'border-outline-variant'}`}>
             <div className="flex justify-between items-start gap-3 mb-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

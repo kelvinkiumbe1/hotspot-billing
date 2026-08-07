@@ -70,7 +70,7 @@ export default function TaxSettingsPage({ auth }) {
       <PageHeader title="VAT" subtitle="How tax is worked out and what appears on a tax invoice." />
 
       <form onSubmit={save} className="max-w-3xl space-y-6">
-        <section className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" className="mt-1" checked={form.vatEnabled}
               onChange={(e) => set({ vatEnabled: e.target.checked })} />
@@ -155,7 +155,7 @@ export default function TaxSettingsPage({ auth }) {
           )}
         </section>
 
-        <section className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
           <h3 className="text-base font-bold mb-1">What appears on the invoice</h3>
           <p className="text-xs text-on-surface-variant mb-4">Your details as they should be printed.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

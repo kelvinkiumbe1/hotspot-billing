@@ -60,36 +60,60 @@ export const INPUT_CLS =
 export const LABEL_CLS = 'block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2'
 
 /** Page heading with optional action button on the right. */
+/**
+ * Page heading. Deliberately small: a 36px marketing title on every screen
+ * cost about 60px of vertical space and told a daily user nothing they did
+ * not already know from the navigation. The subtitle sits alongside on wide
+ * screens rather than stacking.
+ */
 export function PageHeader({ title, subtitle, children }) {
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-      <div>
-        <h2 className="text-4xl font-bold tracking-tight text-on-background">{title}</h2>
-        {subtitle && <p className="text-base text-on-surface-variant mt-1">{subtitle}</p>}
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 mb-4 pb-3 border-b border-outline-variant">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+        <h2 className="text-xl font-semibold tracking-tight text-on-surface">{title}</h2>
+        {subtitle && <p className="text-xs text-on-surface-variant">{subtitle}</p>}
       </div>
-      {children}
+      {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}
     </div>
   )
 }
 
 /** Primary action button styled like the rest of the dashboard. */
+/**
+ * Primary action. 40px tall rather than 48 — still a comfortable target on
+ * a desktop console, without the button dominating the row it sits in.
+ */
 export function PrimaryButton({ children, className = '', ...props }) {
   return (
     <button
       {...props}
-      className={`bg-primary text-on-primary text-lg font-semibold px-6 py-3 rounded-lg flex items-center gap-2 shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-surface-tint transition-all active:scale-95 whitespace-nowrap min-h-[48px] disabled:opacity-60 cursor-pointer ${className}`}
+      className={`bg-primary text-on-primary text-sm font-semibold px-4 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap h-10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${className}`}
     >
       {children}
     </button>
   )
 }
 
+/**
+ * A single figure. Sized as a reading, not a headline — four of these used
+ * to occupy a fifth of the screen with numbers nobody came for. The accent
+ * shows as a left rule rather than a heavy top border, so a row of them
+ * reads as one strip instead of four competing boxes.
+ */
 export function StatCard({ label, value, accent, hint }) {
   return (
-    <div className={`bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 ${accent ? `border-t-4 ${accent}` : ''}`}>
-      <CardLabel>{label}</CardLabel>
-      <div className="text-3xl font-bold tracking-tight mt-2 text-on-background tabular-nums">{value}</div>
-      {hint && <p className="text-xs text-on-surface-variant mt-1">{hint}</p>}
+    <div
+      className={`bg-surface-container-lowest border border-outline-variant rounded-md px-3.5 py-2.5 ${
+        accent ? `border-l-2 ${accent.replace('border-t-', 'border-l-')}` : ''
+      }`}
+    >
+      <p className="text-[11px] font-medium tracking-[0.04em] uppercase text-on-surface-variant truncate">
+        {label}
+      </p>
+      <div className="text-[22px] leading-tight font-semibold mt-0.5 text-on-surface tabular-nums">
+        {value}
+      </div>
+      {hint && <p className="text-[11px] text-on-surface-variant mt-0.5 truncate" title={hint}>{hint}</p>}
     </div>
   )
 }

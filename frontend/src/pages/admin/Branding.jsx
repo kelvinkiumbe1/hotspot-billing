@@ -109,7 +109,7 @@ export default function Branding({ auth }) {
 
       {tab === 'portal' && (
         <div className="flex flex-col gap-6">
-          <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-primary">
+          <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-primary">
             <h3 className="text-lg font-semibold text-on-surface mb-4">Identity</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -132,7 +132,7 @@ export default function Branding({ auth }) {
             </div>
           </section>
 
-          <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <section className="bg-surface-container-lowest rounded-lg p-4 ">
             <h3 className="text-lg font-semibold text-on-surface mb-4">Logo &amp; Colours</h3>
             <div className="flex flex-wrap items-end gap-6">
               <div>
@@ -167,7 +167,7 @@ export default function Branding({ auth }) {
               </div>
             </div>
             <div
-              className="mt-6 rounded-xl p-6 flex items-center gap-4"
+              className="mt-6 rounded-lg p-4 flex items-center gap-4"
               style={{ backgroundColor: form.backgroundColor }}
             >
               <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${form.accentColor}22` }}>
@@ -184,7 +184,7 @@ export default function Branding({ auth }) {
             </div>
           </section>
 
-          <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+          <section className="bg-surface-container-lowest rounded-lg p-4 ">
             <h3 className="text-lg font-semibold text-on-surface mb-4">Terms shown to customers</h3>
             <textarea className={`${INPUT_CLS} resize-none`} rows="4" value={form.termsText} onChange={(e) => set('termsText', e.target.value)} />
           </section>
@@ -199,7 +199,7 @@ export default function Branding({ auth }) {
 
       {tab === 'trial' && (
         <div className="flex flex-col gap-6">
-          <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary">
+          <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-secondary">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-on-surface">Free Trial</h3>
@@ -226,7 +226,7 @@ export default function Branding({ auth }) {
 
       {tab === 'messages' && (templates === null ? <Skeleton className="h-64" /> : (
         <div className="flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-xl p-4 border border-outline-variant/30 flex items-start gap-3">
+          <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant flex items-start gap-3">
             <Icon name="info" className="text-primary text-[20px]! mt-0.5" />
             <p className="text-sm text-on-surface-variant">
               Placeholders are filled in when the message is sent:{' '}
@@ -236,7 +236,7 @@ export default function Branding({ auth }) {
           {templates.map((t, idx) => {
             const [label, hint] = TEMPLATE_LABELS[t.templateKey] || [t.templateKey, '']
             return (
-              <section key={t.templateKey} className="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+              <section key={t.templateKey} className="bg-surface-container-lowest rounded-lg p-4 ">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <h3 className="text-base font-semibold text-on-surface">{label}</h3>

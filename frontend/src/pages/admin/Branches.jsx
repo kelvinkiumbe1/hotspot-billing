@@ -42,7 +42,7 @@ export default function Branches({ auth }) {
       {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
 
       {showForm && (
-        <form onSubmit={create} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6">
+        <form onSubmit={create} className="bg-surface-container-lowest rounded-lg p-4  grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6">
           <div>
             <label className={LABEL_CLS}>Branch Name</label>
             <input className={INPUT_CLS} required placeholder="e.g. Westlands" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -61,7 +61,7 @@ export default function Branches({ auth }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {branches.map((b) => (
-          <div key={b.id} className="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-primary">
+          <div key={b.id} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-primary">
             <div className="flex justify-between items-start gap-3 mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-on-background">{b.name}</h3>

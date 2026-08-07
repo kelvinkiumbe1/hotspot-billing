@@ -108,7 +108,7 @@ function MessagingSection({ auth }) {
         </p>
       )}
 
-      <section className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <label className="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" className="mt-1" checked={form.smsEnabled}
             onChange={(e) => set({ smsEnabled: e.target.checked })} />
@@ -144,7 +144,7 @@ function MessagingSection({ auth }) {
         )}
       </section>
 
-      <section className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <label className="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" className="mt-1" checked={form.whatsappEnabled}
             onChange={(e) => set({ whatsappEnabled: e.target.checked })} />
@@ -174,7 +174,7 @@ function MessagingSection({ auth }) {
         )}
       </section>
 
-      <section className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <h3 className="text-base font-bold">Operator alerts</h3>
         <p className="text-sm text-on-surface-variant mt-0.5 mb-3">
           Where to text you when a router goes offline or comes back.
@@ -256,7 +256,7 @@ function ProfileSection({ auth, me }) {
         </p>
       )}
 
-      <form onSubmit={saveProfile} className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40 space-y-4">
+      <form onSubmit={saveProfile} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
         <h3 className="text-base font-bold">Your details</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -278,7 +278,7 @@ function ProfileSection({ auth, me }) {
         <PrimaryButton type="submit" disabled={busy || me?.breakGlass}>Save details</PrimaryButton>
       </form>
 
-      <form onSubmit={changePassword} className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40 space-y-4">
+      <form onSubmit={changePassword} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
         <h3 className="text-base font-bold">Change your password</h3>
         <p className="text-sm text-on-surface-variant">
           If an owner set your password up for you, change it here — then only you know it.
@@ -335,7 +335,7 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
       <PageHeader title="Settings" subtitle="How this system behaves, and who it behaves as." />
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
-        <aside className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-3 lg:sticky lg:top-4">
+        <aside className="bg-surface-container-lowest rounded-lg border border-outline-variant p-3 lg:sticky lg:top-4">
           <input
             className="w-full mb-3 bg-surface border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
             value={search}

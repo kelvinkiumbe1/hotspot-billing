@@ -14,7 +14,7 @@ const fmtNum = (n) => new Intl.NumberFormat('en-KE').format(n ?? 0)
 
 function Panel({ title, hint, children, className = '' }) {
   return (
-    <div className={`bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 ${className}`}>
+    <div className={`bg-surface-container-lowest rounded-lg p-4 border border-outline-variant ${className}`}>
       <div className="flex items-baseline justify-between gap-3 mb-4">
         <CardLabel>{title}</CardLabel>
         {hint && <span className="text-xs text-on-surface-variant shrink-0">{hint}</span>}
@@ -142,7 +142,7 @@ export default function AnalyticsPage({ auth }) {
     return (
       <div>
         <PageHeader title="Analytics" subtitle="How the business is doing across hotspot and PPPoE." />
-        <div className="p-8 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <div className="p-8 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
           <Icon name="cloud_off" className="text-[40px]! text-on-surface-variant/40" />
           <p className="mt-2 text-on-surface-variant">Could not reach the server. Is the backend running?</p>
         </div>
@@ -156,7 +156,7 @@ export default function AnalyticsPage({ auth }) {
         <PageHeader title="Analytics" subtitle="How the business is doing across hotspot and PPPoE.">
           {windowPicker}
         </PageHeader>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-72" />
@@ -178,10 +178,10 @@ export default function AnalyticsPage({ auth }) {
       </PageHeader>
 
       {/* Headline money */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-surface-container-lowest rounded-xl p-5 border-t-4 border-t-primary shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+        <div className="bg-surface-container-lowest rounded-md px-3.5 py-2.5 border-l-2 border-l-primary ">
           <CardLabel>Revenue Collected</CardLabel>
-          <p className="text-3xl font-bold tracking-tight mt-1 tabular-nums">{fmtKES(revenue.total)}</p>
+          <p className="text-[22px] leading-tight font-semibold mt-0.5 tabular-nums">{fmtKES(revenue.total)}</p>
           {change === null || change === undefined ? (
             <p className="text-xs text-on-surface-variant mt-2">No earlier period to compare with</p>
           ) : (
@@ -194,7 +194,7 @@ export default function AnalyticsPage({ auth }) {
 
         {/* Both sides shown, rather than leading with one figure that may be
             zero while the other carries the whole business. */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+        <div className="bg-surface-container-lowest rounded-lg p-4 ">
           <CardLabel>Where It Came From</CardLabel>
           <dl className="mt-2 space-y-1.5">
             <div className="flex justify-between items-baseline gap-2">
@@ -217,9 +217,9 @@ export default function AnalyticsPage({ auth }) {
           )}
         </div>
 
-        <div className={`bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)] ${net < 0 ? 'border-t-4 border-t-error' : ''}`}>
+        <div className={`bg-surface-container-lowest rounded-lg p-4  ${net < 0 ? 'border-l-2 border-l-error' : ''}`}>
           <CardLabel>After Expenses</CardLabel>
-          <p className={`text-3xl font-bold tracking-tight mt-1 tabular-nums ${net < 0 ? 'text-error' : ''}`}>
+          <p className={`text-[22px] leading-tight font-semibold mt-0.5 tabular-nums ${net < 0 ? 'text-error' : ''}`}>
             {fmtKES(net)}
           </p>
           <p className="text-xs text-on-surface-variant mt-2">
@@ -227,9 +227,9 @@ export default function AnalyticsPage({ auth }) {
           </p>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+        <div className="bg-surface-container-lowest rounded-lg p-4 ">
           <CardLabel>Monthly Recurring</CardLabel>
-          <p className="text-3xl font-bold tracking-tight mt-1 tabular-nums">{fmtKES(subscribers.monthlyRecurring)}</p>
+          <p className="text-[22px] leading-tight font-semibold mt-0.5 tabular-nums">{fmtKES(subscribers.monthlyRecurring)}</p>
           <p className="text-xs text-on-surface-variant mt-2">
             {fmtNum(subscribers.active)} active · {fmtKES(subscribers.arpu)} each
           </p>

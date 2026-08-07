@@ -518,7 +518,7 @@ export default function FiberPage({ auth }) {
       </PageHeader>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Nodes" value={s.nodes ?? 0} hint={`${s.routes ?? 0} cable runs`} accent="border-t-primary" />
+        <StatCard label="Nodes" value={s.nodes ?? 0} hint={`${s.routes ?? 0} cable runs`} accent="border-l-primary" />
         <StatCard
           label="Cable Laid"
           value={s.cableMetres ? `${(s.cableMetres / 1000).toFixed(2)} km` : '—'}
@@ -533,7 +533,7 @@ export default function FiberPage({ auth }) {
           label="Faults"
           value={s.faults ?? 0}
           hint={s.faults > 0 ? 'nodes or routes down' : 'nothing reported'}
-          accent={s.faults > 0 ? 'border-t-error' : ''}
+          accent={s.faults > 0 ? 'border-l-error' : ''}
         />
       </div>
 
@@ -556,7 +556,7 @@ export default function FiberPage({ auth }) {
           )}
         </div>
 
-        <aside className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-5">
+        <aside className="bg-surface-container-lowest rounded-lg border border-outline-variant p-5">
           {panel === 'legend' && (
             <>
               <h3 className="text-sm font-bold flex items-center gap-2 mb-3">

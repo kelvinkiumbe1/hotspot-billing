@@ -193,10 +193,10 @@ export default function EquipmentPage({ auth }) {
         </PrimaryButton>
       </PageHeader>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
         {/* Cards count rows so they agree with the filter chips; the unit
             total goes in the hint, since one row can be a drum of four. */}
-        <StatCard label="In Stock" value={counts.IN_STOCK} hint={`${summary?.IN_STOCK ?? 0} units on the shelf`} accent="border-t-primary" />
+        <StatCard label="In Stock" value={counts.IN_STOCK} hint={`${summary?.IN_STOCK ?? 0} units on the shelf`} accent="border-l-primary" />
         <StatCard label="Out With Technicians" value={counts.WITH_TECHNICIAN} hint={`${summary?.WITH_TECHNICIAN ?? 0} units signed out`} />
         <StatCard label="Deployed" value={counts.DEPLOYED} hint={`${summary?.DEPLOYED ?? 0} units at customers`} />
         <StatCard
@@ -205,7 +205,7 @@ export default function EquipmentPage({ auth }) {
           hint={summary?.warrantyExpiringSoon > 0
             ? `${summary.warrantyExpiringSoon} warranty expiring within 60 days`
             : 'Excludes retired items'}
-          accent={summary?.warrantyExpiringSoon > 0 ? 'border-t-[#f59e0b]' : ''}
+          accent={summary?.warrantyExpiringSoon > 0 ? 'border-l-[#f59e0b]' : ''}
         />
       </div>
 
@@ -214,7 +214,7 @@ export default function EquipmentPage({ auth }) {
       )}
 
       {showForm && (
-        <form onSubmit={create} className="mb-6 p-5 rounded-xl bg-surface-container-lowest border border-outline-variant grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={create} className="mb-6 p-5 rounded-lg bg-surface-container-lowest border border-outline-variant grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={LABEL_CLS}>Item Name</label>
             <input className={INPUT_CLS} required value={form.name}
@@ -298,14 +298,14 @@ export default function EquipmentPage({ auth }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="p-10 text-center rounded-xl bg-surface-container-lowest border border-outline-variant">
+        <div className="p-10 text-center rounded-lg bg-surface-container-lowest border border-outline-variant">
           <Icon name="inventory_2" className="text-[40px]! text-on-surface-variant/40" />
           <p className="mt-2 text-on-surface-variant">
             {items.length === 0 ? 'No equipment logged yet. Add your first router or ONT above.' : 'Nothing matches that filter.'}
           </p>
         </div>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
           <div className="overflow-x-auto table-scroll">
             <table className="data-table w-full">
               <thead>
@@ -370,7 +370,7 @@ export default function EquipmentPage({ auth }) {
                     <td>
                       <div className="flex gap-1.5 justify-end">
                         <button onClick={() => setMoveId(moveId === item.id ? null : item.id)}
-                          className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold cursor-pointer hover:opacity-90">
+                          className="px-3 py-1.5 rounded-md border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
                           Move
                         </button>
                         <button onClick={() => remove(item)} aria-label={`Remove ${item.name}`}

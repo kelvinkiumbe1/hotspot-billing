@@ -43,7 +43,7 @@ export default function AuditLog({ auth }) {
         </div>
       </PageHeader>
 
-      <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
         <ul className="divide-y divide-surface-variant/30">
           {filtered.map((e) => {
             const group = e.action.split('.')[0]
