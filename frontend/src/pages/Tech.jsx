@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
@@ -164,7 +165,11 @@ function TechLogin({ onLogin }) {
 /* ------------------------------------------------------------------ */
 
 function TechShell({ auth, onLogout }) {
-  const [tab, setTab] = useState('tasks')
+  // Same reasoning as the admin: the open section belongs in the URL.
+  const navigate = useNavigate()
+  const location = useLocation()
+  const tab = location.pathname.replace(/^\/tech\/?/, '').split('/')[0] || 'tasks'
+  const setTab = (key) => navigate(key === 'tasks' ? '/tech' : `/tech/${key}`)
   const [unread, setUnread] = useState(0)
   const [perms, setPerms] = useState({ vouchersAllowed: true, pppoeAllowed: false })
 

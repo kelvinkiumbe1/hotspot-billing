@@ -20,6 +20,11 @@ public class SpaConfig implements WebMvcConfigurer {
     public void addViewControllers(ViewControllerRegistry registry) {
         for (String route : new String[] { "/admin", "/tech", "/pay", "/my-account" }) {
             registry.addViewController(route).setViewName("forward:/index.html");
+            // The admin and field apps put their open section in the path,
+            // so /admin/payments must forward too. Without this a refresh
+            // on a deployed build returns 404 — and only in production,
+            // because the Vite dev server rewrites everything to index.html.
+            registry.addViewController(route + "/**").setViewName("forward:/index.html");
         }
     }
 }

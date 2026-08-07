@@ -27,8 +27,8 @@ export default function App() {
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Portal />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/tech" element={<Tech />} />
+          <Route path="/admin/*" element={<Admin />} />
+          <Route path="/tech/*" element={<Tech />} />
           <Route path="/pay" element={<PayPortal />} />
           <Route path="/my-account" element={<MyAccount />} />
         </Routes>

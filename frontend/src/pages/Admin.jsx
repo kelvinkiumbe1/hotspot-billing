@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard } from '../components/ui.jsx'
 import TaskNotes from '../components/TaskNotes.jsx'
@@ -508,7 +509,13 @@ const TAB_TITLES = {
 }
 
 function Shell({ auth, onLogout }) {
-  const [tab, setTab] = useState('overview')
+  // The open section lives in the URL rather than in state, so a page can
+  // be bookmarked or shared, the browser's back button works, and a
+  // refresh returns you where you were instead of to the overview.
+  const navigate = useNavigate()
+  const location = useLocation()
+  const tab = location.pathname.replace(/^\/admin\/?/, '').split('/')[0] || 'overview'
+  const setTab = (key) => navigate(key === 'overview' ? '/admin' : `/admin/${key}`)
   const [drawer, setDrawer] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   // Null until known, so nothing is hidden or shown on a guess.
@@ -532,7 +539,7 @@ function Shell({ auth, onLogout }) {
     if (!me) return
     const item = NAV.find((i) => i.key === tab)
     if (item?.need && !me.permissions.includes(item.need)) {
-      setTab('overview')
+      navigate('/admin', { replace: true })
     }
   }, [me, tab])
 
@@ -551,6 +558,9 @@ function Shell({ auth, onLogout }) {
     setDrawer(false)
     window.scrollTo(0, 0)
   }
+
+  // An unknown section in the URL should not render a blank page.
+  const known = NAV.some((i) => i.key === tab)
 
   const badges = { messages: unreadMessages }
   const permissions = me?.permissions
