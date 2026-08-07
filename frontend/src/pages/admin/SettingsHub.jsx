@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api.js'
 import {
   Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS,
@@ -309,7 +310,13 @@ function ProfileSection({ auth, me }) {
 }
 
 export default function SettingsHub({ auth, me, mikrotikSection }) {
-  const [active, setActive] = useState('payments')
+  // The open section goes in the path too, so a specific setting can be
+  // linked to — /admin/settings/vat — rather than only the settings area.
+  const navigate = useNavigate()
+  const location = useLocation()
+  const fromUrl = location.pathname.replace(/^\/admin\/settings\/?/, '').split('/')[0]
+  const active = fromUrl || 'payments'
+  const setActive = (key) => navigate(`/admin/settings/${key}`)
   const [search, setSearch] = useState('')
 
   const permissions = me?.permissions
