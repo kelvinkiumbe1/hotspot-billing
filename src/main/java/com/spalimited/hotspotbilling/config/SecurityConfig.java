@@ -24,6 +24,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -82,7 +83,38 @@ public class SecurityConfig {
                     response.setContentType("application/json");
                     response.getWriter().write(
                             "{\"message\":\"Your role does not allow that. Ask an owner if you need access.\"}");
-                }));
+                }))
+                .headers(headers -> headers
+                        // Session tokens live in the browser's sessionStorage, so an
+                        // injected script is the thing to fear most. script-src 'self'
+                        // blocks inline and remote scripts — the core XSS defence. The
+                        // other sources are exactly what the UI loads: Google Fonts'
+                        // stylesheet + files for the Material Symbols glyphs, and the
+                        // OpenStreetMap tiles the fibre map draws. 'unsafe-inline' is
+                        // allowed for styles only (React inline style attributes),
+                        // never for scripts.
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(String.join("; ",
+                                "default-src 'self'",
+                                "script-src 'self'",
+                                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                                // data: because @fontsource inlines the Fira woff2 as
+                                // data URLs; gstatic for the Material Symbols glyphs.
+                                "font-src 'self' data: https://fonts.gstatic.com",
+                                "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
+                                "connect-src 'self'",
+                                "frame-ancestors 'none'",
+                                "object-src 'none'",
+                                "base-uri 'self'",
+                                "form-action 'self'")))
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(ref -> ref.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        // Only sent over HTTPS, so it is a no-op on localhost dev.
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000))
+                        // Turns off features the app never uses. Deliberately omits
+                        // publickey-credentials-*, whose default self-allowance is what
+                        // lets passkeys work.
+                        .permissionsPolicyHeader(pp -> pp.policy("camera=(), microphone=(), geolocation=(), payment=()")));
         return http.build();
     }
 
@@ -155,9 +187,14 @@ public class SecurityConfig {
      * the built frontend is served same-origin, so none of this applies.
      */
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors-allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String patternsCsv) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        // Dev default is any localhost port (Vite hops around); production sets
+        // APP_CORS_ALLOWED_ORIGIN_PATTERNS to its own https origin so a page on
+        // some other site cannot drive the API from a signed-in user's browser.
+        config.setAllowedOriginPatterns(Arrays.stream(patternsCsv.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
