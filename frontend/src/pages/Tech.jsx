@@ -181,6 +181,7 @@ function TechShell({ auth, onLogout }) {
 
   const TECH_NAV = [
     { key: 'tasks', label: 'My Tasks', icon: 'task_alt' },
+    { key: 'jobs', label: 'My Jobs', icon: 'engineering' },
     ...(perms.vouchersAllowed ? [{ key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number' }] : []),
     ...(perms.pppoeAllowed ? [{ key: 'subscribers', label: 'Subscribers', icon: 'lan' }] : []),
     { key: 'messages', label: 'Messages', icon: 'chat' },
@@ -243,6 +244,7 @@ function TechShell({ auth, onLogout }) {
 
       <main className="md:ml-72 pt-20 md:pt-8 px-5 md:px-8 pb-28 md:pb-8 max-w-5xl">
         {tab === 'tasks' && <Tasks auth={auth} />}
+        {tab === 'jobs' && <Jobs auth={auth} />}
         {tab === 'vouchers' && perms.vouchersAllowed && <FieldVouchers auth={auth} />}
         {tab === 'subscribers' && perms.pppoeAllowed && <TechSubscribers auth={auth} />}
         {tab === 'messages' && <TechMessages auth={auth} onRead={() => setUnread(0)} />}
@@ -278,6 +280,190 @@ function TechShell({ auth, onLogout }) {
 /* ------------------------------------------------------------------ */
 /* Tasks (maintenance events)                                          */
 /* ------------------------------------------------------------------ */
+
+/** How long a job has been running, in words a person would use. */
+function elapsed(minutes) {
+  if (minutes == null) return null
+  if (minutes < 60) return `${minutes}m`
+  if (minutes < 1440) {
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return m ? `${h}h ${m}m` : `${h}h`
+  }
+  const d = Math.floor(minutes / 1440)
+  const h = Math.floor((minutes % 1440) / 60)
+  return h ? `${d}d ${h}h` : `${d}d`
+}
+
+const JOB_CHIP = {
+  OPEN: 'bg-primary/10 text-primary',
+  IN_PROGRESS: 'bg-primary/10 text-primary',
+  RESOLVED: 'bg-secondary/10 text-secondary',
+}
+
+/**
+ * Jobs the office has put this technician on. Closing one here is what
+ * tells the office the work is finished — until then it shows as still
+ * running, with the clock visible on both sides.
+ */
+function Jobs({ auth }) {
+  const [jobs, setJobs] = useState(null)
+  const [closing, setClosing] = useState(null)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/tech/tickets', { auth }).then(setJobs).catch(() => setJobs([]))
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 60000)
+    return () => clearInterval(t)
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function close(job) {
+    setBusy(true)
+    setMsg(null)
+    try {
+      await api(`/tech/tickets/${job.id}/status`, {
+        method: 'PATCH', auth, body: { status: 'RESOLVED', note: note.trim() || null },
+      })
+      setClosing(null)
+      setNote('')
+      setMsg({ ok: true, text: 'Job closed. The office can see it is done.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (jobs === null) return <div className="h-40 rounded bg-surface-container animate-pulse" />
+
+  const open = jobs.filter((j) => j.status !== 'RESOLVED')
+  const done = jobs.filter((j) => j.status === 'RESOLVED')
+
+  return (
+    <div>
+      <header className="border-b border-outline-variant pb-4 mb-4">
+        <h2 className="text-2xl font-semibold">My Jobs</h2>
+        <p className="text-[13px] text-on-surface-variant mt-1">
+          Work the office has put you on. Close a job when it is finished.
+        </p>
+      </header>
+
+      {msg && (
+        <p className={`mb-4 text-[13px] ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>
+      )}
+
+      {open.length === 0 && done.length === 0 ? (
+        <div className="border border-outline-variant rounded p-8 text-center">
+          <Icon name="assignment_turned_in" className="text-[40px]! text-on-surface-variant/40" />
+          <p className="mt-2 text-[13px] text-on-surface-variant">
+            Nothing assigned to you. The office will text you when a job comes in.
+          </p>
+        </div>
+      ) : (
+        <>
+          {open.length > 0 && (
+            <p className="text-[11px] font-bold tracking-[0.05em] uppercase text-on-surface-variant mb-2">
+              Working on ({open.length})
+            </p>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {open.map((job) => (
+              <article key={job.id}
+                className="bg-surface-container border border-outline-variant rounded p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] font-semibold truncate">{job.subject}</h3>
+                    <p className="text-[12px] text-on-surface-variant mt-0.5">
+                      {job.customerName} · {job.phoneNumber}
+                    </p>
+                  </div>
+                  <span className={`chip ${JOB_CHIP[job.status]}`}>
+                    {job.status === 'OPEN' ? 'Assigned' : 'In progress'}
+                  </span>
+                </div>
+
+                {job.messages?.[0] && (
+                  <p className="text-[13px] text-on-surface-variant border-t border-outline-variant pt-3 line-clamp-3">
+                    {job.messages[0].body}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between gap-3 mt-auto pt-1">
+                  <span className="text-[12px] text-on-surface-variant flex items-center gap-1.5 tabular-nums">
+                    <Icon name="schedule" className="text-[14px]!" />
+                    {job.workingMinutes != null
+                      ? `running ${elapsed(job.workingMinutes)}`
+                      : 'just assigned'}
+                  </span>
+                  <a href={`tel:${job.phoneNumber}`}
+                    className="text-[12px] text-primary flex items-center gap-1 hover:underline">
+                    <Icon name="call" className="text-[14px]!" /> Call
+                  </a>
+                </div>
+
+                {closing === job.id ? (
+                  <div className="border-t border-outline-variant pt-3 flex flex-col gap-2">
+                    <textarea
+                      className="w-full bg-surface-container-lowest border border-outline-variant rounded p-2.5 text-[13px] resize-none h-20 focus:outline-none focus:border-primary"
+                      placeholder="What did you do? The office sees this on the ticket."
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => close(job)} disabled={busy}
+                        className="flex-1 bg-primary text-on-primary text-[14px] font-semibold rounded py-2.5 disabled:opacity-50 cursor-pointer active:scale-[0.98] transition-transform">
+                        {busy ? 'Closing…' : 'Close this job'}
+                      </button>
+                      <button onClick={() => { setClosing(null); setNote('') }}
+                        className="px-4 border border-outline-variant rounded text-[13px] cursor-pointer">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setClosing(job.id)}
+                    className="w-full border border-primary text-primary text-[14px] font-semibold rounded py-2.5 cursor-pointer hover:bg-primary/5 transition-colors active:scale-[0.98]">
+                    Mark as done
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+
+          {done.length > 0 && (
+            <>
+              <p className="text-[11px] font-bold tracking-[0.05em] uppercase text-on-surface-variant mb-2">
+                Finished ({done.length})
+              </p>
+              <div className="border border-outline-variant rounded divide-y divide-[color:var(--color-outline-variant)]">
+                {done.map((job) => (
+                  <div key={job.id} className="p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] truncate">{job.subject}</p>
+                      <p className="text-[12px] text-on-surface-variant">{job.customerName}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="chip bg-secondary/10 text-secondary">Done</span>
+                      {job.workingMinutes != null && (
+                        <p className="text-[11px] text-on-surface-variant mt-1 tabular-nums">
+                          took {elapsed(job.workingMinutes)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 function Tasks({ auth }) {
   const [tasks, setTasks] = useState(null)

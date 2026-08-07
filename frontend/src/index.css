@@ -97,181 +97,83 @@ body {
 /* Content sits on near-white cards so the sand frames rather than     */
 /* washes it out. Ruby on sand measures ~8:1, fine for daylight.       */
 /* ------------------------------------------------------------------ */
+/* -------------------------------------------------------------------- */
+/* Technician: the same dark console as the admin, on the same amber.    */
+/*                                                                       */
+/* Sand and ruby made the field app look like a different product from   */
+/* the office it reports to. One family reads as one system, and amber   */
+/* on near-black also survives being looked at outdoors on a phone,      */
+/* which sand on white did not.                                          */
+/* -------------------------------------------------------------------- */
 .tech-theme {
-  --color-background: #ffcc99;
-  --color-on-background: #4d1111;
-  --color-surface: #fffaf5;
-  --color-on-surface: #4d1111;
-  --color-on-surface-variant: #7d4034;
-  --color-surface-bright: #ffffff;
-  --color-surface-dim: #f2b787;
-  --color-surface-variant: #ecc3a4;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #fffaf4;
-  --color-surface-container: #fdf1e6;
-  --color-surface-container-high: #fae4d2;
-  --color-surface-container-highest: #f6d7bf;
+  --color-background: #101319;
+  --color-on-background: #e1e2ea;
+  --color-surface: #1b1e24;
+  --color-on-surface: #e1e2ea;
+  --color-on-surface-variant: #8a92a6;
+  --color-surface-bright: #363940;
+  --color-surface-dim: #0b0e14;
 
-  /* Ruby is the action colour, with warm white text on it. */
-  --color-primary: #990000;
-  --color-on-primary: #fff3e8;
-  --color-primary-container: #990000;
-  --color-on-primary-container: #fff3e8;
-  --color-primary-fixed: #990000;
-  --color-primary-fixed-dim: #b52020;
-  --color-surface-tint: #7a0000;
+  --color-surface-variant: #8a92a6;
+  --color-surface-container-lowest: #0f1115;
+  --color-surface-container-low: #191c22;
+  --color-surface-container: #1d2026;
+  --color-surface-container-high: #272a30;
+  --color-surface-container-highest: #32353b;
 
-  --color-secondary: #990000;
-  --color-on-secondary: #fff3e8;
-  /* Ruby at low alpha keeps pills tinted rather than muddy. */
-  --color-secondary-container: rgba(153, 0, 0, 0.1);
-  --color-on-secondary-container: #990000;
+  /* Amber is the accent, and takes dark text on top of it. */
+  --color-primary: #fdbf2d;
+  --color-on-primary: #402d00;
+  --color-primary-container: #fdbf2d;
+  --color-on-primary-container: #6d4f00;
+  --color-primary-fixed: #fdbf2d;
+  --color-surface-tint: #fabc2a;
 
-  --color-outline: #a5705a;
-  --color-outline-variant: #e5b795;
-  /* Brighter than ruby so destructive states still read as distinct —
-     every status pill also carries a text label, never colour alone. */
-  --color-error: #c62828;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #8c1d18;
-  --color-tertiary: #8a5a4a;
-  --color-inverse-surface: #4d1111;
-}
+  /* Green means done or online, and never carries meaning alone. */
+  --color-secondary: #76db8f;
+  --color-on-secondary: #003918;
+  --color-secondary-container: #16301f;
+  --color-on-secondary-container: #c1ffc9;
 
-/**
- * Navigation flips to a ruby panel with sand accents, which anchors the
- * layout and keeps the sand canvas reading as light. Nesting the
- * overrides means every utility class inside re-colours on its own.
- */
-.tech-theme .tech-nav {
-  --color-surface: #990000;
-  --color-surface-container-lowest: #990000;
-  --color-surface-container-low: #a81212;
-  --color-surface-container: #b31d1d;
-  --color-surface-container-high: rgba(255, 204, 153, 0.14);
-  --color-surface-container-highest: rgba(255, 204, 153, 0.18);
-  --color-surface-variant: rgba(255, 204, 153, 0.24);
-  --color-surface-bright: #a81212;
-  --color-on-surface: #fff3e8;
-  --color-on-surface-variant: #f0c9b2;
-
-  --color-primary: #ffcc99;
-  --color-on-primary: #990000;
-  --color-primary-container: rgba(255, 204, 153, 0.2);
-  --color-on-primary-container: #ffcc99;
-  --color-secondary: #ffcc99;
-  --color-on-secondary: #990000;
-  --color-secondary-container: rgba(255, 204, 153, 0.2);
-  --color-on-secondary-container: #ffcc99;
-  --color-outline-variant: rgba(255, 204, 153, 0.22);
   --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #3a1618;
+  --color-on-error-container: #ffdad6;
+
+  --color-outline: #9c8f79;
+  --color-outline-variant: #2a2e36;
+
+  --color-inverse-surface: #0f1115;
+  --color-tertiary: #8a92a6;
 }
 
-/* Material Symbols icon font */
-.material-symbols-outlined {
-  font-family: "Material Symbols Outlined";
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-}
-.material-symbols-outlined.filled {
-  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+/* The rail and bottom bar sit on the same near-black as the canvas edge. */
+.tech-theme .tech-nav {
+  --color-inverse-surface: #1b1e24;
+  --color-surface-variant: #8a92a6;
+  --color-surface-bright: #e1e2ea;
+  --color-primary-fixed: #fdbf2d;
+  --color-surface-container-highest: rgba(253, 191, 45, 0.12);
 }
 
-/* ------------------------------------------------------------------ */
-/* Data-dense admin tables: sticky headers, compact rows, zebra hover  */
-/* Applied by adding .data-table to a <table> inside a scroll container */
-/* ------------------------------------------------------------------ */
-.data-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-surface-container-low);
-  padding: 0.625rem 0.75rem;
+/* Codes, money and timers line up column to column. */
+.tech-theme .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A status chip is a tinted block with a coloured left edge, so the state
+   reads at a glance without colour being the only signal. */
+.tech-theme .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 2px;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  font-weight: 600;
-  color: var(--color-on-surface-variant);
-  white-space: nowrap;
-  box-shadow: inset 0 -1px 0 var(--color-surface-variant);
-}
-.data-table tbody td {
-  padding: 0.625rem 0.75rem;
-  font-size: 13px;
-  vertical-align: top;
-}
-.data-table tbody tr {
-  transition: background-color 0.12s ease;
-}
-.data-table tbody tr:hover {
-  background: color-mix(in srgb, var(--color-surface-container-low) 55%, transparent);
-}
-
-/* Scroll container that keeps sticky headers working */
-.table-scroll {
-  max-height: 70vh;
-  overflow: auto;
-}
-
-/* Keyboard focus visibility (WCAG) */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* Staggered entrance animation */
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: none; }
-}
-.fade-up {
-  opacity: 0;
-  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Waiting-screen radar loader */
-@keyframes radar {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2.5); opacity: 0; }
-}
-.radar-ping {
-  animation: radar 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-/* Success-screen confetti */
-@keyframes confetti-fall {
-  0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
-}
-.confetti-piece {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  opacity: 0;
-}
-
-/* Respect reduced-motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .radar-ping,
-  .confetti-piece,
-  .fade-up,
-  .animate-ping,
-  .animate-pulse {
-    animation: none !important;
-  }
-  .fade-up { opacity: 1; }
-  * { transition-duration: 0.01ms !important; }
+  border-left: 2px solid currentColor;
 }
 
 /* -------------------------------------------------------------------- */

@@ -69,6 +69,34 @@ public class SupportTicket {
     /** Set when a staff member raises the ticket rather than a customer. */
     private String createdBy;
 
+    // --- Work tracking, so the office can see a job is genuinely under way ---
+
+    /**
+     * When someone was first put on this job. Set on the first assignment
+     * and never moved, so reassigning does not restart the clock and make
+     * a long-running job look fresh.
+     */
+    private Instant workStartedAt;
+
+    /** When it was closed, and by whom. */
+    private Instant resolvedAt;
+
+    private String resolvedBy;
+
+    /**
+     * How long the job took, or how long it has been running so far. Live
+     * rather than stored, so a ticket left open keeps counting instead of
+     * showing a figure frozen at the last save.
+     */
+    @Transient
+    public Long getWorkingMinutes() {
+        if (workStartedAt == null) {
+            return null;
+        }
+        Instant end = resolvedAt != null ? resolvedAt : Instant.now();
+        return java.time.Duration.between(workStartedAt, end).toMinutes();
+    }
+
     @Builder.Default
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt ASC")

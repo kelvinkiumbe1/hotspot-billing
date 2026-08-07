@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.security.Principal;
@@ -108,6 +109,7 @@ public class SupportController {
         // endpoint does the same, so the two paths agree.
         if (!ticket.getAssigneeIds().isEmpty()) {
             ticket.setStatus(SupportTicket.Status.IN_PROGRESS);
+            ticket.setWorkStartedAt(Instant.now());
         }
         SupportTicket saved = tickets.save(ticket);
         notifyAssignees(saved, saved.getAssigneeIds());
@@ -135,6 +137,11 @@ public class SupportController {
         // Picking up an unassigned ticket means work has started on it.
         if (!ticket.getAssigneeIds().isEmpty() && ticket.getStatus() == SupportTicket.Status.OPEN) {
             ticket.setStatus(SupportTicket.Status.IN_PROGRESS);
+        }
+        // Only ever set once: reassigning a job must not restart its clock
+        // and make something that has dragged on for a week look fresh.
+        if (!ticket.getAssigneeIds().isEmpty() && ticket.getWorkStartedAt() == null) {
+            ticket.setWorkStartedAt(Instant.now());
         }
         audit.record(principal, "ticket.assign", ticket.getAssigneeIds().isEmpty()
                 ? "Unassigned ticket " + id
@@ -192,6 +199,50 @@ public class SupportController {
         return tickets.findTop100ByOrderByUpdatedAtDesc().stream()
                 .filter(t -> t.getAssigneeIds().contains(me))
                 .toList();
+    }
+
+    public record TechStatusRequest(@NotNull SupportTicket.Status status, String note) {
+    }
+
+    /**
+     * Lets the technician close the job they are on. Without this the office
+     * had to close every ticket by hand, so "in progress" meant only that
+     * somebody had been assigned — not that anyone was still working.
+     *
+     * <p>A technician may only touch a ticket they are actually on, and may
+     * not reopen a resolved one; that is the office's call.
+     */
+    @PatchMapping("/api/tech/tickets/{id}/status")
+    @Transactional
+    public SupportTicket updateMyTicket(@PathVariable Long id,
+                                        @Valid @RequestBody TechStatusRequest request,
+                                        Principal principal) {
+        Technician me = technicians.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Only a technician account can update a job this way"));
+        SupportTicket ticket = get(id);
+        if (!ticket.getAssigneeIds().contains(me.getId())) {
+            throw new IllegalStateException("That job is not assigned to you");
+        }
+        if (ticket.getStatus() == SupportTicket.Status.RESOLVED) {
+            throw new IllegalStateException(
+                    "That job is already closed. Ask the office to reopen it if it is not really done.");
+        }
+
+        if (request.note() != null && !request.note().isBlank()) {
+            ticket.getMessages().add(TicketMessage.builder()
+                    .ticket(ticket)
+                    .fromAdmin(true)
+                    .body(me.getFullName() + ": " + request.note().trim())
+                    .build());
+        }
+
+        ticket.setStatus(request.status());
+        if (request.status() == SupportTicket.Status.RESOLVED) {
+            ticket.setResolvedAt(Instant.now());
+            ticket.setResolvedBy(me.getFullName());
+        }
+        return tickets.save(ticket);
     }
 
     private SupportTicket get(Long id) {
@@ -324,10 +375,15 @@ public class SupportController {
     @PreAuthorize("hasAuthority('CUSTOMERS')")
     @PatchMapping("/api/admin/tickets/{id}/status")
     @Transactional
-    public SupportTicket setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
+    public SupportTicket setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request,
+                                   Principal principal) {
         SupportTicket ticket = tickets.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown ticket: " + id));
         ticket.setStatus(request.status());
+        if (request.status() == SupportTicket.Status.RESOLVED && ticket.getResolvedAt() == null) {
+            ticket.setResolvedAt(Instant.now());
+            ticket.setResolvedBy(principal == null ? "office" : principal.getName());
+        }
         return tickets.save(ticket);
     }
 }
