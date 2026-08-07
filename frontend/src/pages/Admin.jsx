@@ -176,7 +176,7 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div className="relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
+    <div className="admin-theme relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
       <img src={loginFiber} alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-[#00201d]/70"></div>
       <div className="relative z-10 w-full max-w-sm">
@@ -556,7 +556,7 @@ function Shell({ auth, onLogout }) {
   const permissions = me?.permissions
 
   return (
-    <div className="bg-background text-on-background min-h-screen">
+    <div className="admin-theme bg-background text-on-background min-h-screen">
       {/* Desktop sidebar */}
       <nav className="h-screen w-64 fixed left-0 top-0 bg-inverse-surface shadow-md hidden md:flex flex-col z-40">
         <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />

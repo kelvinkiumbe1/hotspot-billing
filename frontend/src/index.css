@@ -273,3 +273,80 @@ body {
   .fade-up { opacity: 1; }
   * { transition-duration: 0.01ms !important; }
 }
+
+/* -------------------------------------------------------------------- */
+/* Admin: a dark operations console.                                     */
+/*                                                                       */
+/* Overriding the tokens on a scoped ancestor re-colours the whole       */
+/* subtree, so every admin page turns dark without touching a component. */
+/* Amber matches the customer portal so office and captive portal read   */
+/* as one product rather than three.                                     */
+/* -------------------------------------------------------------------- */
+.admin-theme {
+  --color-background: #14161a;
+  --color-on-background: #f2f4f7;
+  --color-surface: #1b1e24;
+  --color-on-surface: #f2f4f7;
+  --color-on-surface-variant: #98a2b3;
+  --color-surface-bright: #f2f4f7;
+  --color-surface-dim: #0f1115;
+
+  /* Used as a border at low opacity, and as sidebar text at full. */
+  --color-surface-variant: #98a2b3;
+
+  --color-surface-container-lowest: #1b1e24;
+  --color-surface-container-low: #1f232a;
+  --color-surface-container: #22262e;
+  --color-surface-container-high: #272c35;
+  --color-surface-container-highest: #2a2e36;
+
+  /* One accent. Amber on dark needs dark text on top of it, not white. */
+  --color-primary: #fdbf2d;
+  --color-on-primary: #14161a;
+  --color-primary-container: #3a2f12;
+  --color-on-primary-container: #fdbf2d;
+  --color-primary-fixed: #fdbf2d;
+  --color-surface-tint: #e5ab1f;
+
+  /* Healthy, and money owed. Desaturated so they never shout over amber. */
+  --color-secondary: #3da35d;
+  --color-on-secondary: #0b1a10;
+  --color-secondary-container: #16301f;
+  --color-on-secondary-container: #6ee08d;
+
+  --color-error: #e5484d;
+  --color-on-error: #1a0b0c;
+  --color-error-container: #3a1618;
+  --color-on-error-container: #ff9ea1;
+
+  --color-outline: #667085;
+  --color-outline-variant: #2a2e36;
+
+  /* The sidebar sits darker than the canvas rather than lighter. */
+  --color-inverse-surface: #0f1115;
+  --color-tertiary: #98a2b3;
+}
+
+/* Tables earn their density here: shorter rows, quieter rules. */
+.admin-theme .data-table th {
+  background: #1f232a;
+  color: #98a2b3;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 8px 12px;
+}
+
+.admin-theme .data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #23272f;
+}
+
+.admin-theme .data-table tbody tr:hover {
+  background: #1f232a;
+}
+
+/* Figures must line up column to column when they are money. */
+.admin-theme .tabular-nums,
+.admin-theme .data-table td {
+  font-variant-numeric: tabular-nums;
+}
