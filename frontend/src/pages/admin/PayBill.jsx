@@ -76,7 +76,7 @@ export default function PayBill({ auth }) {
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-sm divide-y divide-surface-variant/30">
+            <tbody className="text-sm divide-y divide-[color:var(--color-outline-variant)]/30">
               {rows.map((r) => {
                 const st = STATUS_STYLES[r.status] || STATUS_STYLES.UNMATCHED
                 return (

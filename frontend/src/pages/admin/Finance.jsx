@@ -194,7 +194,7 @@ export default function Finance({ auth }) {
                       <th className="text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="text-sm divide-y divide-surface-variant/30">
+                  <tbody className="text-sm divide-y divide-[color:var(--color-outline-variant)]/30">
                     {invoices.map((i) => (
                       <tr key={i.id} className="hover:bg-surface-container-low/20 transition-colors">
                         <td className="font-mono">{i.number}</td>
@@ -261,7 +261,7 @@ export default function Finance({ auth }) {
 
           {expenses === null ? <Skeleton className="h-48" /> : (
             <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
-              <div className="p-4 border-b border-surface-variant/30 flex justify-between items-center">
+              <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-on-surface">Recent Expenses</h3>
                 <button onClick={() => csvDownload(
                   ['Date,Category,Description,Amount,RecordedBy',
@@ -271,7 +271,7 @@ export default function Finance({ auth }) {
                   <Icon name="download" className="text-[16px]!" /> CSV
                 </button>
               </div>
-              <ul className="divide-y divide-surface-variant/30">
+              <ul className="divide-y divide-[color:var(--color-outline-variant)]/30">
                 {expenses.map((e) => (
                   <li key={e.id} className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { INPUT_CLS, LABEL_CLS, PrimaryButton } from '../components/ui.jsx'
+import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard } from '../components/ui.jsx'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import RoutersPage from './admin/Routers.jsx'
@@ -387,7 +387,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
           }`}
         />
       </div>
-      <div className="mt-4 pt-3 border-t border-surface-variant/20 shrink-0">
+      <div className="mt-4 pt-3 border-t border-outline-variant/20 shrink-0">
         {me && (
           <div className="px-4 pb-2">
             <p className="text-sm text-surface-bright font-medium truncate">{me.fullName || me.username}</p>
@@ -1080,7 +1080,7 @@ function PlanModal({ auth, plan, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-start justify-center p-5 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col my-8">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-start">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-start">
           <div>
             <h3 className="text-2xl font-bold text-on-background">
               {editing ? 'Edit ' + plan.name : 'Create a package'}
@@ -1298,7 +1298,7 @@ function PlanModal({ auth, plan, onClose, onSaved }) {
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
 
-          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+          <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
             <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors cursor-pointer">
               Cancel
             </button>
@@ -1377,7 +1377,7 @@ function Plans({ auth }) {
 
       {/* Table card */}
       <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
-        <div className="p-4 border-b border-surface-variant/50 bg-surface-container-low/30">
+        <div className="p-4 border-b border-outline-variant/50 bg-surface-container-low/30">
           <div className="relative w-full sm:w-64">
             <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
             <input
@@ -1393,18 +1393,18 @@ function Plans({ auth }) {
           <table className="data-table w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="border-b border-surface-variant/50">Plan Name</th>
-                <th className="border-b border-surface-variant/50">Price</th>
-                <th className="border-b border-surface-variant/50">Duration</th>
-                <th className="border-b border-surface-variant/50">Speed</th>
-                <th className="border-b border-surface-variant/50">Rules</th>
-                <th className="border-b border-surface-variant/50">Availability</th>
-                <th className="border-b border-surface-variant/50 text-right">Actions</th>
+                <th className="border-b border-outline-variant/50">Plan Name</th>
+                <th className="border-b border-outline-variant/50">Price</th>
+                <th className="border-b border-outline-variant/50">Duration</th>
+                <th className="border-b border-outline-variant/50">Speed</th>
+                <th className="border-b border-outline-variant/50">Rules</th>
+                <th className="border-b border-outline-variant/50">Availability</th>
+                <th className="border-b border-outline-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {filtered.map((p) => (
-                <tr key={p.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors">
+                <tr key={p.id} className="border-b border-outline-variant/30 hover:bg-surface-container-low/20 transition-colors">
                   <td className="">
                     <div className="text-lg font-semibold text-on-background">{p.name}</div>
                     {p.bandwidth && <div className="text-xs font-semibold tracking-wider text-on-surface-variant mt-1">Rate limit: {p.bandwidth}</div>}
@@ -1545,7 +1545,7 @@ function SubscriberModal({ auth, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-center">
           <h3 className="text-2xl font-bold text-on-background">Add Subscriber</h3>
           <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
             <Icon name="close" />
@@ -1599,7 +1599,7 @@ function SubscriberModal({ auth, onClose, onSaved }) {
             </p>
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
-          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+          <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
             <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
@@ -1645,7 +1645,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
   }
 
   const Row = ({ label, children }) => (
-    <div className="flex justify-between items-center py-2 border-b border-surface-variant border-dashed gap-4">
+    <div className="flex justify-between items-center py-2 border-b border-outline-variant border-dashed gap-4">
       <span className="text-sm text-on-surface-variant shrink-0">{label}</span>
       <span className="text-sm font-medium text-on-surface text-right">{children}</span>
     </div>
@@ -1655,7 +1655,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="flex-1 bg-on-background/30 backdrop-blur-[2px]" onClick={onClose}></div>
       <div className="w-full max-w-md bg-surface-container-lowest h-full shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-surface-variant bg-surface-bright flex justify-between items-start">
+        <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-start">
           <div>
             <h3 className="text-lg font-semibold text-on-surface">{s.fullName}</h3>
             <p className="text-sm text-on-surface-variant mt-1 font-mono">{s.pppoeUsername}</p>
@@ -1741,7 +1741,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
           <div>
             <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Payment History</h4>
             {history === null ? <Skeleton className="h-16" /> : (
-              <ul className="divide-y divide-surface-variant">
+              <ul className="divide-y divide-[color:var(--color-outline-variant)]">
                 {history.map((p) => (
                   <li key={p.id} className="py-2 flex justify-between items-center gap-2">
                     <div className="min-w-0">
@@ -1761,7 +1761,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
           {msg && <p className={`text-sm font-semibold ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
         </div>
 
-        <div className="p-4 border-t border-surface-variant bg-surface-bright flex gap-3">
+        <div className="p-4 border-t border-outline-variant bg-surface-container-low flex gap-3">
           {s.status === 'ACTIVE' ? (
             <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/suspend`, null, 'Subscriber suspended.')}
               className="flex-1 h-12 border border-error text-error rounded-lg text-base font-semibold hover:bg-error/5 transition-colors disabled:opacity-60 cursor-pointer">
@@ -1853,13 +1853,13 @@ function Subscribers({ auth }) {
           <table className="data-table w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="border-b border-surface-variant/50">Customer</th>
-                <th className="border-b border-surface-variant/50">PPPoE Login</th>
-                <th className="border-b border-surface-variant/50">Package</th>
-                <th className="border-b border-surface-variant/50">Paid Until</th>
-                <th className="border-b border-surface-variant/50">Last Payment</th>
-                <th className="border-b border-surface-variant/50">Status</th>
-                <th className="border-b border-surface-variant/50 text-right">Actions</th>
+                <th className="border-b border-outline-variant/50">Customer</th>
+                <th className="border-b border-outline-variant/50">PPPoE Login</th>
+                <th className="border-b border-outline-variant/50">Package</th>
+                <th className="border-b border-outline-variant/50">Paid Until</th>
+                <th className="border-b border-outline-variant/50">Last Payment</th>
+                <th className="border-b border-outline-variant/50">Status</th>
+                <th className="border-b border-outline-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
@@ -1867,7 +1867,7 @@ function Subscribers({ auth }) {
                 const st = subscriberState(s)
                 const days = Math.floor((new Date(s.paidUntil) - Date.now()) / 86400000)
                 return (
-                  <tr key={s.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors align-top">
+                  <tr key={s.id} className="border-b border-outline-variant/30 hover:bg-surface-container-low/20 transition-colors align-top">
                     <td className="">
                       <button onClick={() => setDetailId(s.id)} className="text-base font-semibold text-primary hover:underline text-left cursor-pointer">
                         {s.fullName}
@@ -2032,7 +2032,7 @@ function PaymentDetail({ payment, onClose }) {
   }
 
   const Row = ({ label, children }) => (
-    <div className="flex justify-between items-center py-2 border-b border-surface-variant border-dashed gap-4">
+    <div className="flex justify-between items-center py-2 border-b border-outline-variant border-dashed gap-4">
       <span className="text-sm text-on-surface-variant shrink-0">{label}</span>
       {children}
     </div>
@@ -2042,7 +2042,7 @@ function PaymentDetail({ payment, onClose }) {
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="flex-1 bg-on-background/30 backdrop-blur-[2px]" onClick={onClose}></div>
       <div className="w-full max-w-md bg-surface-container-lowest h-full shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-surface-variant bg-surface-bright flex justify-between items-start">
+        <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-start">
           <div>
             <h3 className="text-lg font-semibold text-on-surface">Transaction Details</h3>
             <p className="text-sm text-on-surface-variant mt-1 font-mono">{payment.mpesaReceiptNumber || `Payment #${payment.id}`}</p>
@@ -2101,16 +2101,18 @@ function PaymentDetail({ payment, onClose }) {
 }
 
 function Payments({ auth }) {
-  const [payments, setPayments] = useState([])
+  const [payments, setPayments] = useState(null)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
 
-  useEffect(() => { api('/admin/payments', { auth }).then(setPayments).catch(() => {}) }, [auth])
+  useEffect(() => {
+    api('/admin/payments', { auth }).then(setPayments).catch(() => setPayments([]))
+  }, [auth])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return [...payments]
+    return [...(payments || [])]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .filter((p) => filter === 'All' || p.status === filter.toUpperCase())
       .filter((p) =>
@@ -2122,93 +2124,165 @@ function Payments({ auth }) {
       )
   }, [payments, filter, search])
 
+  // A ledger with no totals is just a list. These are of what is shown, so
+  // they answer the question the filter was asked.
+  const totals = useMemo(() => {
+    const t = { count: 0, collected: 0, pending: 0, failed: 0, pendingCount: 0, failedCount: 0 }
+    for (const p of filtered) {
+      t.count++
+      const amount = Number(p.amount) || 0
+      if (p.status === 'SUCCESS') t.collected += amount
+      else if (p.status === 'PENDING') { t.pending += amount; t.pendingCount++ }
+      else if (p.status === 'FAILED') { t.failed += amount; t.failedCount++ }
+    }
+    return t
+  }, [filtered])
+
+  if (payments === null) return <Skeleton className="h-64" />
+
   return (
     <div>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-on-surface">Payments Ledger</h2>
-          <p className="text-xs text-on-surface-variant">Track and reconcile M-Pesa transactions</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {PAYMENT_FILTERS.map((f) => (
+      <PageHeader title="Payments" subtitle="Every M-Pesa transaction, and how it ended.">
+        <button
+          onClick={() => exportCsv(filtered)}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 px-3 h-10 border border-outline-variant rounded-md text-sm hover:bg-surface-container-high transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Icon name="download" className="text-[18px]!" /> Export
+        </button>
+      </PageHeader>
+
+      {/* Money first, and only what the current filter covers. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+        <StatCard
+          label="Collected"
+          value={fmtKES(totals.collected)}
+          hint={`${filter === 'All' ? 'all' : filter.toLowerCase()} · ${totals.count} transaction${totals.count === 1 ? '' : 's'}`}
+          accent="border-l-primary"
+        />
+        <StatCard
+          label="Awaiting confirmation"
+          value={fmtKES(totals.pending)}
+          hint={totals.pendingCount > 0 ? `${totals.pendingCount} still open` : 'nothing hanging'}
+        />
+        <StatCard
+          label="Failed"
+          value={fmtKES(totals.failed)}
+          hint={totals.failedCount > 0 ? `${totals.failedCount} never completed` : 'none'}
+          accent={totals.failedCount > 0 ? 'border-l-error' : ''}
+        />
+        <StatCard
+          label="Average sale"
+          value={totals.collected > 0
+            ? fmtKES(Math.round(totals.collected / Math.max(1, filtered.filter((p) => p.status === 'SUCCESS').length)))
+            : '—'}
+          hint="successful payments only"
+        />
+      </div>
+
+      {/* One row of chrome, not two. */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {PAYMENT_FILTERS.map((f) => {
+          const n = f === 'All'
+            ? (payments || []).length
+            : (payments || []).filter((p) => p.status === f.toUpperCase()).length
+          return (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-full text-sm transition-colors cursor-pointer ${
+              aria-pressed={filter === f}
+              className={`px-3 h-8 rounded-md text-[13px] transition-colors cursor-pointer ${
                 filter === f
                   ? 'bg-primary-container text-on-primary-container font-semibold'
                   : 'border border-outline-variant text-on-surface hover:bg-surface-container-high'
               }`}
             >
-              {f}
+              {f} <span className="opacity-60 tabular-nums">{n}</span>
             </button>
-          ))}
+          )
+        })}
+        <div className="relative ml-auto w-full sm:w-64">
+          <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]!" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-surface-container-lowest border border-outline-variant rounded-md pl-9 pr-3 h-8 text-[13px] focus:outline-none focus:border-primary transition-colors"
+            placeholder="Receipt, phone, code or plan…"
+            aria-label="Search payments"
+          />
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden border border-surface-variant">
-        <div className="p-4 border-b border-surface-variant flex flex-col sm:flex-row gap-4 justify-between items-center bg-surface-bright">
-          <div className="relative w-full sm:w-72">
-            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-background border border-outline-variant rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-              placeholder="Search receipt, phone, code..."
-              type="text"
-            />
-          </div>
-          <button
-            onClick={() => exportCsv(filtered)}
-            className="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-container text-sm transition-colors w-full sm:w-auto justify-center cursor-pointer"
-          >
-            <Icon name="download" className="text-[18px]!" /> Export CSV
-          </button>
+      {filtered.length === 0 ? (
+        <div className="border border-outline-variant rounded-lg p-10 text-center">
+          <Icon name="receipt_long" className="text-[36px]! text-on-surface-variant/40" />
+          <p className="mt-2 text-sm text-on-surface-variant">
+            {payments.length === 0
+              ? 'No payments yet. They appear here the moment a customer pays through the portal.'
+              : `Nothing matches ${search ? `"${search}"` : `the ${filter.toLowerCase()} filter`}.`}
+          </p>
+          {payments.length > 0 && (
+            <button
+              onClick={() => { setFilter('All'); setSearch('') }}
+              className="mt-3 text-[13px] text-primary hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-
-        <div className="overflow-x-auto table-scroll">
-          <table className="data-table w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="border-b border-surface-variant bg-surface-container-low text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="font-semibold">Date / Time</th>
-                <th className="font-semibold">Phone Number</th>
-                <th className="font-semibold">Plan</th>
-                <th className="font-semibold">Amount</th>
-                <th className="font-semibold">M-Pesa Receipt</th>
-                <th className="font-semibold">Voucher</th>
-                <th className="font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-on-surface divide-y divide-surface-variant">
-              {filtered.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => setSelected(p)}
-                  className="hover:bg-surface-container-low transition-colors cursor-pointer"
-                >
-                  <td className="whitespace-nowrap">
-                    <div className="font-semibold text-on-surface">{fmtDate(p.createdAt)}</div>
-                    <div className="text-on-surface-variant text-xs mt-0.5">{fmtTime(p.createdAt)}</div>
-                  </td>
-                  <td className="font-medium">{p.phoneNumber}</td>
-                  <td className="">{p.plan?.name}</td>
-                  <td className="font-semibold tabular-nums">{fmtKES(p.amount)}</td>
-                  <td className="font-mono text-xs">{p.mpesaReceiptNumber || <span className="text-on-surface-variant/50">—</span>}</td>
-                  <td className="font-mono text-xs">{p.voucher?.code || <span className="text-on-surface-variant/50">—</span>}</td>
-                  <td className=""><StatusPill status={p.status} /></td>
+      ) : (
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
+          <div className="overflow-x-auto table-scroll">
+            <table className="data-table w-full text-left min-w-[820px]">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Phone</th>
+                  <th>Plan</th>
+                  <th className="text-right">Amount</th>
+                  <th>M-Pesa receipt</th>
+                  <th>Voucher</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td className="text-on-surface-variant" colSpan={7}>No payments match.</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setSelected(p)}
+                    className="cursor-pointer"
+                  >
+                    <td className="whitespace-nowrap">
+                      <span>{fmtDate(p.createdAt)}</span>
+                      <span className="text-on-surface-variant text-xs"> {fmtTime(p.createdAt)}</span>
+                    </td>
+                    <td className="font-mono text-[12px]">{p.phoneNumber}</td>
+                    <td>{p.plan?.name || <span className="text-on-surface-variant">Custom</span>}</td>
+                    <td className="text-right font-semibold tabular-nums">{fmtKES(p.amount)}</td>
+                    <td className="font-mono text-[12px]">
+                      {p.mpesaReceiptNumber || <span className="text-on-surface-variant">—</span>}
+                    </td>
+                    <td className="font-mono text-[12px]">
+                      {p.voucher?.code || <span className="text-on-surface-variant">—</span>}
+                    </td>
+                    <td><StatusPill status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-3 py-2 border-t border-outline-variant text-xs text-on-surface-variant">
+            {filtered.length === payments.length
+              ? `${payments.length} payment${payments.length === 1 ? '' : 's'}`
+              : `${filtered.length} of ${payments.length} payments`}
+            {totals.pendingCount > 0 && (
+              <span className="text-[#FDBF2D]">
+                {' '}· {totals.pendingCount} still awaiting an M-Pesa callback
+              </span>
+            )}
+          </div>
         </div>
-
-        <div className="p-4 border-t border-surface-variant flex items-center justify-between bg-surface-bright">
-          <span className="text-sm text-on-surface-variant">Showing {filtered.length} of {payments.length} payments</span>
-        </div>
-      </div>
+      )}
 
       {selected && <PaymentDetail payment={selected} onClose={() => setSelected(null)} />}
     </div>
@@ -2899,7 +2973,7 @@ function MaintenanceModal({ auth, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-center">
           <h3 className="text-2xl font-bold text-on-background">Schedule Maintenance</h3>
           <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
             <Icon name="close" />
@@ -2935,7 +3009,7 @@ function MaintenanceModal({ auth, onClose, onSaved }) {
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
-          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+          <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
             <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
@@ -3241,7 +3315,7 @@ function Messages({ auth }) {
             </div>
           ) : (
             <>
-              <div className="p-4 border-b border-outline-variant/30 flex items-center gap-3 bg-surface-bright">
+              <div className="p-4 border-b border-outline-variant/30 flex items-center gap-3 bg-surface-container-low">
                 <span className="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-sm font-bold uppercase">
                   {current?.fullName?.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2)}
                 </span>
@@ -3298,7 +3372,7 @@ function TechnicianModal({ auth, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-center">
           <h3 className="text-2xl font-bold text-on-background">Add Technician</h3>
           <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
             <Icon name="close" />
@@ -3340,7 +3414,7 @@ function TechnicianModal({ auth, onClose, onSaved }) {
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
-          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+          <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
             <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">
               Cancel
             </button>
@@ -3402,18 +3476,18 @@ function Team({ auth }) {
           <table className="data-table w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low/50 text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
-                <th className="border-b border-surface-variant/50">Technician</th>
-                <th className="border-b border-surface-variant/50">Username</th>
-                <th className="border-b border-surface-variant/50">Phone</th>
-                <th className="border-b border-surface-variant/50">Since</th>
-                <th className="border-b border-surface-variant/50">Permissions</th>
-                <th className="border-b border-surface-variant/50">Status</th>
-                <th className="border-b border-surface-variant/50 text-right">Actions</th>
+                <th className="border-b border-outline-variant/50">Technician</th>
+                <th className="border-b border-outline-variant/50">Username</th>
+                <th className="border-b border-outline-variant/50">Phone</th>
+                <th className="border-b border-outline-variant/50">Since</th>
+                <th className="border-b border-outline-variant/50">Permissions</th>
+                <th className="border-b border-outline-variant/50">Status</th>
+                <th className="border-b border-outline-variant/50 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {techs.map((t) => (
-                <tr key={t.id} className="border-b border-surface-variant/30 hover:bg-surface-container-low/20 transition-colors">
+                <tr key={t.id} className="border-b border-outline-variant/30 hover:bg-surface-container-low/20 transition-colors">
                   <td className="">
                     <div className="flex items-center gap-3">
                       <span className="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-sm font-bold uppercase">
@@ -3578,7 +3652,7 @@ function PromotionCard({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
+    'w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
@@ -3696,7 +3770,7 @@ function SmsCard({ auth }) {
         rows="3"
         maxLength={320}
         placeholder="e.g. Weekend Offer! All SPA WiFi passes 20% off until Sunday midnight. Connect at our hotspot and save."
-        className="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+        className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
       />
       <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
         <span className="text-xs text-on-surface-variant">{message.length}/320 characters {message.length > 160 ? '(2 SMS per recipient)' : ''}</span>
@@ -3767,7 +3841,7 @@ function CustomPlanCard({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
+    'w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
@@ -3897,7 +3971,7 @@ function Settings({ auth }) {
   }
 
   const inputCls =
-    'w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
+    'w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all min-h-[40px]'
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
@@ -3999,7 +4073,7 @@ function Settings({ auth }) {
             <h3 className="text-lg font-semibold text-on-surface">API Security</h3>
           </div>
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <div className="flex items-center justify-between w-full md:w-auto gap-4 p-4 border border-outline-variant rounded-lg bg-surface-bright">
+            <div className="flex items-center justify-between w-full md:w-auto gap-4 p-4 border border-outline-variant rounded-lg bg-surface-container-low">
               <div>
                 <p className="text-lg font-semibold text-on-surface">Use SSL/TLS</p>
                 <p className="text-sm text-outline">Encrypt API communication</p>
@@ -4011,7 +4085,7 @@ function Settings({ auth }) {
               <input id="mk-cert" className={inputCls} placeholder="api-cert" type="text" value={form.certificate} onChange={(e) => set('certificate', e.target.value)} />
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between gap-4 p-4 border border-outline-variant rounded-lg bg-surface-bright">
+          <div className="mt-4 flex items-center justify-between gap-4 p-4 border border-outline-variant rounded-lg bg-surface-container-low">
             <div>
               <p className="text-lg font-semibold text-on-surface">Lock vouchers to first device (MAC binding)</p>
               <p className="text-sm text-outline">

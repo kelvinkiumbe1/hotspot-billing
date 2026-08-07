@@ -44,7 +44,7 @@ export default function AuditLog({ auth }) {
       </PageHeader>
 
       <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
-        <ul className="divide-y divide-surface-variant/30">
+        <ul className="divide-y divide-[color:var(--color-outline-variant)]/30">
           {filtered.map((e) => {
             const group = e.action.split('.')[0]
             return (

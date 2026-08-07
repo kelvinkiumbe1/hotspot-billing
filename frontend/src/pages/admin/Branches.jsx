@@ -86,7 +86,7 @@ export default function Branches({ auth }) {
                 <p className="text-xs text-on-surface-variant">Customers</p>
               </div>
             </div>
-            <div className="border-t border-surface-variant pt-3 flex items-center justify-between">
+            <div className="border-t border-outline-variant pt-3 flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Monthly Revenue</p>
                 <p className="text-lg font-semibold text-primary tabular-nums">{fmtKES(b.monthlyRevenue)}</p>

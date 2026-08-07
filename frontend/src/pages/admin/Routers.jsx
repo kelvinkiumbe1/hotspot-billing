@@ -40,7 +40,7 @@ function RouterModal({ auth, router, branches, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
-        <div className="p-6 border-b border-surface-variant/50 flex justify-between items-center">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-center">
           <h3 className="text-2xl font-bold text-on-background">{editing ? 'Edit Router' : 'Add Router'}</h3>
           <button onClick={onClose} className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close">
             <Icon name="close" />
@@ -101,7 +101,7 @@ function RouterModal({ auth, router, branches, onClose, onSaved }) {
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
           </div>
-          <div className="p-6 border-t border-surface-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
+          <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 rounded-b-xl">
             <button type="button" onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-primary text-primary hover:bg-primary/5 transition-colors min-h-[40px] cursor-pointer">Cancel</button>
             <PrimaryButton type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Router'}</PrimaryButton>
           </div>
@@ -125,7 +125,7 @@ function SessionsPanel({ auth, router, onClose }) {
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="flex-1 bg-on-background/30 backdrop-blur-[2px]" onClick={onClose}></div>
       <div className="w-full max-w-md bg-surface-container-lowest h-full shadow-[0_8px_24px_rgba(15,23,42,0.15)] flex flex-col">
-        <div className="p-6 border-b border-surface-variant bg-surface-bright flex justify-between items-start">
+        <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-start">
           <div>
             <h3 className="text-lg font-semibold text-on-surface">Live Sessions</h3>
             <p className="text-sm text-on-surface-variant mt-1">{router.name} · refreshes every 15s</p>
@@ -136,7 +136,7 @@ function SessionsPanel({ auth, router, onClose }) {
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {sessions === null ? <Skeleton className="h-32" /> : (
-            <ul className="divide-y divide-surface-variant">
+            <ul className="divide-y divide-[color:var(--color-outline-variant)]">
               {sessions.map((s, i) => (
                 <li key={`${s.user}-${i}`} className="py-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
