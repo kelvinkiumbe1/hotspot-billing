@@ -179,7 +179,7 @@ function Login({ onLogin }) {
   return (
     <div className="admin-theme relative bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden">
       <img src={loginFiber} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#00201d]/70"></div>
+      <div className="absolute inset-0 bg-black/70"></div>
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
@@ -3453,11 +3453,11 @@ function TechnicianModal({ auth, onClose, onSaved }) {
               <label className={labelCls}>Permissions</label>
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
-                  <input type="checkbox" checked={form.canVouchers} onChange={(e) => setForm({ ...form, canVouchers: e.target.checked })} className="w-4 h-4 accent-[#005c55]" />
+                  <input type="checkbox" checked={form.canVouchers} onChange={(e) => setForm({ ...form, canVouchers: e.target.checked })} className="w-4 h-4 accent-[#fdbf2d]" />
                   <span className="text-sm text-on-surface"><strong>Issue vouchers</strong> — generate and print WiFi passes in the field</span>
                 </label>
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
-                  <input type="checkbox" checked={form.canPppoe} onChange={(e) => setForm({ ...form, canPppoe: e.target.checked })} className="w-4 h-4 accent-[#005c55]" />
+                  <input type="checkbox" checked={form.canPppoe} onChange={(e) => setForm({ ...form, canPppoe: e.target.checked })} className="w-4 h-4 accent-[#fdbf2d]" />
                   <span className="text-sm text-on-surface"><strong>Manage PPPoE subscribers</strong> — sign up monthly home customers and take payments</span>
                 </label>
               </div>

@@ -64,10 +64,10 @@ function printVoucherCards(vouchers, planName) {
   w.document.write(`<!doctype html><html><head><title>Voucher batch — ${planName}</title><style>
     body { font-family: Arial, sans-serif; margin: 10mm; }
     .grid { display: flex; flex-wrap: wrap; gap: 6mm; }
-    .card { width: 85mm; height: 54mm; border: 1px dashed #6e7977; border-top: 3px solid #005c55; border-radius: 4mm;
+    .card { width: 85mm; height: 54mm; border: 1px dashed #6e7977; border-top: 3px solid #1a1c1c; border-radius: 4mm;
             padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;
             page-break-inside: avoid; }
-    .head { display: flex; justify-content: space-between; color: #005c55; font-size: 12px; }
+    .head { display: flex; justify-content: space-between; color: #1a1c1c; font-size: 12px; }
     .code-box { text-align: center; border: 1px solid #bdc9c6; border-radius: 2mm; padding: 3mm; }
     .code-box small { color: #6e7977; letter-spacing: 1px; font-size: 9px; }
     .code { font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; letter-spacing: 3px; }

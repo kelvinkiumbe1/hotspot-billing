@@ -94,7 +94,7 @@ function RouterModal({ auth, router, branches, onClose, onSaved }) {
                 ['defaultRouter', 'Default router'],
               ].map(([key, label]) => (
                 <label key={key} className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
-                  <input type="checkbox" checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} className="w-4 h-4 accent-[#005c55]" />
+                  <input type="checkbox" checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} className="w-4 h-4 accent-[#fdbf2d]" />
                   <span className="text-sm text-on-surface">{label}</span>
                 </label>
               ))}

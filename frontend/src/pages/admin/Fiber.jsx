@@ -25,7 +25,7 @@ const ROUTE_KINDS = ['BACKBONE', 'DISTRIBUTION', 'DROP']
 // Status carries the colour; the shape carries the kind, so neither is
 // doing the job alone.
 const STATUS_COLOUR = {
-  ACTIVE: '#0f766e',
+  ACTIVE: '#3da35d',
   PLANNED: '#94a3b8',
   FAULT: '#dc2626',
   DECOMMISSIONED: '#475569',
