@@ -69,8 +69,14 @@ public class AnalyticsService {
         BigDecimal pppoeBefore = BigDecimal.ZERO;
 
         Map<LocalDate, BigDecimal[]> perDay = new LinkedHashMap<>();
+        // Parallel to perDay: [0] settled transactions that day, [1] new
+        // subscribers that day. Kept as counts rather than money so the
+        // headline cards each chart a genuinely different daily series
+        // instead of three views of the same revenue line.
+        Map<LocalDate, int[]> perDayCounts = new LinkedHashMap<>();
         for (LocalDate d = from; !d.isAfter(today); d = d.plusDays(1)) {
             perDay.put(d, new BigDecimal[] { BigDecimal.ZERO, BigDecimal.ZERO });
+            perDayCounts.put(d, new int[] { 0, 0 });
         }
 
         int[] byHour = new int[24];
@@ -86,6 +92,7 @@ public class AnalyticsService {
                 BigDecimal[] slot = perDay.get(d);
                 if (slot != null) {
                     slot[0] = slot[0].add(amount);
+                    perDayCounts.get(d)[0]++;
                 }
                 ZonedDateTime when = paidAt(p.getCompletedAt(), p.getCreatedAt()).atZone(ZONE);
                 byHour[when.getHour()]++;
@@ -114,6 +121,7 @@ public class AnalyticsService {
                 BigDecimal[] slot = perDay.get(d);
                 if (slot != null) {
                     slot[1] = slot[1].add(amount);
+                    perDayCounts.get(d)[0]++;
                 }
                 if (p.getMethod() == SubscriptionPayment.Method.CASH) {
                     pppoeCash = pppoeCash.add(amount);
@@ -176,6 +184,14 @@ public class AnalyticsService {
         long newSubs = allSubs.stream()
                 .filter(s -> s.getCreatedAt() != null && !day(s.getCreatedAt()).isBefore(from))
                 .count();
+        for (Subscriber s : allSubs) {
+            if (s.getCreatedAt() != null) {
+                int[] c = perDayCounts.get(day(s.getCreatedAt()));
+                if (c != null) {
+                    c[1]++;
+                }
+            }
+        }
         BigDecimal recurring = allSubs.stream()
                 .filter(s -> s.getStatus() == Subscriber.Status.ACTIVE)
                 .map(Subscriber::getMonthlyFee)
@@ -216,7 +232,9 @@ public class AnalyticsService {
                         "date", e.getKey().toString(),
                         "hotspot", e.getValue()[0],
                         "pppoe", e.getValue()[1],
-                        "total", e.getValue()[0].add(e.getValue()[1])))
+                        "total", e.getValue()[0].add(e.getValue()[1]),
+                        "count", perDayCounts.get(e.getKey())[0],
+                        "signups", perDayCounts.get(e.getKey())[1]))
                 .toList());
 
         out.put("methodMix", methodMix.entrySet().stream()

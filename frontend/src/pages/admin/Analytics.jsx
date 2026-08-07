@@ -1,6 +1,47 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api.js'
-import { Icon, Skeleton, CardLabel, PageHeader, fmtKES } from '../../components/ui.jsx'
+import { Icon, Skeleton, CardLabel, PageHeader, fmtKES, AreaSparkline } from '../../components/ui.jsx'
+
+/** Chart accents. Amber is the brand; the other two are distinct hues that
+ *  stay legible on the dark console and never collide with the hotspot/PPPoE
+ *  legend used lower down the page. */
+const CHART = {
+  revenue: '#fdbf2d',
+  transactions: '#38bdf8',
+  signups: '#3da35d',
+}
+
+/** Prettier axis-free date for a tooltip: "9 Jul". */
+function shortDate(iso) {
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })
+}
+
+/**
+ * Headline metric: icon + title, the figure, and the shape of the period as
+ * a gradient area chart. Modelled on the shadcn area-card the owner shared,
+ * rebuilt in the house theme and fed a real daily series rather than the
+ * demo's canned numbers.
+ */
+function MetricCard({ icon, title, value, sub, subTone = '', color, series, labels, format }) {
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <Icon name={icon} className="text-[20px]!" style={{ color }} />
+        <span className="text-sm font-semibold text-on-surface">{title}</span>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-2xl font-bold tracking-tight tabular-nums text-on-surface">{value}</div>
+          {sub && <div className={`text-xs mt-1 ${subTone || 'text-on-surface-variant'}`}>{sub}</div>}
+        </div>
+        <div className="w-32 sm:w-40 shrink-0">
+          <AreaSparkline data={series} labels={labels} color={color} height={56} format={format} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const WINDOWS = [
   { days: 7, label: '7 days' },
@@ -177,24 +218,54 @@ export default function AnalyticsPage({ auth }) {
         {windowPicker}
       </PageHeader>
 
-      {/* Headline money */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
-        <div className="bg-surface-container-lowest rounded-md px-3.5 py-2.5 border-l-2 border-l-primary ">
-          <CardLabel>Revenue Collected</CardLabel>
-          <p className="text-[22px] leading-tight font-semibold mt-0.5 tabular-nums">{fmtKES(revenue.total)}</p>
-          {change === null || change === undefined ? (
-            <p className="text-xs text-on-surface-variant mt-2">No earlier period to compare with</p>
-          ) : (
-            <p className={`flex items-center gap-1 text-sm mt-2 ${Number(change) >= 0 ? 'text-secondary' : 'text-error'}`}>
-              <Icon name={Number(change) >= 0 ? 'trending_up' : 'trending_down'} className="text-[16px]!" />
-              {Number(change) >= 0 ? '+' : ''}{change}% vs previous {data.windowDays} days
-            </p>
-          )}
-        </div>
+      {/* Headline metrics — each an area chart over a real daily series. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <MetricCard
+          icon="payments"
+          title="Revenue"
+          color={CHART.revenue}
+          value={fmtKES(revenue.total)}
+          series={data.perDay.map((d) => Number(d.total))}
+          labels={data.perDay.map((d) => shortDate(d.date))}
+          format={fmtKES}
+          sub={
+            change === null || change === undefined
+              ? `No baseline · last ${data.windowDays} days`
+              : `${Number(change) >= 0 ? '+' : ''}${change}% vs previous ${data.windowDays} days`
+          }
+          subTone={
+            change === null || change === undefined
+              ? ''
+              : Number(change) >= 0 ? 'text-secondary' : 'text-error'
+          }
+        />
+        <MetricCard
+          icon="receipt_long"
+          title="Transactions"
+          color={CHART.transactions}
+          value={fmtNum(data.perDay.reduce((s, d) => s + Number(d.count), 0))}
+          series={data.perDay.map((d) => Number(d.count))}
+          labels={data.perDay.map((d) => shortDate(d.date))}
+          format={(v) => `${fmtNum(v)} txn${v === 1 ? '' : 's'}`}
+          sub={`Avg ${(data.perDay.reduce((s, d) => s + Number(d.count), 0) / data.windowDays).toFixed(1)} per day`}
+        />
+        <MetricCard
+          icon="group_add"
+          title="New Subscribers"
+          color={CHART.signups}
+          value={fmtNum(subscribers.newInWindow)}
+          series={data.perDay.map((d) => Number(d.signups))}
+          labels={data.perDay.map((d) => shortDate(d.date))}
+          format={(v) => `${fmtNum(v)} new`}
+          sub={`${fmtNum(subscribers.active)} active now`}
+        />
+      </div>
 
+      {/* Supporting figures that have no daily series of their own. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 mb-6">
         {/* Both sides shown, rather than leading with one figure that may be
             zero while the other carries the whole business. */}
-        <div className="bg-surface-container-lowest rounded-lg p-4 ">
+        <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
           <CardLabel>Where It Came From</CardLabel>
           <dl className="mt-2 space-y-1.5">
             <div className="flex justify-between items-baseline gap-2">
@@ -217,7 +288,7 @@ export default function AnalyticsPage({ auth }) {
           )}
         </div>
 
-        <div className={`bg-surface-container-lowest rounded-lg p-4  ${net < 0 ? 'border-l-2 border-l-error' : ''}`}>
+        <div className={`bg-surface-container-lowest rounded-lg p-4 border border-outline-variant ${net < 0 ? 'border-l-2 border-l-error' : ''}`}>
           <CardLabel>After Expenses</CardLabel>
           <p className={`text-[22px] leading-tight font-semibold mt-0.5 tabular-nums ${net < 0 ? 'text-error' : ''}`}>
             {fmtKES(net)}
@@ -227,7 +298,7 @@ export default function AnalyticsPage({ auth }) {
           </p>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-lg p-4 ">
+        <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
           <CardLabel>Monthly Recurring</CardLabel>
           <p className="text-[22px] leading-tight font-semibold mt-0.5 tabular-nums">{fmtKES(subscribers.monthlyRecurring)}</p>
           <p className="text-xs text-on-surface-variant mt-2">
