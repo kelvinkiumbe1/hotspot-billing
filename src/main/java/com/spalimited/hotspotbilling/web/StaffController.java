@@ -3,6 +3,8 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.StaffUser;
 import com.spalimited.hotspotbilling.repository.StaffUserRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
+import com.spalimited.hotspotbilling.service.AuthService;
+import com.spalimited.hotspotbilling.service.PasswordPolicy;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class StaffController {
     private final StaffUserRepository staff;
     private final PasswordEncoder encoder;
     private final AuditService audit;
+    private final AuthService authService;
 
     /**
      * Who am I and what may I do — the UI hides what the server would refuse.
@@ -96,6 +99,7 @@ public class StaffController {
         if (encoder.matches(request.newPassword(), member.getPasswordHash())) {
             throw new IllegalArgumentException("The new password is the same as the old one");
         }
+        PasswordPolicy.check(request.newPassword(), member.getUsername(), member.getFullName());
         member.setPasswordHash(encoder.encode(request.newPassword()));
         staff.save(member);
         audit.record(principal, "staff.password.self", "Changed their own password");
@@ -142,6 +146,10 @@ public class StaffController {
             row.put("permissions", member.getPermissions().stream().sorted().toList());
             row.put("active", member.isActive());
             row.put("seeded", member.isSeeded());
+            row.put("locked", member.isLocked());
+            row.put("lockedAt", member.getLockedAt());
+            row.put("failedAttempts", member.getFailedAttempts());
+            row.put("twoFactor", member.isTotpEnabled());
             row.put("createdBy", member.getCreatedBy());
             row.put("lastLoginAt", member.getLastLoginAt());
             row.put("createdAt", member.getCreatedAt());
@@ -180,6 +188,7 @@ public class StaffController {
         if (staff.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("That username is already taken");
         }
+        PasswordPolicy.check(request.password(), username, request.fullName());
         StaffUser member = staff.save(StaffUser.builder()
                 .username(username)
                 .passwordHash(encoder.encode(request.password()))
@@ -222,10 +231,21 @@ public class StaffController {
     public Map<String, String> setPassword(@PathVariable Long id, @Valid @RequestBody PasswordRequest request,
                                            Principal principal) {
         StaffUser member = get(id);
+        PasswordPolicy.check(request.password(), member.getUsername(), member.getFullName());
         member.setPasswordHash(encoder.encode(request.password()));
         staff.save(member);
-        audit.record(principal, "staff.password", "Reset the password for " + member.getFullName());
-        return Map.of("message", member.getFullName() + "'s password was reset");
+
+        // Setting a new password is how a locked account comes back. Doing it
+        // here rather than as a separate unlock means an account can never be
+        // reopened while the password an attacker was guessing still works.
+        boolean wasLocked = member.isLocked();
+        authService.unlock(member);
+
+        audit.record(principal, "staff.password", wasLocked
+                ? "Reset the password for " + member.getFullName() + " and unlocked the account"
+                : "Reset the password for " + member.getFullName());
+        return Map.of("message", member.getFullName() + "'s password was reset"
+                + (wasLocked ? " and the account is unlocked" : ""));
     }
 
     @PatchMapping("/{id}/toggle")

@@ -62,6 +62,33 @@ public class StaffUser {
 
     private Instant lastLoginAt;
 
+    // --- Two-factor ---
+
+    /** Base32 shared secret. Set when setup starts, trusted once confirmed. */
+    private String totpSecret;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean totpEnabled = false;
+
+    private Instant totpConfirmedAt;
+
+    // --- Lockout ---
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int failedAttempts = 0;
+
+    /** Set once the limit is passed; only an owner can clear it. */
+    private Instant lockedAt;
+
+    private Instant lastFailedAt;
+
+    @Transient
+    public boolean isLocked() {
+        return lockedAt != null;
+    }
+
     @Column(nullable = false)
     private Instant createdAt;
 

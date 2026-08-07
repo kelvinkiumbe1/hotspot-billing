@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -50,8 +51,12 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, BearerTokenFilter bearerTokenFilter)
+            throws Exception {
         http
+                // A session token is checked before Basic auth, so a browser
+                // that has signed in never falls back to replaying a password.
+                .addFilterBefore(bearerTokenFilter, BasicAuthenticationFilter.class)
                 .cors(withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
@@ -89,6 +94,14 @@ public class SecurityConfig {
         return username -> {
             StaffUser member = staff.findByUsernameAndActiveTrue(username).orElse(null);
             if (member != null) {
+                if (member.isLocked()) {
+                    throw new UsernameNotFoundException("Account locked: " + username);
+                }
+                // Without this the second factor could be skipped entirely by
+                // sending a password on every request instead of signing in.
+                if (member.isTotpEnabled()) {
+                    throw new UsernameNotFoundException("Two-factor account: " + username);
+                }
                 return User.withUsername(member.getUsername())
                         .password(member.getPasswordHash())
                         .authorities(authoritiesFor(member.getRole()))
