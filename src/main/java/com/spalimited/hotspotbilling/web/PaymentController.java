@@ -1,8 +1,10 @@
 package com.spalimited.hotspotbilling.web;
 
 import tools.jackson.databind.JsonNode;
+import com.spalimited.hotspotbilling.config.MpesaCallbackGuard;
 import com.spalimited.hotspotbilling.domain.Payment;
 import com.spalimited.hotspotbilling.service.PaymentService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final MpesaCallbackGuard callbackGuard;
 
     public record StkPushRequest(
             @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
@@ -64,7 +67,8 @@ public class PaymentController {
 
     /** Async result posted by Safaricom Daraja. */
     @PostMapping("/mpesa/callback")
-    public Map<String, Object> mpesaCallback(@RequestBody JsonNode body) {
+    public Map<String, Object> mpesaCallback(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
         log.debug("Daraja callback: {}", body);
         paymentService.handleStkCallback(body);
         return Map.of("ResultCode", 0, "ResultDesc", "Accepted");

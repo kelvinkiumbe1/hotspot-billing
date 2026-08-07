@@ -95,9 +95,17 @@ public class PaymentService {
         int resultCode = stkCallback.path("ResultCode").asInt(-1);
 
         String receiptNumber = null;
+        java.math.BigDecimal paidAmount = null;
         for (JsonNode item : stkCallback.path("CallbackMetadata").path("Item")) {
-            if ("MpesaReceiptNumber".equals(item.path("Name").asText())) {
+            String name = item.path("Name").asText();
+            if ("MpesaReceiptNumber".equals(name)) {
                 receiptNumber = item.path("Value").asText();
+            } else if ("Amount".equals(name)) {
+                try {
+                    paidAmount = new java.math.BigDecimal(item.path("Value").asText());
+                } catch (RuntimeException ignored) {
+                    // Leave null; the amount check below treats that as a mismatch.
+                }
             }
         }
 
@@ -119,6 +127,19 @@ public class PaymentService {
         if (resultCode != 0) {
             payment.setStatus(Payment.Status.FAILED);
             log.info("Payment {} failed: {}", payment.getId(), stkCallback.path("ResultDesc").asText());
+            return;
+        }
+
+        // Confirm the money that arrived matches what we asked for. With STK
+        // the amount is server-set so a genuine callback always matches; a
+        // mismatch means either a forged callback that slipped the source
+        // check or an integration fault, and either way must not mint a
+        // voucher. Recorded as FAILED so it surfaces in reconciliation.
+        java.math.BigDecimal expected = payment.getAmount();
+        if (expected != null && (paidAmount == null || paidAmount.compareTo(expected) != 0)) {
+            payment.setStatus(Payment.Status.FAILED);
+            log.warn("Payment {} rejected: expected {} but callback reported {}",
+                    payment.getId(), expected, paidAmount);
             return;
         }
 

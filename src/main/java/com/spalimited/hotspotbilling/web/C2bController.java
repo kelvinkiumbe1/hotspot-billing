@@ -1,7 +1,9 @@
 package com.spalimited.hotspotbilling.web;
 
+import com.spalimited.hotspotbilling.config.MpesaCallbackGuard;
 import com.spalimited.hotspotbilling.domain.C2bPayment;
 import com.spalimited.hotspotbilling.service.C2bService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -31,17 +33,20 @@ import java.util.Map;
 public class C2bController {
 
     private final C2bService c2bService;
+    private final MpesaCallbackGuard callbackGuard;
 
     /** Safaricom asks whether to accept the payment; we accept everything. */
     @PostMapping("/api/payments/mpesa/c2b/validation")
-    public Map<String, Object> validation(@RequestBody JsonNode body) {
+    public Map<String, Object> validation(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
         log.debug("C2B validation: {}", body);
         return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
     }
 
     /** Safaricom confirms money has landed — this is where we credit. */
     @PostMapping("/api/payments/mpesa/c2b/confirmation")
-    public Map<String, Object> confirmation(@RequestBody JsonNode body) {
+    public Map<String, Object> confirmation(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
         log.debug("C2B confirmation: {}", body);
         try {
             String transactionId = text(body, "TransID");
