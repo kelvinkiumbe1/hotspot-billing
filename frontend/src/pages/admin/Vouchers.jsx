@@ -37,6 +37,17 @@ function humanMinutes(mins) {
   return h ? `${d}d ${h}h` : `${d} day${d > 1 ? 's' : ''}`
 }
 
+/** Connect-time left on an in-use voucher, from the app's used-time tracking. */
+function fmtLeft(seconds) {
+  const s = Math.max(0, Math.floor(seconds || 0))
+  if (s <= 0) return '0m'
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m`
+  return `${s}s`
+}
+
 /** Duration actually granted — a custom voucher overrides its plan. */
 const voucherMinutes = (v) => v.customDurationMinutes || v.plan?.durationMinutes || 0
 
@@ -528,6 +539,7 @@ export default function VouchersPage({ auth }) {
                   <th>Code</th>
                   <th>Package</th>
                   <th>Status</th>
+                  <th>Time left</th>
                   <th>Expires</th>
                   <th>Created</th>
                   <th>Redeemed</th>
@@ -568,6 +580,17 @@ export default function VouchersPage({ auth }) {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[v.status]}`}>
                         {v.status === 'UNUSED' ? 'Unused' : v.status === 'ACTIVE' ? 'In use' : 'Finished'}
                       </span>
+                    </td>
+                    <td className="text-xs">
+                      {v.status === 'ACTIVE' ? (
+                        <span className={v.remainingSeconds <= 300 ? 'font-semibold text-[#f59e0b]' : 'text-on-surface'}>
+                          {fmtLeft(v.remainingSeconds)} left
+                        </span>
+                      ) : v.status === 'UNUSED' ? (
+                        <span className="text-on-surface-variant">full pass</span>
+                      ) : (
+                        <span className="text-on-surface-variant">spent</span>
+                      )}
                     </td>
                     <td className="text-xs">
                       {v.expiresAt
