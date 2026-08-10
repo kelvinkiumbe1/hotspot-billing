@@ -7,7 +7,7 @@ import {
 import PaymentGatewaysPage from './PaymentGateways.jsx'
 import TaxSettingsPage from './TaxSettings.jsx'
 import BrandingPage from './Branding.jsx'
-import { PORTAL_THEMES } from '../../portalThemes.js'
+import { PORTAL_DESIGNS, normalizeDesignKey } from '../../portalDesigns.js'
 
 /**
  * The settings sections, grouped the way an operator thinks about them
@@ -43,6 +43,7 @@ const SECTIONS = [
     group: 'Developer',
     items: [
       { key: 'developer', label: 'API tokens', hint: 'Programmatic access to the API', icon: 'key', need: 'SETTINGS' },
+      { key: 'ai', label: 'AI assistant', hint: 'Ask questions about your business (Groq)', icon: 'smart_toy', need: 'SETTINGS' },
     ],
   },
   {
@@ -53,6 +54,147 @@ const SECTIONS = [
     ],
   },
 ]
+
+/* ------------------------------------------------------------------ */
+/* Portal-design gallery: a miniature phone mockup per design, drawn   */
+/* from the same palette registry the live portal uses.                */
+/* ------------------------------------------------------------------ */
+
+function Bar({ w = '100%', c, h = 4, r = 2, style = {} }) {
+  return <div style={{ width: w, height: h, background: c, borderRadius: r, ...style }} />
+}
+
+function DesignMockBody({ d }) {
+  const pv = d.preview
+  switch (d.key) {
+    case 'BREEZE':
+      return (
+        <div className="space-y-1">
+          <div style={{ background: pv.surface, border: `1px solid ${pv.outline}`, borderRadius: 10, padding: 6, textAlign: 'center' }}>
+            <div style={{ width: 12, height: 12, borderRadius: 999, background: `${pv.accent}33`, margin: '0 auto 3px' }} />
+            <Bar w="70%" c={pv.text} h={4} style={{ margin: '0 auto' }} />
+            <Bar w="50%" c={pv.muted} h={3} style={{ margin: '3px auto 0' }} />
+          </div>
+          <div className="flex gap-1">
+            <div style={{ background: pv.accent, borderRadius: 999, height: 8, width: 22 }} />
+            <div style={{ border: `1px solid ${pv.outline}`, background: pv.surface, borderRadius: 999, height: 8, width: 22 }} />
+            <div style={{ border: `1px solid ${pv.outline}`, background: pv.surface, borderRadius: 999, height: 8, width: 22 }} />
+          </div>
+          {[0, 1].map((i) => (
+            <div key={i} className="flex items-center gap-1.5" style={{ background: pv.surface, border: `1px solid ${pv.outline}`, borderRadius: 9, padding: 5 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 4, background: `${pv.accent}33` }} />
+              <div className="flex-1"><Bar w="80%" c={pv.text} h={3.5} /></div>
+              <div style={{ background: pv.accent, borderRadius: 999, height: 8, width: 16 }} />
+            </div>
+          ))}
+        </div>
+      )
+    case 'POSTER':
+      return (
+        <div className="space-y-1.5" style={{ padding: 2 }}>
+          <div style={{ borderTop: `2px solid ${pv.text}`, borderBottom: `2px solid ${pv.text}`, padding: '5px 2px', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: 11, color: pv.text, lineHeight: 1.1 }}>Get Online</div>
+            <div style={{ fontSize: 5, letterSpacing: 2, color: pv.muted, textTransform: 'uppercase', marginTop: 2 }}>internet by the hour</div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {[-0.8, 0.8, 0.8, -0.8].map((r, i) => (
+              <div key={i} style={{ background: pv.surface, border: `1.5px solid ${pv.text}`, boxShadow: `2px 2px 0 ${pv.accent}`, transform: `rotate(${r}deg)`, padding: 4, textAlign: 'center' }}>
+                <div style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: 9, color: pv.accent }}>50</div>
+                <Bar w="60%" c={pv.muted} h={2.5} style={{ margin: '2px auto 0' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    case 'MATRIX':
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between" style={{ background: pv.surface, borderRadius: 6, padding: 4 }}>
+            <Bar w="30%" c={pv.accent} h={4} />
+            <div style={{ border: `1px solid ${pv.outline}`, borderRadius: 999, width: 18, height: 6 }} />
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} style={{ background: pv.surface2, border: `1px solid ${pv.outline}`, borderRadius: 5, padding: 3, textAlign: 'center' }}>
+                <Bar w="80%" c={pv.text} h={3} style={{ margin: '0 auto' }} />
+                <div style={{ color: pv.accent, fontSize: 5.5, fontFamily: 'monospace', marginTop: 2 }}>KES</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    case 'STEPS':
+      return (
+        <div className="space-y-1">
+          <div style={{ background: pv.surface, border: `1px solid ${pv.outline}`, borderRadius: 8, padding: 5 }}>
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="flex items-center gap-1.5" style={{ marginBottom: n < 3 ? 3 : 0 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 999, background: `${pv.accent}26`, color: pv.accent, fontSize: 5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{n}</div>
+                <Bar w={`${75 - n * 8}%`} c={pv.muted} h={3} />
+              </div>
+            ))}
+          </div>
+          {[0, 1].map((i) => (
+            <div key={i} className="flex items-center justify-between" style={{ background: pv.surface, border: `1px solid ${pv.outline}`, borderRadius: 8, padding: 5 }}>
+              <Bar w="45%" c={pv.text} h={3.5} />
+              <div style={{ border: `1.5px solid ${pv.accent}`, borderRadius: 4, width: 18, height: 9 }} />
+            </div>
+          ))}
+        </div>
+      )
+    case 'NEON':
+      return (
+        <div style={{ fontFamily: 'monospace' }} className="space-y-1">
+          <div className="flex items-center gap-1" style={{ background: pv.surface, borderRadius: 5, padding: 4 }}>
+            {[0.9, 0.5, 1].map((o, i) => (
+              <div key={i} style={{ width: 4, height: 4, borderRadius: 999, background: pv.accent, opacity: o }} />
+            ))}
+          </div>
+          <div style={{ color: pv.accent, fontSize: 6 }}>&gt; network: online_</div>
+          <div style={{ border: `1px solid ${pv.outline}`, borderRadius: 6, background: pv.surface }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center justify-between" style={{ padding: 4, borderBottom: i < 2 ? `1px dashed ${pv.outline}` : 'none' }}>
+                <Bar w="40%" c={pv.text} h={3} />
+                <span style={{ color: pv.accent, fontSize: 5.5 }}>[KES 50]</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    default: // CLASSIC
+      return (
+        <div className="space-y-1">
+          <div style={{ background: `linear-gradient(120deg, #1c1c1c, ${pv.accent}33)`, borderRadius: 8, padding: 6 }}>
+            <div style={{ width: 14, height: 14, borderRadius: 999, background: '#ffffff22', marginBottom: 4 }} />
+            <Bar w="70%" c="#ffffff" h={5} />
+            <Bar w="50%" c="#ffffff88" h={3} style={{ marginTop: 3 }} />
+          </div>
+          {[0, 1].map((i) => (
+            <div key={i} style={{ background: pv.surface2, borderRadius: 8, padding: 5 }}>
+              <div className="flex items-center justify-between">
+                <Bar w="40%" c={pv.muted} h={4} />
+                <span style={{ color: pv.accent, fontSize: 7, fontFamily: 'monospace', fontWeight: 700 }}>KES 50</span>
+              </div>
+              <div style={{ background: pv.accent, borderRadius: 6, height: 9, marginTop: 4 }} />
+            </div>
+          ))}
+        </div>
+      )
+  }
+}
+
+function DesignPhoneMock({ d }) {
+  return (
+    <div className="rounded-[16px] border-[3px] border-[#2c2c2c] overflow-hidden w-full shadow-md" style={{ background: d.preview.bg }}>
+      <div className="h-3 flex items-center justify-center">
+        <div className="w-9 h-1 rounded-full" style={{ background: 'rgba(128,128,128,0.4)' }}></div>
+      </div>
+      <div className="h-40 overflow-hidden px-1.5 pb-1.5">
+        <DesignMockBody d={d} />
+      </div>
+    </div>
+  )
+}
 
 /** Developer — personal access tokens for the REST API. Shown in full once. */
 function DeveloperSection({ auth }) {
@@ -279,70 +421,39 @@ function HotspotSection({ auth }) {
     }
   }
 
-  const TEMPLATES = [
-    { key: 'CLASSIC', label: 'Classic', hint: 'Hero image with plans grouped by duration.', icon: 'view_agenda' },
-    { key: 'GRID', label: 'Grid', hint: 'Compact banner, plans in a scannable grid.', icon: 'grid_view' },
-    { key: 'MINIMAL', label: 'Minimal', hint: 'No image, lightweight — best on slow links.', icon: 'list' },
-  ]
-
   return (
     <form onSubmit={save} className="space-y-6 max-w-2xl">
       <div>
-        <label className={LABEL_CLS}>Captive-portal theme</label>
-        <p className="text-xs text-on-surface-variant mb-3">The colour and style customers see. Preview shows the accent and card look.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {PORTAL_THEMES.map((th) => {
-            const active = (form.portalTheme || 'AMBER') === th.key
-            const pv = th.preview
+        <label className={LABEL_CLS}>Portal design</label>
+        <p className="text-xs text-on-surface-variant mb-3">
+          Each design is a completely different portal — its own layout, colours and type.
+          Tap a phone to select it, or <span className="font-semibold">Preview</span> to open it live in a new tab.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {PORTAL_DESIGNS.map((d) => {
+            const active = (normalizeDesignKey(form.portalTemplate) || 'CLASSIC') === d.key
             return (
-              <button type="button" key={th.key}
-                onClick={() => setForm({ ...form, portalTheme: th.key })}
-                title={th.desc}
-                className={`text-left rounded-lg border p-2 transition-all cursor-pointer ${
-                  active ? 'border-primary ring-2 ring-primary/40' : 'border-outline-variant hover:border-outline'
-                }`}>
-                {/* Mini live-styled preview built from the same palette the portal uses */}
-                <div className="rounded-md overflow-hidden mb-2" style={{ background: pv.bg }}>
-                  <div className="px-2 pt-2 pb-1 flex items-center justify-between">
-                    <span className="text-[9px] font-bold" style={{ color: pv.accent, fontFamily: th.serif ? 'Georgia, serif' : 'inherit' }}>WiFi</span>
-                    <span className="w-3 h-3" style={{ background: pv.accent, borderRadius: th.sharp ? 0 : 9999 }} />
-                  </div>
-                  <div className="px-2 pb-2 space-y-1">
-                    <div className="p-1.5 flex items-center justify-between" style={{ background: pv.surface, borderRadius: th.sharp ? 0 : 6 }}>
-                      <span className="h-1.5 w-8 rounded-full" style={{ background: pv.muted, opacity: 0.5 }} />
-                      <span className="text-[8px] font-mono" style={{ color: pv.accent }}>KES</span>
-                    </div>
-                    <div className="h-4 flex items-center justify-center text-[8px] font-bold" style={{ background: pv.accent, color: pv.onAccent, borderRadius: th.sharp ? 0 : 6 }}>Buy</div>
-                  </div>
+              <div key={d.key} className="flex flex-col">
+                <button type="button"
+                  onClick={() => setForm({ ...form, portalTemplate: d.key })}
+                  title={d.desc}
+                  className={`rounded-2xl border-2 p-2 transition-all cursor-pointer ${
+                    active ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : 'border-outline-variant hover:border-outline'
+                  }`}>
+                  <DesignPhoneMock d={d} />
+                </button>
+                <div className="flex items-center justify-between mt-1.5 px-1">
+                  <span className="text-xs font-semibold text-on-surface flex items-center gap-1">
+                    {d.name}
+                    {active && <Icon name="check_circle" className="text-primary text-[14px]!" />}
+                  </span>
+                  <a href={`/?design=${d.key}`} target="_blank" rel="noreferrer"
+                    className="text-[11px] font-semibold text-primary hover:underline">
+                    Preview
+                  </a>
                 </div>
-                <div className="flex items-center gap-1 px-0.5">
-                  <span className="text-xs font-semibold text-on-surface truncate">{th.name}</span>
-                  {active && <Icon name="check_circle" className="text-primary text-[15px]! ml-auto" />}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-      <div>
-        <label className={LABEL_CLS}>Captive-portal template</label>
-        <p className="text-xs text-on-surface-variant mb-3">The layout customers see when they connect to your WiFi.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {TEMPLATES.map((t) => {
-            const active = (form.portalTemplate || 'CLASSIC') === t.key
-            return (
-              <button type="button" key={t.key}
-                onClick={() => setForm({ ...form, portalTemplate: t.key })}
-                className={`text-left rounded-lg border p-3 transition-colors cursor-pointer ${
-                  active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-outline-variant hover:border-outline'
-                }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon name={t.icon} className={active ? 'text-primary' : 'text-on-surface-variant'} />
-                  <span className="text-sm font-semibold text-on-surface">{t.label}</span>
-                  {active && <Icon name="check_circle" className="text-primary text-[18px]! ml-auto" />}
-                </div>
-                <p className="text-xs text-on-surface-variant">{t.hint}</p>
-              </button>
+                <p className="text-[11px] text-on-surface-variant px-1 mt-0.5 line-clamp-2">{d.desc}</p>
+              </div>
             )
           })}
         </div>
@@ -711,6 +822,124 @@ function LoyaltySection({ auth }) {
       {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
       <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
     </form>
+  )
+}
+
+function AiSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [saved, setSaved] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [question, setQuestion] = useState('')
+  const [thread, setThread] = useState([]) // { role: 'you'|'ai', text }
+  const [asking, setAsking] = useState(false)
+
+  const load = () => api('/admin/settings/ai', { auth }).then((d) => {
+    setSaved(d)
+    setForm({ enabled: d.enabled, model: d.model || 'llama-3.3-70b-versatile', apiKey: '' })
+  }).catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      await api('/admin/settings/ai', { method: 'PUT', auth, body: form })
+      setMsg({ ok: true, text: 'Saved.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function ask(e) {
+    e.preventDefault()
+    const q = question.trim()
+    if (!q) return
+    setThread((t) => [...t, { role: 'you', text: q }])
+    setQuestion('')
+    setAsking(true)
+    try {
+      const r = await api('/admin/ai/ask', { method: 'POST', auth, body: { question: q } })
+      setThread((t) => [...t, { role: 'ai', text: r.answer }])
+    } catch (err) {
+      setThread((t) => [...t, { role: 'ai', text: 'Sorry — ' + err.message }])
+    } finally { setAsking(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  const SUGGESTIONS = ['How much did I sell today?', 'How many vouchers are still unsold?', 'How many routers are online?']
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <form onSubmit={save} className="space-y-4">
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <span className="text-base font-semibold block">Enable the assistant</span>
+              <span className="text-sm text-on-surface-variant">Answers questions about your own data using your Groq account.</span>
+            </div>
+            <Toggle checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+          </div>
+          {form.enabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLS}>Groq API key</label>
+                <input type="password" className={INPUT_CLS} value={form.apiKey} autoComplete="new-password"
+                  onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
+                  placeholder={saved?.apiKey || 'gsk_…'} />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Model</label>
+                <input className={INPUT_CLS} value={form.model}
+                  onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="llama-3.3-70b-versatile" />
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-on-surface-variant flex items-start gap-2">
+            <Icon name="info" className="text-[16px]! mt-0.5" />
+            Your question and a snapshot of your current figures are sent to Groq under your API key. It only reads data — it can't change anything.
+          </p>
+        </section>
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+      </form>
+
+      {saved?.working && (
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+          <h3 className="text-sm font-semibold mb-3">Ask a question</h3>
+          <div className="space-y-3 mb-3 max-h-96 overflow-y-auto">
+            {thread.length === 0 && (
+              <div className="flex flex-wrap gap-2">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} type="button" onClick={() => setQuestion(s)}
+                    className="text-xs bg-surface-container hover:bg-primary/10 border border-outline-variant/60 px-2.5 py-1.5 rounded-full cursor-pointer">
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            {thread.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'you' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                  m.role === 'you' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'
+                }`}>{m.text}</div>
+              </div>
+            ))}
+            {asking && <p className="text-sm text-on-surface-variant">Thinking…</p>}
+          </div>
+          <form onSubmit={ask} className="flex gap-2">
+            <input className={INPUT_CLS} value={question} onChange={(e) => setQuestion(e.target.value)}
+              placeholder="e.g. What were my best-selling plans today?" />
+            <button type="submit" disabled={asking || !question.trim()}
+              className="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold disabled:opacity-40 cursor-pointer">
+              Ask
+            </button>
+          </form>
+        </section>
+      )}
+    </div>
   )
 }
 
@@ -1170,6 +1399,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="API tokens" subtitle="Personal access tokens for the REST API." />
               <DeveloperSection auth={auth} />
+            </>
+          )}
+          {current === 'ai' && (
+            <>
+              <PageHeader title="AI assistant" subtitle="Ask questions about your business in plain language, powered by Groq." />
+              <AiSection auth={auth} />
             </>
           )}
           {current === 'profile' && (

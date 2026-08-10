@@ -62,7 +62,6 @@ public class PortalSettingsController {
         out.put("postPurchaseRedirect", hotspotSettings.postPurchaseRedirect());
         out.put("portalTemplate", hotspotSettings.portalTemplate());
         out.put("defaultLanguage", hotspotSettings.defaultLanguage());
-        out.put("portalTheme", hotspotSettings.portalTheme());
         out.put("loyaltyEnabled", loyaltyService.settings().isEnabled());
         return out;
     }

@@ -29,7 +29,7 @@ public class HotspotSettings {
     @Id
     private Long id;
 
-    /** Which captive-portal layout the customer sees: CLASSIC, GRID or MINIMAL. */
+    /** Which portal design the customer sees (keys mirror portalDesigns.js), e.g. CLASSIC. */
     @Builder.Default
     @Column(nullable = false, length = 20)
     private String portalTemplate = "CLASSIC";
@@ -38,11 +38,6 @@ public class HotspotSettings {
     @Builder.Default
     @Column(nullable = false, length = 5)
     private String defaultLanguage = "EN";
-
-    /** Captive-portal visual theme key (see portalThemes.js), e.g. AMBER. */
-    @Builder.Default
-    @Column(nullable = false, length = 20)
-    private String portalTheme = "AMBER";
 
     /** Where to send a customer after a successful purchase (blank = stay). */
     @Column(length = 512)

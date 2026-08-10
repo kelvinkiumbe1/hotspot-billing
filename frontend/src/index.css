@@ -112,17 +112,209 @@ body {
   }
 }
 
-/* Per-theme structure. Colours ride in as inline CSS variables from
-   portalThemes.js; these two touches (heading font, square edges) are the
-   bits a palette alone can't carry. */
+/* Per-design structure. Colours ride in as inline CSS variables from
+   portalDesigns.js; these touches (fonts, terminal details) are the bits
+   a palette alone can't carry. */
+.portal-theme {
+  font-family: var(--portal-body-font, inherit);
+}
 .portal-theme h1,
 .portal-theme h2,
 .portal-theme h3 {
   font-family: var(--portal-heading-font, inherit);
 }
-.portal-theme[data-skin="EMERALD"] [class*="rounded"],
-.portal-theme[data-skin="STEEL"] [class*="rounded"] {
-  border-radius: 0 !important;
+/* Terminal design: glowing headline + blinking prompt cursor. */
+.portal-theme[data-skin="NEON"] h1 {
+  text-shadow: 0 0 18px var(--portal-glow1, rgba(0, 255, 156, 0.1));
+}
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  display: inline-block;
+  animation: cursor-blink 1.1s steps(1) infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Portal motion: entrances, payment progress and celebration.         */
+/* ------------------------------------------------------------------ */
+
+/* Staggered card entrances (delay set inline per card). */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.fade-up {
+  opacity: 0;
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+/* Each screen of the payment flow slides in as one unit. */
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.screen-enter {
+  animation: screen-enter 0.3s ease-out;
+}
+
+/* Expanding rings behind the phone while we wait for M-Pesa. */
+@keyframes radar-ping {
+  from { transform: scale(0.55); opacity: 0.9; }
+  to { transform: scale(1.7); opacity: 0; }
+}
+.radar-ping {
+  animation: radar-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The little phone shivers now and then, like a real STK prompt. */
+@keyframes phone-buzz {
+  0%, 14%, 100% { transform: rotate(0); }
+  2% { transform: rotate(-3deg); }
+  5% { transform: rotate(3deg); }
+  8% { transform: rotate(-3deg); }
+  11% { transform: rotate(2deg); }
+}
+.phone-buzz {
+  animation: phone-buzz 3.5s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+
+/* PIN dots fill one after another, then clear and repeat. */
+@keyframes pin-type {
+  0%, 8% { opacity: 0.2; transform: scale(0.6); }
+  16%, 72% { opacity: 1; transform: scale(1); }
+  82%, 100% { opacity: 0.2; transform: scale(0.6); }
+}
+.pin-dot {
+  animation: pin-type 2.8s ease-in-out infinite;
+}
+
+/* Indeterminate progress: a bright segment sweeping a quiet track. */
+@keyframes shimmer-slide {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(430%); }
+}
+.shimmer-bar {
+  animation: shimmer-slide 1.6s ease-in-out infinite;
+}
+
+/* Signature waiting: slow halo breathing + a thin rotating arc. */
+@keyframes halo-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+.halo-pulse { animation: halo-pulse 2.8s ease-in-out infinite; }
+@keyframes spin-slow-kf { to { transform: rotate(360deg); } }
+.spin-slow { animation: spin-slow-kf 2.6s linear infinite; }
+
+/* Breeze waiting: a levitating card over a breathing glow. */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.float-y { animation: float-y 3.4s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.65; }
+  50% { transform: scale(1.18); opacity: 1; }
+}
+.breathe { animation: breathe 4s ease-in-out infinite; }
+
+/* Market Poster: the ticket eases out of the printer slot… */
+@keyframes ticket-out {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 400px; opacity: 1; }
+}
+.ticket-out { overflow: hidden; animation: ticket-out 1.6s cubic-bezier(0.2, 0.7, 0.3, 1) 0.25s both; }
+/* …and the PAID stamp slams down, settling slightly crooked. */
+@keyframes stamp-in {
+  0% { transform: scale(2.4) rotate(-20deg); opacity: 0; }
+  55% { transform: scale(0.94) rotate(-8deg); opacity: 1; }
+  75% { transform: scale(1.06) rotate(-11deg); }
+  100% { transform: scale(1) rotate(-9deg); }
+}
+.stamp-in { animation: stamp-in 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2) 0.55s both; }
+
+/* Compact Grid: a scan line sweeping the console. */
+@keyframes scan-y {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 0.9; }
+  90% { opacity: 0.9; }
+  100% { top: calc(100% - 1px); opacity: 0; }
+}
+.scan-y { animation: scan-y 2.6s ease-in-out infinite; }
+
+/* Terminal: log lines appear one by one (delay set inline per line). */
+@keyframes type-line {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.type-line { opacity: 0; animation: type-line 0.25s steps(2) forwards; }
+
+/* Signature success: gold dust drifting up (per-mote timing inline). */
+@keyframes dust-rise {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-48vh) scale(1); }
+}
+.dust {
+  position: absolute;
+  bottom: 16%;
+  border-radius: 9999px;
+  animation: dust-rise linear infinite;
+}
+/* …and the access code materialising letter by letter. */
+@keyframes letter-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.letter-in { display: inline-block; opacity: 0; animation: letter-in 0.4s ease-out forwards; }
+
+/* Checks and tiles that snap into place. */
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.18); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop-in { animation: pop-in 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+
+/* SVG strokes that draw themselves (dasharray/offset set inline). */
+@keyframes draw-stroke { to { stroke-dashoffset: 0; } }
+.draw-stroke { animation: draw-stroke 0.65s ease-out forwards; }
+/* Progress rings animate between inline --ring-from/--ring-to offsets. */
+@keyframes ring-draw {
+  from { stroke-dashoffset: var(--ring-from); }
+  to { stroke-dashoffset: var(--ring-to); }
+}
+.ring-draw { animation: ring-draw 1.1s ease-out forwards; }
+
+/* Success confetti (colours + timing arrive inline from Confetti()). */
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 9px;
+  height: 9px;
+  opacity: 0;
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(-12px) rotate(0deg); }
+  100% { opacity: 0.85; transform: translateY(105vh) rotate(540deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Elements that animate from hidden must land visible and in place. */
+  .fade-up, .type-line, .letter-in, .pop-in, .ticket-out, .stamp-in { opacity: 1; }
+  .pop-in { transform: none; }
+  .stamp-in { transform: rotate(-9deg); }
+  .ticket-out { max-height: none; }
+  .draw-stroke, .ring-draw { stroke-dashoffset: 0 !important; }
+  .fade-up, .screen-enter, .radar-ping, .phone-buzz, .pin-dot, .shimmer-bar,
+  .confetti-piece, .cursor-blink, .halo-pulse, .spin-slow, .float-y, .breathe,
+  .ticket-out, .stamp-in, .scan-y, .type-line, .dust, .letter-in, .pop-in,
+  .draw-stroke, .ring-draw {
+    animation: none !important;
+  }
 }
 
 /* ------------------------------------------------------------------ */

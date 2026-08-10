@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { themeByKey } from '../portalThemes.js'
+import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
 import heroCity from '../assets/hero-city.jpg'
 import customerPhoto from '../assets/customer.jpg'
 
@@ -14,7 +14,29 @@ const STRINGS = {
     'hero.sub': 'Fast, reliable internet across the city.',
     'hero.minTitle': 'Get Connected',
     'hero.minSub': 'Pick a pass and pay with M-Pesa.',
-    'hero.gridSub': 'Choose a pass below — fast, reliable internet.',
+    'breeze.hi': 'Karibu — let’s get you online.',
+    'breeze.sub': 'Pick a pass, pay with M-Pesa, and you’re browsing in under a minute.',
+    'tab.all': 'All',
+    'steps.heading': 'How to get connected',
+    'steps.1': 'Pick an internet pass below',
+    'steps.2': 'Enter your M-Pesa number and send the request',
+    'steps.3': 'Approve the payment on your phone',
+    'steps.4': 'Connect with the access code we text you',
+    'steps.plans': 'Internet passes',
+    'matrix.hint': 'Tap a plan to buy it with M-Pesa.',
+    'poster.tag': 'Internet by the hour, day and month.',
+    'neon.online': 'network: online',
+    'neon.select': 'select a pass to continue',
+    'card.buyShort': 'Buy',
+    'pay.checkout': 'Secure M-Pesa checkout',
+    'pay.total': 'Total',
+    'pay.payNow': 'Pay KES {n}',
+    'ok.granted': 'Access granted',
+    'wait.printing': 'Preparing your pass',
+    'poster.paid': 'PAID',
+    'steps.of': 'Step {n} of {m}',
+    'neon.confirmed': 'payment confirmed',
+    'neon.grant': 'ACCESS GRANTED',
     'group.Hourly': 'Hourly Passes',
     'group.Daily': 'Daily Passes',
     'group.Weekly': 'Weekly Passes',
@@ -92,7 +114,29 @@ const STRINGS = {
     'hero.sub': 'Intaneti ya haraka na ya kuaminika mjini kote.',
     'hero.minTitle': 'Pata Intaneti',
     'hero.minSub': 'Chagua kifurushi ulipe na M-Pesa.',
-    'hero.gridSub': 'Chagua kifurushi hapa chini — intaneti ya haraka na ya kuaminika.',
+    'breeze.hi': 'Karibu — tukuunganishe mtandaoni.',
+    'breeze.sub': 'Chagua kifurushi, lipa na M-Pesa, uanze kutumia intaneti kwa dakika chache.',
+    'tab.all': 'Zote',
+    'steps.heading': 'Jinsi ya kuunganishwa',
+    'steps.1': 'Chagua kifurushi cha intaneti hapa chini',
+    'steps.2': 'Weka nambari yako ya M-Pesa utume ombi',
+    'steps.3': 'Kubali malipo kwenye simu yako',
+    'steps.4': 'Unganisha kwa nambari tutakayokutumia',
+    'steps.plans': 'Vifurushi vya intaneti',
+    'matrix.hint': 'Gusa kifurushi kununua kwa M-Pesa.',
+    'poster.tag': 'Intaneti kwa saa, siku na mwezi.',
+    'neon.online': 'mtandao: unapatikana',
+    'neon.select': 'chagua kifurushi kuendelea',
+    'card.buyShort': 'Nunua',
+    'pay.checkout': 'Malipo salama ya M-Pesa',
+    'pay.total': 'Jumla',
+    'pay.payNow': 'Lipa KES {n}',
+    'ok.granted': 'Ufikiaji umeruhusiwa',
+    'wait.printing': 'Kifurushi chako kinaandaliwa',
+    'poster.paid': 'IMELIPWA',
+    'steps.of': 'Hatua {n} kati ya {m}',
+    'neon.confirmed': 'malipo yamethibitishwa',
+    'neon.grant': 'UFIKIAJI UMERUHUSIWA',
     'group.Hourly': 'Vifurushi vya Saa',
     'group.Daily': 'Vifurushi vya Siku',
     'group.Weekly': 'Vifurushi vya Wiki',
@@ -167,10 +211,10 @@ const STRINGS = {
   },
 }
 
-const LangContext = createContext({ lang: 'EN', setLang: () => {}, theme: 'AMBER' })
+const LangContext = createContext({ lang: 'EN', setLang: () => {}, design: 'CLASSIC' })
 
 function useT() {
-  const { lang, setLang, theme } = useContext(LangContext)
+  const { lang, setLang, design: designKey } = useContext(LangContext)
   const t = (key, vars) => {
     let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.EN[key] || key
     if (vars) {
@@ -178,9 +222,9 @@ function useT() {
     }
     return s
   }
-  // Everything the portal shell needs to paint itself in the chosen theme.
-  const themeVars = themeByKey(theme).vars
-  return { t, lang, setLang, theme, themeVars }
+  // Everything a screen needs to paint itself in the chosen design.
+  const design = designByKey(designKey)
+  return { t, lang, setLang, design, designVars: design.vars }
 }
 
 function LangToggle() {
@@ -253,6 +297,18 @@ function Brand() {
   )
 }
 
+/* Paints the chosen design's tokens over the shared .portal-theme scaffold.
+   Every screen renders inside one of these, so the design identity carries
+   through the payment, waiting and result screens too. */
+function DesignShell({ className = '', children }) {
+  const { design, designVars } = useT()
+  return (
+    <div className={`portal-theme bg-background text-on-background ${className}`} style={designVars} data-skin={design.key}>
+      {children}
+    </div>
+  )
+}
+
 function Footer() {
   const { t } = useT()
   return (
@@ -281,12 +337,14 @@ export default function Portal() {
   const [plansError, setPlansError] = useState(false)
   const [custom, setCustom] = useState(null)
   const [promo, setPromo] = useState(null)
-  const [template, setTemplate] = useState('CLASSIC')
+  const [design, setDesign] = useState('CLASSIC')
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   const [lang, setLang] = useState('EN')
-  const [theme, setTheme] = useState('AMBER')
   const langChosen = useRef(false)
   const pollRef = useRef(null)
+  // ?design=KEY lets the admin gallery open a live preview of any design
+  // without having to save it first.
+  const forcedDesign = useRef(normalizeDesignKey(new URLSearchParams(window.location.search).get('design')))
 
   function loadPlans() {
     setPlansError(false)
@@ -294,9 +352,8 @@ export default function Portal() {
     api('/custom-plan').then(setCustom).catch(() => {})
     api('/promotion').then(setPromo).catch(() => {})
     api('/portal-settings').then((s) => {
-      setTemplate(s.portalTemplate || 'CLASSIC')
+      setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
-      if (s.portalTheme) setTheme(s.portalTheme)
       // Honour the operator's default only until the customer picks for themselves.
       if (!langChosen.current && s.defaultLanguage) setLang(s.defaultLanguage)
     }).catch(() => {})
@@ -409,7 +466,6 @@ export default function Portal() {
         plans={plans}
         custom={custom}
         promo={promo}
-        template={template}
         loyaltyEnabled={loyaltyEnabled}
         plansError={plansError}
         onRetryPlans={loadPlans}
@@ -424,8 +480,11 @@ export default function Portal() {
   }
 
   return (
-    <LangContext.Provider value={{ lang, setLang: chooseLang, theme }}>
-      {screen_}
+    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design }}>
+      {/* key on the screen name so every step of the flow animates in */}
+      <div key={screen} className="screen-enter">
+        {screen_}
+      </div>
     </LangContext.Provider>
   )
 }
@@ -437,6 +496,12 @@ export default function Portal() {
 function promoPrice(price, promo) {
   if (!promo?.active) return null
   return Math.max(1, Math.round((price * (100 - promo.discountPercent)) / 100))
+}
+
+// The price a plan really sells for right now, plus the crossed-out one.
+function dealFor(plan, promo) {
+  const d = promoPrice(plan.price, promo)
+  return d != null && d < plan.price ? { price: d, old: plan.price } : { price: plan.price, old: null }
 }
 
 function useCountdown(endsAt) {
@@ -688,179 +753,530 @@ function RewardsCard() {
   )
 }
 
-function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
-  const { t, theme, themeVars } = useT()
-  const isGrid = template === 'GRID'
-  const isMinimal = template === 'MINIMAL'
-  const mainWidth = isGrid ? 'max-w-3xl' : 'max-w-lg'
+/* Each design is a complete screen of its own; this just dispatches. */
+function PlansScreen(props) {
+  const { design } = useT()
+  switch (design.key) {
+    case 'BREEZE': return <BreezePlans {...props} />
+    case 'POSTER': return <PosterPlans {...props} />
+    case 'MATRIX': return <MatrixPlans {...props} />
+    case 'STEPS': return <StepsPlans {...props} />
+    case 'NEON': return <NeonPlans {...props} />
+    default: return <ClassicPlans {...props} />
+  }
+}
+
+/* --- Sections every design reuses; the design's tokens restyle them --- */
+
+function VoucherSection({ redeemCode, setRedeemCode, redeemErr, onRedeem, delay = 400 }) {
+  const { t } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
+    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up" style={{ animationDelay: `${delay}ms` }}>
+      <form onSubmit={onRedeem}>
+        <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
+          {t('voucher.label')}
+        </label>
+        <div className="flex gap-3">
+          <input
+            id="voucher"
+            type="text"
+            required
+            value={redeemCode}
+            onChange={(e) => setRedeemCode(e.target.value)}
+            placeholder={t('voucher.placeholder')}
+            className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono uppercase text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+          <button
+            type="submit"
+            className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-lg font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
+          >
+            {t('voucher.redeem')}
+          </button>
+        </div>
+        {redeemErr && <p className="text-sm text-error mt-2">{redeemErr}</p>}
+      </form>
+    </section>
+  )
+}
+
+function PlansFallback({ plans, plansError, onRetryPlans }) {
+  const { t } = useT()
+  // Only speak up when there is nothing to show — a failed background
+  // refresh while plans are already on screen shouldn't scare anyone.
+  if (plans.length > 0) return null
+  if (!plansError) {
+    return (
+      <div className="flex flex-col gap-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="animate-pulse bg-surface-container-high rounded-xl h-36" style={{ animationDelay: `${i * 150}ms` }}></div>
+        ))}
+      </div>
+    )
+  }
+  if (plansError) {
+    return (
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-error flex flex-col items-center text-center gap-3">
+        <Icon name="cloud_off" className="text-error text-[32px]!" />
+        <p className="text-base text-on-surface-variant">{t('plans.offline')}</p>
+        <button
+          onClick={onRetryPlans}
+          className="h-12 px-6 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center gap-2 active:scale-95 transition-transform cursor-pointer"
+        >
+          <Icon name="refresh" /> {t('plans.retry')}
+        </button>
+      </div>
+    )
+  }
+  return null
+}
+
+/* Bottom nav used by the darker, app-like designs. */
+function MobileNav() {
+  const { t } = useT()
+  return (
+    <nav className="md:hidden bg-surface fixed bottom-0 w-full z-50 shadow-[0_-4px_12px_rgba(15,23,42,0.05)] flex justify-around items-center h-20 px-2">
+      <button
+        onClick={() => document.getElementById('voucher')?.focus()}
+        className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20 cursor-pointer"
+      >
+        <Icon name="wifi_tethering" className="mb-1 group-hover:text-primary transition-colors" />
+        <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.connect')}</span>
+      </button>
+      <button className="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-1.5 w-20 cursor-pointer">
+        <Icon name="payments" filled className="mb-1" />
+        <span className="text-xs font-semibold tracking-wider">{t('nav.plans')}</span>
+      </button>
+      <a
+        href="tel:+254700000000"
+        className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20"
+      >
+        <Icon name="support_agent" className="mb-1 group-hover:text-primary transition-colors" />
+        <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.help')}</span>
+      </a>
+    </nav>
+  )
+}
+
+/* --- Design: Signature (CLASSIC) — black canvas, amber accent, photo hero --- */
+
+function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
         <Brand />
         <LangToggle />
       </header>
 
-      <main className={`flex-1 w-full ${mainWidth} mx-auto pb-24 px-5 pt-6 flex flex-col gap-6`}>
-        {isMinimal ? (
-          <section className="fade-up">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                <Icon name="wifi" filled className="text-primary text-[22px]!" />
+      <main className="flex-1 w-full max-w-lg mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
+        <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
+          <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
+          <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
+            <div className="flex-1">
+              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
+                <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-on-background">{t('hero.minTitle')}</h1>
-                <p className="text-sm text-on-surface-variant">{t('hero.minSub')}</p>
-              </div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
+              <p className="text-base text-white/80 mt-2 max-w-sm">{t('hero.sub')}</p>
             </div>
-          </section>
-        ) : isGrid ? (
-          <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
-            <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-primary/25"></div>
-            <div className="relative z-10 px-6 py-6 flex items-center gap-3">
-              <Icon name="wifi" filled className="text-primary-fixed text-[26px]!" />
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
-                <p className="text-sm text-white/80 mt-0.5">{t('hero.gridSub')}</p>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
-            <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
-            <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
-              <div className="flex-1">
-                <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
-                  <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
-                </div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
-                <p className="text-base text-white/80 mt-2 max-w-sm">{t('hero.sub')}</p>
-              </div>
-              <img
-                src={customerPhoto}
-                alt="Customer browsing on SPA WiFi"
-                className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
-              />
-            </div>
-          </section>
-        )}
+            <img
+              src={customerPhoto}
+              alt="Customer browsing on SPA WiFi"
+              className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
+            />
+          </div>
+        </section>
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
         <section className="flex flex-col gap-6">
-          {isMinimal ? (
-            plans.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {plans.map((p) => (
-                  <PlanCard key={p.id} plan={p} popular={p.durationMinutes === 1440}
-                    onBuy={onBuy} index={plans.indexOf(p)} promo={promo} />
-                ))}
+          {PLAN_GROUPS.map((group) => {
+            const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
+            if (!groupPlans.length) return null
+            return (
+              <div key={group} className="flex flex-col gap-4">
+                <div className="flex items-center gap-3 fade-up">
+                  <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">
+                    {t('group.' + group)}
+                  </h2>
+                  <div className="h-px bg-outline-variant/50 flex-1"></div>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {groupPlans.map((p) => (
+                    <PlanCard
+                      key={p.id}
+                      plan={p}
+                      popular={p.durationMinutes === 1440}
+                      onBuy={onBuy}
+                      index={plans.indexOf(p)}
+                      promo={promo}
+                    />
+                  ))}
+                </div>
               </div>
             )
-          ) : (
-            PLAN_GROUPS.map((group) => {
-              const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
-              if (!groupPlans.length) return null
-              return (
-                <div key={group} className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3 fade-up">
-                    <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">
-                      {t('group.' + group)}
-                    </h2>
-                    <div className="h-px bg-outline-variant/50 flex-1"></div>
-                  </div>
-                  <div className={isGrid ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-4'}>
-                    {groupPlans.map((p) => (
-                      <PlanCard
-                        key={p.id}
-                        plan={p}
-                        popular={p.durationMinutes === 1440}
-                        onBuy={onBuy}
-                        index={plans.indexOf(p)}
-                        promo={promo}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            })
-          )}
+          })}
           {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
-          {plans.length === 0 && !plansError && (
-            <div className="flex flex-col gap-4">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-surface-container-high rounded-xl h-36" style={{ animationDelay: `${i * 150}ms` }}></div>
-              ))}
-            </div>
-          )}
-          {plansError && (
-            <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-error flex flex-col items-center text-center gap-3">
-              <Icon name="cloud_off" className="text-error text-[32px]!" />
-              <p className="text-base text-on-surface-variant">{t('plans.offline')}</p>
-              <button
-                onClick={onRetryPlans}
-                className="h-12 px-6 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center gap-2 active:scale-95 transition-transform cursor-pointer"
-              >
-                <Icon name="refresh" /> {t('plans.retry')}
-              </button>
-            </div>
-          )}
+          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         </section>
 
-        <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up" style={{ animationDelay: '400ms' }}>
-          <form onSubmit={onRedeem}>
-            <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
-              {t('voucher.label')}
-            </label>
-            <div className="flex gap-3">
-              <input
-                id="voucher"
-                type="text"
-                required
-                value={redeemCode}
-                onChange={(e) => setRedeemCode(e.target.value)}
-                placeholder={t('voucher.placeholder')}
-                className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono uppercase text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-              <button
-                type="submit"
-                className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-lg font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
-              >
-                {t('voucher.redeem')}
-              </button>
-            </div>
-            {redeemErr && <p className="text-sm text-error mt-2">{redeemErr}</p>}
-          </form>
-        </section>
+        <div className="mt-3">
+          <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} />
+        </div>
 
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
       <div className="hidden md:block w-full"><Footer /></div>
+      <MobileNav />
+    </DesignShell>
+  )
+}
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden bg-surface fixed bottom-0 w-full z-50 shadow-[0_-4px_12px_rgba(15,23,42,0.05)] flex justify-around items-center h-20 px-2">
-        <button
-          onClick={() => document.getElementById('voucher')?.focus()}
-          className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20 cursor-pointer"
-        >
-          <Icon name="wifi_tethering" className="mb-1 group-hover:text-primary transition-colors" />
-          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.connect')}</span>
-        </button>
-        <button className="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-1.5 w-20 cursor-pointer">
-          <Icon name="payments" filled className="mb-1" />
-          <span className="text-xs font-semibold tracking-wider">{t('nav.plans')}</span>
-        </button>
-        <a
-          href="tel:+254700000000"
-          className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20"
-        >
-          <Icon name="support_agent" className="mb-1 group-hover:text-primary transition-colors" />
-          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.help')}</span>
-        </a>
-      </nav>
+/* --- Design: Breeze (BREEZE) — light, airy, tabs + list rows, voucher first --- */
+
+function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  const [tab, setTab] = useState('All')
+  const groups = PLAN_GROUPS.filter((g) => plans.some((p) => planGroup(p.durationMinutes) === g))
+  const shown = tab === 'All' ? plans : plans.filter((p) => planGroup(p.durationMinutes) === tab)
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
+      <header className="flex items-center justify-between px-5 h-16 w-full max-w-lg mx-auto">
+        <Brand />
+        <LangToggle />
+      </header>
+
+      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 flex flex-col gap-5">
+        <section className="fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+          <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
+            <Icon name="wifi" filled className="text-primary text-[24px]!" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">{t('breeze.hi')}</h1>
+          <p className="text-sm text-on-surface-variant mt-1">{t('breeze.sub')}</p>
+        </section>
+
+        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={100} />
+
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
+
+        {groups.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto fade-up" style={{ animationDelay: '150ms' }}>
+            {['All', ...groups].map((g) => {
+              const active = tab === g
+              return (
+                <button key={g} type="button" onClick={() => setTab(g)}
+                  className={`px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    active ? 'bg-primary text-on-primary' : 'bg-surface border border-outline-variant text-on-surface-variant hover:border-primary'
+                  }`}>
+                  {g === 'All' ? t('tab.all') : t('group.' + g)}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        <section className="flex flex-col gap-3">
+          {shown.map((p, i) => (
+            <BreezeRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
+          ))}
+          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
+        </section>
+
+        {loyaltyEnabled && <RewardsCard />}
+      </main>
+
+      <Footer />
+    </DesignShell>
+  )
+}
+
+function BreezeRow({ plan, promo, onBuy, index = 0 }) {
+  const { t } = useT()
+  const deal = dealFor(plan, promo)
+  const speed = speedLabel(plan.bandwidth)
+  return (
+    <button
+      type="button"
+      onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
+      className="w-full bg-surface rounded-2xl border border-outline-variant p-4 flex items-center gap-3 text-left hover:border-primary hover:shadow-[0_6px_14px_rgba(15,23,42,0.06)] transition-all cursor-pointer fade-up"
+      style={{ animationDelay: `${80 + index * 50}ms` }}
+    >
+      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon name="bolt" filled className="text-primary text-[20px]!" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-on-background truncate">{plan.name}</p>
+        <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
+      </div>
+      <div className="text-right">
+        {deal.old && <p className="text-xs text-on-surface-variant line-through">KES {deal.old}</p>}
+        <p className="font-mono font-bold text-primary">KES {deal.price}</p>
+      </div>
+      <span className="h-9 px-4 rounded-full bg-primary text-on-primary text-sm font-semibold flex items-center">{t('card.buyShort')}</span>
+    </button>
+  )
+}
+
+/* --- Design: Market Poster (POSTER) — cream paper, serif display, price tags --- */
+
+function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
+      <header className="flex items-center justify-between px-5 h-16 w-full max-w-lg mx-auto">
+        <span className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--portal-heading-font)' }}>SPA WiFi</span>
+        <LangToggle />
+      </header>
+
+      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 flex flex-col gap-6">
+        <section className="fade-up text-center border-y-4 border-double border-on-background/70 py-6">
+          <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
+            <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" />SPA WiFi
+          </p>
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight">{t('hero.title')}</h1>
+          <p className="text-xs text-on-surface-variant mt-3 uppercase tracking-[0.2em]">{t('poster.tag')}</p>
+        </section>
+
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
+
+        <section className="grid grid-cols-2 gap-4 px-1">
+          {plans.map((p, i) => (
+            <PosterTag key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
+          ))}
+        </section>
+        <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+
+        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={200} />
+        {loyaltyEnabled && <RewardsCard />}
+      </main>
+
+      <Footer />
+    </DesignShell>
+  )
+}
+
+function PosterTag({ plan, promo, onBuy, index = 0 }) {
+  const { t } = useT()
+  const deal = dealFor(plan, promo)
+  return (
+    <button
+      type="button"
+      onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
+      className={`bg-surface border-2 border-on-background p-4 flex flex-col items-center text-center gap-1 shadow-[5px_5px_0_var(--color-primary)] hover:shadow-[7px_7px_0_var(--color-primary)] hover:-translate-y-0.5 transition-all cursor-pointer fade-up ${index % 2 ? 'rotate-[0.6deg]' : 'rotate-[-0.6deg]'}`}
+      style={{ animationDelay: `${80 + index * 60}ms` }}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant w-full truncate">{plan.name}</p>
+      {deal.old && <p className="text-xs text-on-surface-variant line-through">KES {deal.old}</p>}
+      <p className="text-3xl font-bold text-primary" style={{ fontFamily: 'var(--portal-heading-font)' }}>
+        {deal.price}<span className="text-sm align-top ml-0.5">KES</span>
+      </p>
+      <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}</p>
+      <span className="mt-2 px-4 h-8 flex items-center bg-on-background text-background text-xs font-bold uppercase tracking-widest">{t('card.buyShort')}</span>
+    </button>
+  )
+}
+
+/* --- Design: Compact Grid (MATRIX) — every plan on screen as a small tile --- */
+
+function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
+      <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
+        <Brand />
+        <div className="flex items-center gap-2">
+          <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}
+            className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:text-primary transition-colors">
+            <Icon name="support_agent" className="text-[16px]!" /> {SUPPORT_PHONE}
+          </a>
+          <LangToggle />
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-2xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
+        <div className="fade-up flex items-center gap-2 text-sm text-on-surface-variant">
+          <Icon name="grid_view" className="text-primary text-[18px]!" />
+          {t('matrix.hint')}
+        </div>
+
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
+
+        <section className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {plans.map((p, i) => (
+            <MatrixTile key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
+          ))}
+        </section>
+        <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+
+        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={150} />
+        {loyaltyEnabled && <RewardsCard />}
+      </main>
+
+      <div className="hidden md:block w-full"><Footer /></div>
+      <MobileNav />
+    </DesignShell>
+  )
+}
+
+function MatrixTile({ plan, promo, onBuy, index = 0 }) {
+  const deal = dealFor(plan, promo)
+  return (
+    <button
+      type="button"
+      onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
+      className="bg-surface-container-low border border-outline-variant rounded-lg p-2.5 flex flex-col items-center text-center gap-0.5 hover:border-primary hover:bg-surface-container transition-colors cursor-pointer fade-up"
+      style={{ animationDelay: `${40 + index * 30}ms` }}
+    >
+      <p className="text-sm font-bold text-on-background leading-tight">{formatDuration(plan.durationMinutes)}</p>
+      <p className="font-mono text-primary font-semibold text-sm">
+        {deal.old && <span className="text-[10px] text-on-surface-variant line-through mr-1">{deal.old}</span>}
+        KES {deal.price}
+      </p>
+      <p className="text-[10px] text-on-surface-variant truncate w-full">{plan.name}</p>
+    </button>
+  )
+}
+
+/* --- Design: Step-by-Step (STEPS) — numbered how-to first, then simple rows --- */
+
+function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
+      <header className="bg-surface border-b border-outline-variant flex items-center justify-between px-5 h-16 w-full sticky top-0 z-40">
+        <Brand />
+        <LangToggle />
+      </header>
+
+      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
+        <section className="fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+          <h1 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
+          </h1>
+          <ol className="flex flex-col gap-3">
+            {[1, 2, 3, 4].map((n) => (
+              <li key={n} className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{n}</span>
+                <span className="text-sm text-on-surface-variant">{t('steps.' + n)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
+          {plans.map((p, i) => (
+            <StepsRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
+          ))}
+          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
+        </section>
+
+        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={250} />
+        {loyaltyEnabled && <RewardsCard />}
+      </main>
+
+      <Footer />
+    </DesignShell>
+  )
+}
+
+function StepsRow({ plan, promo, onBuy, index = 0 }) {
+  const { t } = useT()
+  const deal = dealFor(plan, promo)
+  const speed = speedLabel(plan.bandwidth)
+  return (
+    <div className="bg-surface rounded-xl border border-outline-variant p-4 flex items-center gap-3 fade-up" style={{ animationDelay: `${60 + index * 50}ms` }}>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold truncate">{plan.name}</p>
+        <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
+        <p className="font-mono text-sm font-bold text-on-background mt-1">
+          {deal.old && <span className="text-xs text-on-surface-variant line-through mr-1.5">KES {deal.old}</span>}
+          KES {deal.price}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
+        className="h-10 px-5 rounded-lg border-2 border-primary text-primary text-sm font-bold hover:bg-primary hover:text-on-primary transition-colors cursor-pointer"
+      >
+        {t('card.buyShort')}
+      </button>
     </div>
+  )
+}
+
+/* --- Design: Terminal (NEON) — black, monospace, command-line menu --- */
+
+function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t } = useT()
+  return (
+    <DesignShell className="min-h-screen flex flex-col">
+      <header className="border-b border-outline-variant bg-surface sticky top-0 z-40">
+        <div className="max-w-lg mx-auto px-5 h-12 flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-error/80"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-primary/40"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+          <span className="flex-1 text-center text-xs tracking-[0.25em] uppercase text-on-surface-variant">SPA WiFi</span>
+          <LangToggle />
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
+        <section className="fade-up">
+          <p className="text-xs text-primary mb-2">&gt; {t('neon.online')}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t('hero.minTitle')}</h1>
+          <p className="text-sm text-on-surface-variant mt-1">&gt; {t('neon.select')}<span className="cursor-blink text-primary">_</span></p>
+        </section>
+
+        {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
+
+        {plans.length > 0 ? (
+          <section className="border border-outline-variant rounded-lg bg-surface divide-y divide-dashed divide-outline-variant">
+            {plans.map((p, i) => (
+              <NeonRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
+            ))}
+          </section>
+        ) : (
+          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
+        )}
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+
+        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={200} />
+        {loyaltyEnabled && <RewardsCard />}
+      </main>
+
+      <Footer />
+    </DesignShell>
+  )
+}
+
+function NeonRow({ plan, promo, onBuy, index = 0 }) {
+  const { t } = useT()
+  const deal = dealFor(plan, promo)
+  return (
+    <button
+      type="button"
+      onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
+      className="w-full p-4 flex items-center gap-3 text-left hover:bg-surface-container-low transition-colors cursor-pointer fade-up"
+      style={{ animationDelay: `${50 + index * 40}ms` }}
+    >
+      <span className="text-primary shrink-0">&gt;</span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-semibold truncate">{plan.name}</span>
+        <span className="block text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}</span>
+      </span>
+      {deal.old && <span className="text-xs text-on-surface-variant line-through">{deal.old}</span>}
+      <span className="text-primary font-semibold whitespace-nowrap">[ KES {deal.price} ]</span>
+      <span className="border border-primary text-primary text-xs font-bold px-2.5 py-1.5 rounded">{t('card.buyShort').toUpperCase()}</span>
+    </button>
   )
 }
 
@@ -869,9 +1285,9 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
 /* ------------------------------------------------------------------ */
 
 function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
-  const { t, theme, themeVars } = useT()
+  const { t } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
+    <DesignShell className="min-h-screen flex flex-col">
       <header className="bg-surface border-b border-outline-variant flex items-center justify-between px-5 h-16 w-full sticky top-0 z-50">
         <Brand />
         <button
@@ -883,23 +1299,25 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         </button>
       </header>
 
-      <main className="flex-grow flex flex-col items-center px-5 py-6 w-full max-w-md mx-auto">
-        <div className="w-24 h-24 mb-6 rounded-full bg-surface-container-low flex items-center justify-center shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
-          <Icon name="wifi" filled className="text-primary text-[48px]!" />
-        </div>
-        <h1 className="text-2xl font-bold text-center mb-2">{t('pay.complete')}</h1>
-        <p className="text-sm text-on-surface-variant text-center mb-8">{t('pay.sub')}</p>
+      <main className="flex-grow flex flex-col items-center px-6 py-10 w-full max-w-md mx-auto">
+        <p className="text-[11px] font-semibold tracking-[0.3em] uppercase text-on-surface-variant mb-3 fade-up">{t('pay.checkout')}</p>
+        <h1 className="text-3xl font-bold text-center tracking-tight mb-10 fade-up" style={{ animationDelay: '80ms' }}>{t('pay.complete')}</h1>
 
-        <div className="w-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mb-6 border-t-4 border-primary">
-          <h2 className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">{t('pay.summary')}</h2>
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold">{t('pay.access', { name: plan.name })}</span>
-            <span className="font-mono text-lg font-semibold text-primary">KES {plan.price}</span>
+        {/* A quiet receipt: item, rule, total. Nothing boxed, nothing shouting. */}
+        <div className="w-full mb-8 fade-up" style={{ animationDelay: '140ms' }}>
+          <div className="flex justify-between items-baseline pb-3 gap-4">
+            <span className="text-base font-semibold min-w-0 truncate">{t('pay.access', { name: plan.name })}</span>
+            <span className="font-mono text-base tabular-nums text-on-surface-variant whitespace-nowrap">KES {plan.price}</span>
+          </div>
+          <div className="h-px bg-outline-variant"></div>
+          <div className="flex justify-between items-baseline pt-3">
+            <span className="text-xs font-semibold tracking-[0.2em] uppercase text-on-surface-variant">{t('pay.total')}</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-primary">KES {plan.price}</span>
           </div>
         </div>
 
         <form className="w-full" onSubmit={onSubmit}>
-          <div className="w-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mb-6">
+          <div className="w-full mb-6 fade-up" style={{ animationDelay: '200ms' }}>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="mpesa-phone">
               {t('pay.phone')}
             </label>
@@ -921,26 +1339,25 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
             </div>
           </div>
 
-          <div className="w-full flex items-start gap-3 bg-surface-container-low p-4 rounded-lg mb-8 border border-surface-dim">
-            <Icon name="info" className="text-primary text-[20px]! mt-0.5" />
-            <p className="text-sm text-on-surface-variant">
-              {t('pay.info')}
-            </p>
-          </div>
+          <p className="w-full flex items-start gap-2 text-xs text-on-surface-variant mb-8 fade-up" style={{ animationDelay: '260ms' }}>
+            <Icon name="lock" className="text-primary text-[15px]! mt-px" />
+            {t('pay.info')}
+          </p>
 
           <button
             type="submit"
             disabled={sending}
-            className="w-full bg-primary text-on-primary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+            className="w-full bg-primary text-on-primary text-lg font-semibold h-13 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer fade-up"
+            style={{ animationDelay: '300ms' }}
           >
-            <Icon name="send_money" />
-            {sending ? t('pay.sending') : t('pay.send')}
+            <Icon name={sending ? 'progress_activity' : 'send_money'} className={sending ? 'animate-spin' : ''} />
+            {sending ? t('pay.sending') : t('pay.payNow', { n: plan.price })}
           </button>
         </form>
       </main>
 
       <Footer />
-    </div>
+    </DesignShell>
   )
 }
 
@@ -948,65 +1365,287 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
 /* Screen 3 — Waiting for M-Pesa PIN                                   */
 /* ------------------------------------------------------------------ */
 
-function WaitingScreen({ onCancel }) {
-  const { t, theme, themeVars } = useT()
+/* Every design owns its waiting experience; this just dispatches. */
+function WaitingScreen(props) {
+  const { design } = useT()
+  switch (design.key) {
+    case 'BREEZE': return <BreezeWaiting {...props} />
+    case 'POSTER': return <PosterWaiting {...props} />
+    case 'MATRIX': return <MatrixWaiting {...props} />
+    case 'STEPS': return <StepsWaiting {...props} />
+    case 'NEON': return <NeonWaiting {...props} />
+    default: return <ClassicWaiting {...props} />
+  }
+}
+
+// A visible clock reassures people the page is alive while M-Pesa thinks.
+function useElapsed() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const i = setInterval(() => setElapsed((s) => s + 1), 1000)
+    return () => clearInterval(i)
+  }, [])
+  return `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
+}
+
+/* Signature: a slow gold halo, a rotating arc, one big clock. Luxury calm. */
+function ClassicWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col items-center justify-center" style={themeVars} data-skin={theme}>
-      <main className="w-full max-w-md px-5 flex flex-col items-center py-8">
-        <div className="flex items-center gap-2 mb-8">
-          <Icon name="wifi" className="text-primary text-[28px]!" />
-          <span className="text-lg font-semibold tracking-tight uppercase text-primary">SPA WiFi</span>
-        </div>
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-md px-6 py-10 flex flex-col items-center text-center">
+        <p className="text-[11px] font-semibold tracking-[0.35em] uppercase text-on-surface-variant mb-12">SPA WiFi</p>
 
-        <div className="relative w-32 h-32 flex items-center justify-center mb-6">
-          <div className="absolute inset-0 rounded-full bg-primary/20 radar-ping"></div>
-          <div className="absolute inset-0 rounded-full bg-primary/10 radar-ping" style={{ animationDelay: '0.5s' }}></div>
-          <div className="relative z-10 w-16 h-16 bg-surface-container-lowest rounded-full shadow-lg flex items-center justify-center border-4 border-surface">
-            <Icon name="smartphone" filled className="text-primary text-[32px]!" />
+        <div className="relative w-48 h-48 mb-12">
+          <div className="halo-pulse absolute inset-0 rounded-full border border-primary/25"></div>
+          <div className="halo-pulse absolute inset-5 rounded-full border border-primary/15" style={{ animationDelay: '1.3s' }}></div>
+          <div
+            className="spin-slow absolute inset-0 rounded-full"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent 0 72%, var(--color-primary) 96%, transparent 100%)',
+              WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))',
+              mask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))',
+            }}
+          ></div>
+          <div className="absolute inset-[24%] rounded-full bg-surface-container-low border border-outline-variant flex items-center justify-center">
+            <Icon name="smartphone" className="text-primary text-[36px]!" />
           </div>
         </div>
 
-        <div className="text-center mb-8 w-full">
-          <h1 className="text-2xl font-bold text-on-background mb-2">{t('wait.title')}</h1>
-          <p className="text-base text-on-surface-variant px-4">{t('wait.sub')}</p>
+        <h1 className="text-2xl font-bold tracking-tight mb-2">{t('wait.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-8">{t('wait.sub')}</p>
+        <p className="font-mono text-4xl font-semibold tabular-nums text-primary mb-10">{clock}</p>
+
+        <div className="flex items-center justify-center gap-4 text-[11px] font-semibold tracking-[0.18em] uppercase mb-14">
+          <span className="text-primary flex items-center gap-1.5"><Icon name="check" className="text-[14px]!" />{t('wait.sent')}</span>
+          <span className="w-8 h-px bg-outline-variant"></span>
+          <span className="text-on-background flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>{t('wait.pin')}
+          </span>
         </div>
 
-        <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 relative">
-          <div className="absolute left-[31px] top-8 bottom-8 w-[2px] bg-surface-container-highest z-0"></div>
-
-          <div className="flex items-start gap-4 relative z-10 mb-6">
-            <div className="bg-surface-container-lowest rounded-full p-1 border-2 border-surface-container-lowest shadow-sm flex-shrink-0">
-              <Icon name="check_circle" filled className="text-primary text-[20px]!" />
-            </div>
-            <p className="pt-1 text-lg font-semibold text-on-background">{t('wait.sent')}</p>
-          </div>
-
-          <div className="flex items-start gap-4 relative z-10 mb-6">
-            <div className="bg-surface-container-lowest rounded-full p-1 border-2 border-primary flex-shrink-0">
-              <div className="w-5 h-5 rounded-full bg-primary relative flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-75"></div>
-                <div className="w-2 h-2 bg-on-primary rounded-full"></div>
-              </div>
-            </div>
-            <p className="pt-1 text-lg font-semibold text-primary">{t('wait.pin')}</p>
-          </div>
-
-          <div className="flex items-start gap-4 relative z-10">
-            <div className="bg-surface-container-lowest rounded-full p-1 border-2 border-surface-container-lowest shadow-sm flex-shrink-0">
-              <div className="w-5 h-5 rounded-full border-2 border-outline-variant bg-surface-container-lowest"></div>
-            </div>
-            <p className="pt-1 text-base text-on-surface-variant">{t('wait.activating')}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={onCancel}
-          className="mt-8 w-full flex items-center justify-center h-12 rounded-xl border-2 border-primary text-primary text-lg font-semibold hover:bg-primary/5 transition-colors duration-200 cursor-pointer"
-        >
+        <button onClick={onCancel} className="text-xs font-semibold tracking-[0.2em] uppercase text-on-surface-variant hover:text-primary transition-colors cursor-pointer">
           {t('wait.cancel')}
         </button>
       </main>
-    </div>
+    </DesignShell>
+  )
+}
+
+/* Breeze: a phone card floating over a breathing glow. Spa-calm. */
+function BreezeWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
+  return (
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-md px-5 py-8 flex flex-col items-center">
+        <div className="mb-10"><Brand /></div>
+
+        <div className="relative w-52 h-52 flex items-center justify-center mb-8">
+          <div className="breathe absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, var(--portal-glow1), transparent 65%)' }}></div>
+          <div className="float-y relative z-10 w-28 h-40 bg-surface rounded-[20px] border border-outline-variant shadow-[0_18px_40px_rgba(15,23,42,0.12)] flex flex-col items-center px-2.5 pt-2.5 pb-3">
+            <div className="w-9 h-1 rounded-full bg-outline-variant mb-2 shrink-0"></div>
+            <div className="flex-1 w-full rounded-xl bg-surface-container-low flex flex-col items-center justify-center gap-1.5 px-2">
+              <span className="text-[9px] font-bold tracking-widest text-primary">M-PESA</span>
+              <div className="w-full h-1 rounded bg-outline-variant"></div>
+              <div className="w-3/4 h-1 rounded bg-outline-variant"></div>
+              <div className="flex gap-1.5 mt-1.5">
+                {[0, 1, 2, 3].map((i) => (
+                  <span key={i} className="pin-dot w-2 h-2 rounded-full bg-primary" style={{ animationDelay: `${i * 0.35}s` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold tracking-tight mb-1 text-center">{t('wait.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-8 text-center">{t('wait.sub')}</p>
+
+        <div className="w-full max-w-xs">
+          <div className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
+            <div className="shimmer-bar h-full w-1/3 rounded-full bg-primary"></div>
+          </div>
+          <p className="text-xs text-on-surface-variant text-center mt-2 font-mono tabular-nums">{clock}</p>
+        </div>
+
+        <button onClick={onCancel} className="mt-10 h-11 px-8 rounded-full border border-outline-variant text-on-surface-variant text-sm font-semibold hover:border-primary hover:text-primary transition-colors cursor-pointer">
+          {t('wait.cancel')}
+        </button>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Market Poster: your pass is being printed, easing out of the slot. */
+function PosterWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
+  return (
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-sm px-6 py-10 flex flex-col items-center text-center">
+        <span className="text-xl font-bold mb-10" style={{ fontFamily: 'var(--portal-heading-font)' }}>SPA WiFi</span>
+
+        <div className="relative z-10 w-60 h-3.5 rounded-full bg-on-background shadow-md"></div>
+        <div className="ticket-out w-52">
+          <div className="border-2 border-dashed border-on-background/60 border-t-0 bg-surface px-4 pt-7 pb-6 text-center">
+            <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-on-surface-variant mb-3">M-PESA</p>
+            <h1 className="text-xl font-bold leading-snug mb-1">{t('wait.printing')}…</h1>
+            <p className="text-[11px] text-on-surface-variant">{t('wait.pin')}</p>
+            <div className="border-t border-dashed border-on-background/40 my-4"></div>
+            <p className="font-mono text-2xl font-bold tabular-nums">{clock}</p>
+            <div className="mt-3 flex justify-center gap-1.5">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className="pin-dot w-2 h-2 rounded-full bg-primary" style={{ animationDelay: `${i * 0.35}s` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-[11px] uppercase tracking-[0.22em] text-on-surface-variant mt-8 mb-8">{t('wait.sub')}</p>
+        <button onClick={onCancel} className="text-sm font-bold underline underline-offset-4 hover:text-primary transition-colors cursor-pointer" style={{ fontFamily: 'var(--portal-heading-font)' }}>
+          {t('wait.cancel')}
+        </button>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Compact Grid: an ops console — status rows, a scan line, tabular time. */
+function MatrixWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
+  return (
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-md px-5 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <Brand />
+          <span className="font-mono text-2xl font-semibold tabular-nums text-primary">{clock}</span>
+        </div>
+
+        <div className="relative overflow-hidden bg-surface border border-outline-variant rounded-lg">
+          <div className="scan-y absolute left-0 right-0 h-px bg-primary/50 z-10" style={{ boxShadow: '0 0 10px 2px var(--portal-glow1)' }}></div>
+          <div className="px-4 py-3 border-b border-outline-variant flex items-center justify-between">
+            <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-on-surface-variant">{t('wait.title')}</span>
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          </div>
+          <div className="p-4 font-mono text-sm space-y-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-on-surface-variant">{t('wait.sent')}</span>
+              <Icon name="check" className="text-primary text-[18px]!" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-on-background font-semibold">{t('wait.pin')}</span>
+              <span className="cursor-blink text-primary">▊</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 opacity-45">
+              <span className="text-on-surface-variant">{t('wait.activating')}</span>
+              <span className="text-on-surface-variant">--</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-on-surface-variant text-center mt-4">{t('wait.sub')}</p>
+        <button onClick={onCancel} className="mt-6 w-full h-11 rounded-lg border border-outline-variant text-on-surface-variant text-sm font-semibold hover:border-primary hover:text-primary transition-colors cursor-pointer">
+          {t('wait.cancel')}
+        </button>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Step-by-Step: the journey continues — a ring parked at step 2 of 3. */
+const RING_C = 2 * Math.PI * 52
+
+function StepsWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
+  return (
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-md px-5 py-8 flex flex-col items-center">
+        <div className="mb-10"><Brand /></div>
+
+        <div className="relative w-44 h-44 mb-8">
+          <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-surface-container-high)" strokeWidth="7" />
+            <circle
+              cx="60" cy="60" r="52" fill="none" stroke="var(--color-primary)" strokeWidth="7" strokeLinecap="round"
+              strokeDasharray={RING_C} strokeDashoffset={RING_C / 3}
+              className="ring-draw" style={{ '--ring-from': RING_C, '--ring-to': RING_C / 3 }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant">{t('steps.of', { n: 2, m: 3 })}</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-primary mt-1">{clock}</span>
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold tracking-tight mb-1 text-center">{t('wait.pin')}</h1>
+        <p className="text-sm text-on-surface-variant mb-8 text-center">{t('wait.sub')}</p>
+
+        <div className="w-full bg-surface rounded-xl border border-outline-variant p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <span className="pop-in w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center" style={{ animationDelay: '0.2s' }}>
+              <Icon name="check" className="text-[14px]!" />
+            </span>
+            <span className="text-sm text-on-surface-variant">{t('wait.sent')}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center relative">
+              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></span>2
+            </span>
+            <span className="text-sm font-semibold text-on-background">{t('wait.pin')}</span>
+          </div>
+          <div className="flex items-center gap-3 opacity-50">
+            <span className="w-6 h-6 rounded-full border-2 border-outline-variant text-on-surface-variant text-xs font-bold flex items-center justify-center">3</span>
+            <span className="text-sm text-on-surface-variant">{t('wait.activating')}</span>
+          </div>
+        </div>
+
+        <button onClick={onCancel} className="mt-8 h-11 px-8 rounded-lg border-2 border-primary text-primary text-sm font-bold hover:bg-primary hover:text-on-primary transition-colors cursor-pointer">
+          {t('wait.cancel')}
+        </button>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Terminal: the wait is a log, each line typing itself in. */
+function NeonWaiting({ onCancel }) {
+  const { t } = useT()
+  const clock = useElapsed()
+  return (
+    <DesignShell className="min-h-screen flex flex-col items-center justify-center">
+      <main className="w-full max-w-md px-5 py-8">
+        <div className="border border-outline-variant rounded-lg bg-surface overflow-hidden">
+          <div className="px-4 h-10 flex items-center gap-2 border-b border-outline-variant">
+            <span className="w-2.5 h-2.5 rounded-full bg-error/80"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-primary/40"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+            <span className="flex-1 text-center text-[11px] tracking-[0.25em] uppercase text-on-surface-variant">m-pesa://stk</span>
+          </div>
+          <div className="p-5 text-sm leading-7">
+            <p className="type-line" style={{ animationDelay: '0.1s' }}>
+              <span className="text-primary">&gt;</span> stk_push <span className="text-on-surface-variant">--gateway m-pesa</span>
+            </p>
+            <p className="type-line text-on-surface-variant" style={{ animationDelay: '0.7s' }}>
+              &gt; {t('wait.sent').toLowerCase()} <span className="text-primary">[ok]</span>
+            </p>
+            <p className="type-line" style={{ animationDelay: '1.4s' }}>
+              &gt; {t('wait.pin').toLowerCase()} <span className="cursor-blink text-primary">▊</span>
+            </p>
+            <p className="type-line text-on-surface-variant" style={{ animationDelay: '2s' }}>
+              &gt; t+<span className="tabular-nums">{clock}</span>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-on-surface-variant text-center mt-4">{t('wait.sub')}</p>
+        <button onClick={onCancel} className="mt-6 w-full h-11 rounded border border-primary/60 text-primary text-sm hover:bg-primary/10 transition-colors cursor-pointer">
+          [ ctrl+c ] {t('wait.cancel').toLowerCase()}
+        </button>
+      </main>
+    </DesignShell>
   )
 }
 
@@ -1014,22 +1653,21 @@ function WaitingScreen({ onCancel }) {
 /* Screen 4 — Success (voucher code)                                   */
 /* ------------------------------------------------------------------ */
 
-// Amber-family + white, matching the brand — the old set was teal/green
-// from before the rebrand and fought the whole portal palette.
-const CONFETTI_COLORS = ['#fdbf2d', '#e0aa22', '#ffd479', '#ffffff']
-
 function Confetti() {
+  // Confetti in the design's own colours so it never fights the palette.
+  const { design } = useT()
+  const colors = design.confetti
   const pieces = useMemo(
     () =>
       Array.from({ length: 50 }, (_, i) => ({
         id: i,
         left: Math.random() * 100,
-        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
         duration: Math.random() * 2 + 1,
         delay: Math.random() * 2,
         round: Math.random() > 0.5,
       })),
-    []
+    [colors]
   )
   return (
     <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
@@ -1049,8 +1687,9 @@ function Confetti() {
   )
 }
 
-function SuccessScreen({ code, note, onHome }) {
-  const { t, theme, themeVars } = useT()
+/* The shared mechanics of the success moment: the code copy, the optional
+   operator redirect, and the auto-close countdown. Presentation is per design. */
+function useSuccessFlow(code) {
   const [copied, setCopied] = useState(false)
   const [closeIn, setCloseIn] = useState(10)
   const [redirect, setRedirect] = useState(null)
@@ -1095,69 +1734,301 @@ function SuccessScreen({ code, note, onHome }) {
     })
   }
 
+  return { copied, copyCode, closeIn, redirect }
+}
+
+function closingText(t, { closeIn, redirect }) {
+  if (closeIn > 0) return redirect ? t('ok.closingRedirect', { n: closeIn }) : t('ok.closing', { n: closeIn })
+  return t('ok.closed')
+}
+
+/* Copy button, optional continue link, countdown note, return link.
+   Token classes mean it re-skins per design; the hero above it is unique. */
+function SuccessFooter({ s, onHome }) {
+  const { t } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background flex flex-col min-h-screen relative overflow-hidden" style={themeVars} data-skin={theme}>
-      <Confetti />
+    <>
+      <button
+        onClick={s.copyCode}
+        className="w-full bg-primary text-on-primary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <Icon name={s.copied ? 'check' : 'content_copy'} />
+        {s.copied ? t('ok.copied') : t('ok.copyConnect')}
+      </button>
+      {s.redirect && (
+        <a
+          href={s.redirect}
+          className="mt-3 w-full border border-primary text-primary text-sm font-semibold h-11 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {t('ok.continue')} <Icon name="arrow_forward" className="text-[18px]!" />
+        </a>
+      )}
+      <p className="mt-4 text-xs text-on-surface-variant text-center">{closingText(t, s)}</p>
+      <button onClick={onHome} className="mt-2 w-full text-center text-xs text-primary hover:underline cursor-pointer">
+        {t('ok.return')}
+      </button>
+    </>
+  )
+}
 
-      <main className="flex-grow flex flex-col items-center justify-center px-5 py-8 z-10 w-full max-w-md mx-auto">
-        <div className="mb-6 bg-surface-container rounded-full p-6 shadow-sm border border-surface-variant flex items-center justify-center">
-          <Icon name="check_circle" filled className="text-[64px]! text-primary" />
-        </div>
+function CredentialHint() {
+  const { t } = useT()
+  return (
+    <p className="text-[13px] text-on-surface-variant text-center">
+      {t('ok.usePre')} <strong className="text-on-surface font-semibold">{t('ok.username')}</strong> {t('ok.and')}{' '}
+      <strong className="text-on-surface font-semibold">{t('ok.password')}</strong>.
+    </p>
+  )
+}
 
-        <h1 className="text-2xl font-bold text-primary mb-2 text-center">{t('ok.title')}</h1>
-        <p className="text-sm text-on-surface-variant text-center mb-8">{note}</p>
+/* Every design owns its success moment; this just dispatches. */
+function SuccessScreen(props) {
+  const { design } = useT()
+  switch (design.key) {
+    case 'BREEZE': return <BreezeSuccess {...props} />
+    case 'POSTER': return <PosterSuccess {...props} />
+    case 'MATRIX': return <MatrixSuccess {...props} />
+    case 'STEPS': return <StepsSuccess {...props} />
+    case 'NEON': return <NeonSuccess {...props} />
+    default: return <ClassicSuccess {...props} />
+  }
+}
 
-        <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-2 border-dashed border-outline-variant p-6 relative flex flex-col items-center mb-6">
-          <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-background rounded-full border-r-2 border-dashed border-outline-variant"></div>
-          <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-background rounded-full border-l-2 border-dashed border-outline-variant"></div>
+/* Signature: gold dust drifting up, the code materialising letter by letter. */
+function GoldDust() {
+  const { design } = useT()
+  const color = design.preview.accent
+  const motes = useMemo(
+    () =>
+      Array.from({ length: 26 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        size: 2 + Math.random() * 4,
+        dur: 6 + Math.random() * 6,
+        delay: Math.random() * 6,
+        op: 0.4 + Math.random() * 0.6,
+      })),
+    []
+  )
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {motes.map((m) => (
+        <span
+          key={m.id}
+          className="dust"
+          style={{
+            left: `${m.left}%`, width: m.size, height: m.size, background: color,
+            animationDuration: `${m.dur}s`, animationDelay: `${m.delay}s`, opacity: m.op,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
-          <p className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">{t('ok.codeLabel')}</p>
-          <div className="flex items-center justify-center gap-4 bg-surface-container-low px-4 py-3 rounded-lg w-full mb-4">
-            <span className="text-lg font-medium font-mono tracking-widest text-on-surface">{code}</span>
-            <button
-              aria-label="Copy code"
-              onClick={copyCode}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-background hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary active:scale-95 duration-100 cursor-pointer"
-            >
-              <Icon name={copied ? 'check' : 'content_copy'} className={`text-[20px]! ${copied ? 'text-secondary' : 'text-primary'}`} />
-            </button>
-          </div>
-          <p className="text-[13px] text-on-surface-variant text-center">
-            {t('ok.usePre')} <strong className="text-on-surface font-semibold">{t('ok.username')}</strong> {t('ok.and')}{' '}
-            <strong className="text-on-surface font-semibold">{t('ok.password')}</strong>.
+function ClassicSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen relative overflow-hidden">
+      <GoldDust />
+      <main className="flex-grow flex flex-col items-center justify-center px-6 py-12 z-10 w-full max-w-md mx-auto text-center">
+        <p className="text-[11px] font-semibold tracking-[0.35em] uppercase text-primary mb-5 fade-up">{t('ok.granted')}</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-3 fade-up" style={{ animationDelay: '120ms' }}>{t('ok.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-10 fade-up" style={{ animationDelay: '200ms' }}>{note}</p>
+
+        <div
+          className="w-full border-y border-primary/30 py-8 mb-4 fade-up"
+          style={{ animationDelay: '280ms', background: 'radial-gradient(60% 130% at 50% 50%, var(--portal-glow1), transparent 72%)' }}
+        >
+          <p className="text-[10px] font-semibold tracking-[0.3em] uppercase text-on-surface-variant mb-4">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-semibold tracking-[0.22em] text-primary">
+            {code.split('').map((ch, i) => (
+              <span key={i} className="letter-in" style={{ animationDelay: `${500 + i * 70}ms` }}>{ch}</span>
+            ))}
           </p>
         </div>
+        <div className="mb-8 fade-up" style={{ animationDelay: '400ms' }}><CredentialHint /></div>
 
-        <button
-          onClick={copyCode}
-          className="w-full bg-primary text-on-primary text-lg font-semibold py-3 px-6 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-primary-container transition-colors active:scale-95 duration-100 flex items-center justify-center gap-3 cursor-pointer"
-        >
-          <Icon name="wifi" filled />
-          {copied ? t('ok.copied') : t('ok.copyConnect')}
-        </button>
-
-        {redirect && (
-          <a
-            href={redirect}
-            className="mt-4 w-full border border-primary text-primary text-sm font-semibold py-3 px-6 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {t('ok.continue')} <Icon name="arrow_forward" className="text-[18px]!" />
-          </a>
-        )}
-        <p className="mt-4 text-sm text-on-surface-variant text-center">
-          {closeIn > 0
-            ? (redirect
-                ? t('ok.closingRedirect', { n: closeIn })
-                : t('ok.closing', { n: closeIn }))
-            : t('ok.closed')}
-        </p>
-        <button onClick={onHome} className="mt-3 text-sm text-primary hover:underline cursor-pointer">
-          {t('ok.return')}
-        </button>
+        <div className="w-full fade-up" style={{ animationDelay: '480ms' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
       </main>
+    </DesignShell>
+  )
+}
 
-      <div className="z-10 relative w-full"><Footer /></div>
-    </div>
+/* Breeze: a check that draws itself, then a clean card floats up. */
+function BreezeSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen relative overflow-hidden">
+      <Confetti />
+      <main className="flex-grow flex flex-col items-center justify-center px-5 py-10 z-10 w-full max-w-md mx-auto">
+        <svg viewBox="0 0 72 72" className="w-24 h-24 mb-6">
+          <circle
+            cx="36" cy="36" r="32" fill="none" stroke="var(--color-primary)" strokeWidth="4"
+            strokeDasharray="202" strokeDashoffset="202" strokeLinecap="round"
+            className="draw-stroke" style={{ animationDelay: '0.1s' }}
+          />
+          <path
+            d="M22 37 l10 10 l18 -20" fill="none" stroke="var(--color-primary)" strokeWidth="5"
+            strokeLinecap="round" strokeLinejoin="round" strokeDasharray="42" strokeDashoffset="42"
+            className="draw-stroke" style={{ animationDelay: '0.75s' }}
+          />
+        </svg>
+
+        <h1 className="text-2xl font-bold tracking-tight mb-1 text-center fade-up" style={{ animationDelay: '250ms' }}>{t('ok.title')}</h1>
+        <p className="text-sm text-on-surface-variant text-center mb-8 fade-up" style={{ animationDelay: '350ms' }}>{note}</p>
+
+        <div className="w-full bg-surface rounded-3xl border border-outline-variant shadow-[0_18px_40px_rgba(15,23,42,0.08)] p-6 text-center mb-8 fade-up" style={{ animationDelay: '450ms' }}>
+          <p className="text-[10px] font-semibold tracking-[0.25em] uppercase text-on-surface-variant mb-3">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.15em] text-primary mb-4">{code}</p>
+          <CredentialHint />
+        </div>
+
+        <div className="w-full fade-up" style={{ animationDelay: '550ms' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Market Poster: a paper ticket, stamped PAID at an angle. */
+function PosterSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen relative overflow-hidden">
+      <Confetti />
+      <main className="flex-grow flex flex-col items-center justify-center px-6 py-12 z-10 w-full max-w-sm mx-auto">
+        <h1 className="text-3xl font-bold tracking-tight mb-8 text-center fade-up">{t('ok.title')}</h1>
+
+        <div className="relative w-full bg-surface border-2 border-on-background px-6 pt-9 pb-6 text-center mb-9 fade-up shadow-[6px_6px_0_var(--color-primary)]" style={{ animationDelay: '150ms' }}>
+          <div className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-background border-2 border-on-background"></div>
+          <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-background border-2 border-on-background"></div>
+
+          <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-on-surface-variant mb-2">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.18em] mb-4">{code}</p>
+          <div className="border-t border-dashed border-on-background/50 my-4"></div>
+          <p className="text-xs text-on-surface-variant mb-2">{note}</p>
+          <CredentialHint />
+
+          <div
+            className="stamp-in absolute -top-5 -right-4 border-[3px] border-error text-error rounded px-3 py-0.5 text-xl font-black tracking-[0.18em] uppercase bg-background/60"
+            style={{ fontFamily: 'var(--portal-heading-font)' }}
+          >
+            {t('poster.paid')}
+          </div>
+        </div>
+
+        <div className="w-full fade-up" style={{ animationDelay: '400ms' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Compact Grid: provisioning log line, then the code tile lights up. */
+function MatrixSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen">
+      <main className="flex-grow flex flex-col justify-center px-5 py-10 w-full max-w-md mx-auto">
+        <p className="font-mono text-xs text-primary mb-3 type-line" style={{ animationDelay: '0.1s' }}>
+          &gt; provisioning <span className="text-on-surface-variant">[done]</span>
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight mb-1 fade-up" style={{ animationDelay: '250ms' }}>{t('ok.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-6 fade-up" style={{ animationDelay: '330ms' }}>{note}</p>
+
+        <div className="pop-in bg-surface-container-low border border-primary rounded-lg p-5 text-center mb-3" style={{ animationDelay: '0.45s' }}>
+          <p className="text-[10px] font-bold tracking-[0.25em] uppercase text-on-surface-variant mb-2">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.18em] text-primary">{code}</p>
+        </div>
+        <div className="mb-8 fade-up" style={{ animationDelay: '550ms' }}><CredentialHint /></div>
+
+        <div className="fade-up" style={{ animationDelay: '650ms' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Step-by-Step: the ring closes to 100% and the last step checks off. */
+function StepsSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen relative overflow-hidden">
+      <Confetti />
+      <main className="flex-grow flex flex-col items-center justify-center px-5 py-10 z-10 w-full max-w-md mx-auto">
+        <div className="relative w-36 h-36 mb-6">
+          <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-surface-container-high)" strokeWidth="7" />
+            <circle
+              cx="60" cy="60" r="52" fill="none" stroke="var(--color-primary)" strokeWidth="7" strokeLinecap="round"
+              strokeDasharray={RING_C} strokeDashoffset="0"
+              className="ring-draw" style={{ '--ring-from': RING_C / 3, '--ring-to': 0 }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="pop-in w-14 h-14 rounded-full bg-primary text-on-primary flex items-center justify-center" style={{ animationDelay: '0.9s' }}>
+              <Icon name="check" className="text-[32px]!" />
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant mb-1 fade-up" style={{ animationDelay: '250ms' }}>
+          {t('steps.of', { n: 3, m: 3 })}
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight mb-1 text-center fade-up" style={{ animationDelay: '330ms' }}>{t('ok.title')}</h1>
+        <p className="text-sm text-on-surface-variant text-center mb-7 fade-up" style={{ animationDelay: '410ms' }}>{note}</p>
+
+        <div className="w-full bg-surface rounded-xl border border-outline-variant p-5 text-center mb-8 fade-up" style={{ animationDelay: '500ms' }}>
+          <p className="text-[10px] font-semibold tracking-[0.25em] uppercase text-on-surface-variant mb-2">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.15em] text-primary mb-3">{code}</p>
+          <CredentialHint />
+        </div>
+
+        <div className="w-full fade-up" style={{ animationDelay: '600ms' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
+      </main>
+    </DesignShell>
+  )
+}
+
+/* Terminal: access granted, code in a glowing frame. */
+function NeonSuccess({ code, note, onHome }) {
+  const { t } = useT()
+  const s = useSuccessFlow(code)
+  return (
+    <DesignShell className="flex flex-col min-h-screen">
+      <main className="flex-grow flex flex-col justify-center px-5 py-10 w-full max-w-md mx-auto">
+        <p className="text-sm mb-1 type-line text-on-surface-variant" style={{ animationDelay: '0.1s' }}>
+          &gt; {t('neon.confirmed')} <span className="text-primary">[ok]</span>
+        </p>
+        <p className="text-xl font-bold mb-6 type-line text-primary" style={{ animationDelay: '0.6s', textShadow: '0 0 16px var(--portal-glow1)' }}>
+          &gt; {t('neon.grant')}
+        </p>
+
+        <div className="border border-primary rounded-lg p-6 text-center mb-3 fade-up" style={{ animationDelay: '1s', boxShadow: '0 0 30px var(--portal-glow2), inset 0 0 24px var(--portal-glow2)' }}>
+          <p className="text-[10px] tracking-[0.3em] uppercase text-on-surface-variant mb-3">{t('ok.codeLabel')}</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.2em] text-primary" style={{ textShadow: '0 0 14px var(--portal-glow1)' }}>{code}</p>
+        </div>
+        <p className="text-xs text-on-surface-variant text-center mb-2 fade-up" style={{ animationDelay: '1.1s' }}>{note}</p>
+        <div className="mb-7 fade-up" style={{ animationDelay: '1.15s' }}><CredentialHint /></div>
+
+        <div className="fade-up" style={{ animationDelay: '1.25s' }}>
+          <SuccessFooter s={s} onHome={onHome} />
+        </div>
+      </main>
+    </DesignShell>
   )
 }
 
@@ -1166,52 +2037,45 @@ function SuccessScreen({ code, note, onHome }) {
 /* ------------------------------------------------------------------ */
 
 function ErrorScreen({ message, onRetry, onChoosePlan }) {
-  const { t, theme, themeVars } = useT()
+  const { t } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
+    <DesignShell className="min-h-screen flex flex-col">
       <header className="bg-surface border-b border-outline-variant w-full top-0 z-50 flex items-center justify-between px-5 h-16 sticky">
         <Brand />
         <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('err.badge')}</span>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center px-5 py-8 w-full max-w-md mx-auto">
-        <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] w-full p-6 flex flex-col items-center text-center gap-4 border-t-4 border-error">
-          <div className="w-20 h-20 bg-error-container text-on-error-container rounded-full flex items-center justify-center mb-3 relative">
-            <Icon name="error" filled className="text-[40px]!" />
-          </div>
+      <main className="flex-grow flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center">
+        <p className="text-[11px] font-semibold tracking-[0.3em] uppercase text-error mb-5 fade-up">{t('err.badge')}</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-3 fade-up" style={{ animationDelay: '80ms' }}>{t('err.title')}</h1>
+        <p className="text-sm text-on-surface-variant mb-10 fade-up" style={{ animationDelay: '160ms' }}>{message}</p>
 
-          <h1 className="text-2xl font-bold text-on-surface">{t('err.title')}</h1>
-          <p className="text-base text-on-surface-variant max-w-[280px]">{message}</p>
+        <div className="w-full flex flex-col gap-3 fade-up" style={{ animationDelay: '240ms' }}>
+          <button
+            onClick={onRetry}
+            className="w-full h-12 bg-primary text-on-primary text-lg font-semibold rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer"
+          >
+            <Icon name="refresh" className="group-hover:rotate-180 transition-transform duration-500" />
+            {t('err.retry')}
+          </button>
+          <button
+            onClick={onChoosePlan}
+            className="w-full h-11 text-primary border border-outline-variant text-sm font-semibold rounded-xl hover:border-primary transition-colors cursor-pointer"
+          >
+            {t('err.choose')}
+          </button>
+        </div>
 
-          <div className="w-full flex flex-col gap-3 mt-4">
-            <button
-              onClick={onRetry}
-              className="w-full h-12 bg-primary text-on-primary text-lg font-semibold rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
-            >
-              <Icon name="refresh" className="group-hover:rotate-180 transition-transform duration-500" />
-              {t('err.retry')}
-            </button>
-            <button
-              onClick={onChoosePlan}
-              className="w-full h-12 bg-surface-container-lowest text-primary border border-primary text-lg font-semibold rounded-xl hover:bg-surface-container-low active:scale-95 transition-all duration-200 cursor-pointer"
-            >
-              {t('err.choose')}
-            </button>
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-outline-variant w-full">
-            <p className="text-sm text-on-surface-variant flex items-center justify-center gap-2">
-              <Icon name="support_agent" className="text-[16px]!" />
-              {t('err.support')}{' '}
-              <a className="text-primary hover:underline font-semibold text-sm" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
-                {SUPPORT_PHONE}
-              </a>
-            </p>
-          </div>
-        </section>
+        <p className="mt-12 text-xs text-on-surface-variant flex items-center justify-center gap-2 fade-up" style={{ animationDelay: '320ms' }}>
+          <Icon name="support_agent" className="text-[15px]!" />
+          {t('err.support')}{' '}
+          <a className="text-primary hover:underline font-semibold" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
+            {SUPPORT_PHONE}
+          </a>
+        </p>
       </main>
 
       <Footer />
-    </div>
+    </DesignShell>
   )
 }

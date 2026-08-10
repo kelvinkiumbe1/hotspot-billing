@@ -6,22 +6,24 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class HotspotSettingsService {
 
-    /** The captive-portal layouts the portal knows how to render. */
-    private static final Set<String> TEMPLATES = Set.of("CLASSIC", "GRID", "MINIMAL");
+    /** The complete portal designs the portal renders (keys mirror portalDesigns.js). */
+    private static final Set<String> DESIGNS = Set.of(
+            "CLASSIC", "BREEZE", "POSTER", "MATRIX", "STEPS", "NEON");
+
+    /** Values from before designs replaced layout templates + colour themes. */
+    private static final Map<String, String> LEGACY_DESIGNS = Map.of(
+            "GRID", "MATRIX",
+            "MINIMAL", "BREEZE");
 
     /** The captive-portal languages the portal ships translations for. */
     private static final Set<String> LANGUAGES = Set.of("EN", "SW");
-
-    /** The visual themes the portal can render (keys mirror portalThemes.js). */
-    private static final Set<String> THEMES_SET = Set.of(
-            "AMBER", "EMERALD", "COBALT", "CRIMSON", "VIOLET",
-            "NEON", "STEEL", "SLATE", "OCEAN", "ROSE");
 
     private final HotspotSettingsRepository repo;
 
@@ -40,12 +42,11 @@ public class HotspotSettingsService {
         String redirect = in.getPostPurchaseRedirect();
         s.setPostPurchaseRedirect(redirect == null || redirect.isBlank() ? null : redirect.trim());
         s.setUnusedVoucherExpiryDays(Math.max(0, Math.min(3650, in.getUnusedVoucherExpiryDays())));
-        String template = in.getPortalTemplate() == null ? "" : in.getPortalTemplate().trim().toUpperCase();
-        s.setPortalTemplate(TEMPLATES.contains(template) ? template : "CLASSIC");
+        String design = in.getPortalTemplate() == null ? "" : in.getPortalTemplate().trim().toUpperCase();
+        design = LEGACY_DESIGNS.getOrDefault(design, design);
+        s.setPortalTemplate(DESIGNS.contains(design) ? design : "CLASSIC");
         String lang = in.getDefaultLanguage() == null ? "" : in.getDefaultLanguage().trim().toUpperCase();
         s.setDefaultLanguage(LANGUAGES.contains(lang) ? lang : "EN");
-        String theme = in.getPortalTheme() == null ? "" : in.getPortalTheme().trim().toUpperCase();
-        s.setPortalTheme(THEMES_SET.contains(theme) ? theme : "AMBER");
         return repo.save(s);
     }
 
@@ -67,10 +68,5 @@ public class HotspotSettingsService {
     @Transactional(readOnly = true)
     public String defaultLanguage() {
         return get().getDefaultLanguage();
-    }
-
-    @Transactional(readOnly = true)
-    public String portalTheme() {
-        return get().getPortalTheme();
     }
 }
