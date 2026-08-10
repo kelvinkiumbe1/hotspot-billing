@@ -29,6 +29,11 @@ public class HotspotSettings {
     @Id
     private Long id;
 
+    /** Which captive-portal layout the customer sees: CLASSIC, GRID or MINIMAL. */
+    @Builder.Default
+    @Column(nullable = false, length = 20)
+    private String portalTemplate = "CLASSIC";
+
     /** Where to send a customer after a successful purchase (blank = stay). */
     @Column(length = 512)
     private String postPurchaseRedirect;

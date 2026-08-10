@@ -59,6 +59,7 @@ public class PortalSettingsController {
         out.put("trialEnabled", s.isTrialEnabled());
         out.put("trialMinutes", s.getTrialMinutes());
         out.put("postPurchaseRedirect", hotspotSettings.postPurchaseRedirect());
+        out.put("portalTemplate", hotspotSettings.portalTemplate());
         return out;
     }
 

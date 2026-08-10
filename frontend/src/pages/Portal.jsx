@@ -86,6 +86,7 @@ export default function Portal() {
   const [plansError, setPlansError] = useState(false)
   const [custom, setCustom] = useState(null)
   const [promo, setPromo] = useState(null)
+  const [template, setTemplate] = useState('CLASSIC')
   const pollRef = useRef(null)
 
   function loadPlans() {
@@ -93,6 +94,7 @@ export default function Portal() {
     api('/plans').then(setPlans).catch(() => setPlansError(true))
     api('/custom-plan').then(setCustom).catch(() => {})
     api('/promotion').then(setPromo).catch(() => {})
+    api('/portal-settings').then((s) => setTemplate(s.portalTemplate || 'CLASSIC')).catch(() => {})
   }
 
   useEffect(() => {
@@ -203,6 +205,7 @@ export default function Portal() {
       plans={plans}
       custom={custom}
       promo={promo}
+      template={template}
       plansError={plansError}
       onRetryPlans={loadPlans}
       onPromoExpire={loadPlans}
@@ -382,60 +385,102 @@ function CustomTimeCard({ custom, promo, onBuy }) {
   )
 }
 
-function PlansScreen({ plans, custom, promo, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function PlansScreen({ plans, custom, promo, template = 'CLASSIC', plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const isGrid = template === 'GRID'
+  const isMinimal = template === 'MINIMAL'
+  const mainWidth = isGrid ? 'max-w-3xl' : 'max-w-lg'
   return (
     <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
         <Brand />
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
-        <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
-          <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
-          <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
-            <div className="flex-1">
-              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
-                <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
+      <main className={`flex-1 w-full ${mainWidth} mx-auto pb-24 px-5 pt-6 flex flex-col gap-6`}>
+        {isMinimal ? (
+          <section className="fade-up">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                <Icon name="wifi" filled className="text-primary text-[22px]!" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Get Connected in Seconds</h1>
-              <p className="text-base text-white/80 mt-2 max-w-sm">Fast, reliable internet across the city.</p>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-on-background">Get Connected</h1>
+                <p className="text-sm text-on-surface-variant">Pick a pass and pay with M-Pesa.</p>
+              </div>
             </div>
-            <img
-              src={customerPhoto}
-              alt="Customer browsing on SPA WiFi"
-              className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
-            />
-          </div>
-        </section>
+          </section>
+        ) : isGrid ? (
+          <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
+            <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-primary/25"></div>
+            <div className="relative z-10 px-6 py-6 flex items-center gap-3">
+              <Icon name="wifi" filled className="text-primary-fixed text-[26px]!" />
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Get Connected in Seconds</h1>
+                <p className="text-sm text-white/80 mt-0.5">Choose a pass below — fast, reliable internet.</p>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
+            <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
+            <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
+              <div className="flex-1">
+                <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
+                  <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Get Connected in Seconds</h1>
+                <p className="text-base text-white/80 mt-2 max-w-sm">Fast, reliable internet across the city.</p>
+              </div>
+              <img
+                src={customerPhoto}
+                alt="Customer browsing on SPA WiFi"
+                className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
+              />
+            </div>
+          </section>
+        )}
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
         <section className="flex flex-col gap-6">
-          {PLAN_GROUPS.map((group) => {
-            const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
-            if (!groupPlans.length) return null
-            return (
-              <div key={group} className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 fade-up">
-                  <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">
-                    {group} Passes
-                  </h2>
-                  <div className="h-px bg-outline-variant/50 flex-1"></div>
-                </div>
-                {groupPlans.map((p) => (
-                  <PlanCard
-                    key={p.id}
-                    plan={p}
-                    popular={p.durationMinutes === 1440}
-                    onBuy={onBuy}
-                    index={plans.indexOf(p)}
-                    promo={promo}
-                  />
+          {isMinimal ? (
+            plans.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {plans.map((p) => (
+                  <PlanCard key={p.id} plan={p} popular={p.durationMinutes === 1440}
+                    onBuy={onBuy} index={plans.indexOf(p)} promo={promo} />
                 ))}
               </div>
             )
-          })}
+          ) : (
+            PLAN_GROUPS.map((group) => {
+              const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
+              if (!groupPlans.length) return null
+              return (
+                <div key={group} className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3 fade-up">
+                    <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">
+                      {group} Passes
+                    </h2>
+                    <div className="h-px bg-outline-variant/50 flex-1"></div>
+                  </div>
+                  <div className={isGrid ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-4'}>
+                    {groupPlans.map((p) => (
+                      <PlanCard
+                        key={p.id}
+                        plan={p}
+                        popular={p.durationMinutes === 1440}
+                        onBuy={onBuy}
+                        index={plans.indexOf(p)}
+                        promo={promo}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          )}
           {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
           {plans.length === 0 && !plansError && (
             <div className="flex flex-col gap-4">

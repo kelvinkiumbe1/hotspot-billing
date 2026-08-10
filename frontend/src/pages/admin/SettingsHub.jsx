@@ -276,8 +276,37 @@ function HotspotSection({ auth }) {
     }
   }
 
+  const TEMPLATES = [
+    { key: 'CLASSIC', label: 'Classic', hint: 'Hero image with plans grouped by duration.', icon: 'view_agenda' },
+    { key: 'GRID', label: 'Grid', hint: 'Compact banner, plans in a scannable grid.', icon: 'grid_view' },
+    { key: 'MINIMAL', label: 'Minimal', hint: 'No image, lightweight — best on slow links.', icon: 'list' },
+  ]
+
   return (
     <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <div>
+        <label className={LABEL_CLS}>Captive-portal template</label>
+        <p className="text-xs text-on-surface-variant mb-3">The layout customers see when they connect to your WiFi.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {TEMPLATES.map((t) => {
+            const active = (form.portalTemplate || 'CLASSIC') === t.key
+            return (
+              <button type="button" key={t.key}
+                onClick={() => setForm({ ...form, portalTemplate: t.key })}
+                className={`text-left rounded-lg border p-3 transition-colors cursor-pointer ${
+                  active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-outline-variant hover:border-outline'
+                }`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name={t.icon} className={active ? 'text-primary' : 'text-on-surface-variant'} />
+                  <span className="text-sm font-semibold text-on-surface">{t.label}</span>
+                  {active && <Icon name="check_circle" className="text-primary text-[18px]! ml-auto" />}
+                </div>
+                <p className="text-xs text-on-surface-variant">{t.hint}</p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <div>
         <label className={LABEL_CLS}>Post-purchase redirect</label>
         <input className={INPUT_CLS} placeholder="https://your-site.co.ke (leave blank to stay)"
