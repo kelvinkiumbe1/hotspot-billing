@@ -11,7 +11,29 @@ const TEMPLATE_LABELS = {
   SUBSCRIPTION_EXTENDED: ['Subscription extended', 'Sent after a goodwill extension.'],
 }
 
-const PLACEHOLDERS = ['{business}', '{code}', '{minutes}', '{date}', '{amount}', '{payUrl}']
+// Only the placeholders that actually get filled in for each message —
+// {code} makes no sense on a subscription receipt, so it isn't offered there.
+const TEMPLATE_PLACEHOLDERS = {
+  VOUCHER_ISSUED: ['{business}', '{code}'],
+  TRIAL_ISSUED: ['{business}', '{code}', '{minutes}'],
+  SUBSCRIPTION_PAID: ['{business}', '{date}'],
+  EXPIRY_REMINDER: ['{business}', '{date}', '{amount}', '{payUrl}'],
+  SUBSCRIPTION_SUSPENDED: ['{business}', '{amount}', '{payUrl}'],
+  SUBSCRIPTION_EXTENDED: ['{business}', '{date}'],
+}
+
+// Stand-in values so the preview reads like a real message.
+const SAMPLE_VALUES = {
+  '{business}': 'SPA WiFi',
+  '{code}': '8F3K2Q',
+  '{minutes}': '30',
+  '{date}': '12 Aug 2026',
+  '{amount}': '1,500',
+  '{payUrl}': 'pay.spa.co.ke/9x2',
+}
+
+const renderPreview = (body) =>
+  Object.entries(SAMPLE_VALUES).reduce((s, [token, val]) => s.split(token).join(val), body || '')
 
 export default function Branding({ auth }) {
   const [tab, setTab] = useState('portal')
@@ -229,12 +251,22 @@ export default function Branding({ auth }) {
           <div className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant flex items-start gap-3">
             <Icon name="info" className="text-primary text-[20px]! mt-0.5" />
             <p className="text-sm text-on-surface-variant">
-              Placeholders are filled in when the message is sent:{' '}
-              {PLACEHOLDERS.map((p) => <code key={p} className="text-xs mx-1 bg-surface-container px-1.5 py-0.5 rounded">{p}</code>)}
+              Tap a placeholder to drop it into a message — it's filled in with the real value when the
+              message is sent. Each message shows a live preview using example values.
             </p>
           </div>
           {templates.map((t, idx) => {
             const [label, hint] = TEMPLATE_LABELS[t.templateKey] || [t.templateKey, '']
+            const tokens = TEMPLATE_PLACEHOLDERS[t.templateKey] || []
+            const insert = (token) => {
+              const next = [...templates]
+              const body = t.body || ''
+              const sep = body.length && !body.endsWith(' ') ? ' ' : ''
+              next[idx] = { ...t, body: body + sep + token }
+              setTemplates(next)
+              setMsg(null)
+            }
+            const preview = renderPreview(t.body)
             return (
               <section key={t.templateKey} className="bg-surface-container-lowest rounded-lg p-4 ">
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -258,6 +290,22 @@ export default function Branding({ auth }) {
                     setTemplates(next)
                   }}
                 />
+                {tokens.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {tokens.map((p) => (
+                      <button key={p} type="button" onClick={() => insert(p)}
+                        className="text-xs font-mono bg-surface-container hover:bg-primary/10 border border-outline-variant/60 px-2 py-1 rounded cursor-pointer transition-colors">
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3 rounded-lg bg-surface-container/60 border border-outline-variant/40 p-3">
+                  <span className="text-[11px] uppercase tracking-wide text-on-surface-variant">Preview</span>
+                  <p className="text-sm text-on-surface mt-1 whitespace-pre-wrap">
+                    {preview || <span className="text-on-surface-variant italic">Type a message above…</span>}
+                  </p>
+                </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs text-on-surface-variant">
                     {t.body.length} characters {t.body.length > 160 ? '· 2 SMS per send' : ''}
