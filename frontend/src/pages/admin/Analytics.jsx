@@ -1,6 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
+  PieChart, Pie,
+} from 'recharts'
 import { api } from '../../api.js'
 import { Icon, Skeleton, CardLabel, PageHeader, fmtKES, AreaSparkline } from '../../components/ui.jsx'
+
+/** Human byte sizes: 0 B → 1.4 GB. Traffic figures are stored as raw bytes. */
+function fmtBytes(n) {
+  let v = Number(n || 0)
+  if (v < 1024) return `${v} B`
+  const units = ['KB', 'MB', 'GB', 'TB', 'PB']
+  let i = -1
+  do { v /= 1024; i++ } while (v >= 1024 && i < units.length - 1)
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`
+}
+
+/** Distinct hues for pie slices — brand amber first, then legible accents. */
+const SLICE_COLORS = ['#fdbf2d', '#38bdf8', '#3da35d', '#c084fc', '#fb7185', '#2dd4bf', '#f59e0b', '#94a3b8']
+
+/** Shared Recharts tooltip styling that reads on the dark console. */
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    background: 'var(--color-surface-container-high)',
+    border: '1px solid var(--color-outline-variant)',
+    borderRadius: 8,
+    fontSize: 12,
+  },
+  labelStyle: { color: 'var(--color-on-surface)' },
+  itemStyle: { color: 'var(--color-on-surface)' },
+}
 
 /** Chart accents. Amber is the brand; the other two are distinct hues that
  *  stay legible on the dark console and never collide with the hotspot/PPPoE
@@ -137,6 +166,241 @@ function BarList({ rows, format = fmtKES, colour = 'bg-primary' }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/** A weekday × hour grid, each cell shaded by how many distinct users were
+ *  online then. Recharts has no heatmap, so this is a hand-built grid in the
+ *  house style — the one chart the library doesn't cover. */
+function TrafficHeatmap({ cells }) {
+  const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const grid = useMemo(() => {
+    const g = Array.from({ length: 7 }, () => new Array(24).fill(0))
+    for (const c of cells) g[c.weekday][c.hour] = c.users
+    return g
+  }, [cells])
+  const peak = Math.max(1, ...cells.map((c) => c.users))
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[560px]">
+        <div className="flex">
+          <div className="w-9 shrink-0" />
+          <div className="flex-1 grid gap-0.5" style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}>
+            {Array.from({ length: 24 }, (_, h) => (
+              <div key={h} className="text-[9px] text-on-surface-variant text-center">
+                {h % 6 === 0 ? `${String(h).padStart(2, '0')}` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+        {grid.map((row, wd) => (
+          <div key={wd} className="flex items-center mt-0.5">
+            <div className="w-9 shrink-0 text-[11px] text-on-surface-variant">{WEEKDAYS[wd]}</div>
+            <div className="flex-1 grid gap-0.5" style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}>
+              {row.map((users, h) => (
+                <div
+                  key={h}
+                  className="aspect-square rounded-[2px]"
+                  title={`${WEEKDAYS[wd]} ${String(h).padStart(2, '0')}:00 — ${users} user${users === 1 ? '' : 's'}`}
+                  style={{
+                    background: users === 0
+                      ? 'var(--color-surface-container-high)'
+                      : `color-mix(in srgb, var(--color-primary) ${20 + (users / peak) * 80}%, transparent)`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-on-surface-variant">Darker cells = more people online. Times are local.</p>
+    </div>
+  )
+}
+
+/** Data-usage reports. Fetched separately from the money overview because it
+ *  aggregates a different table and only fills in as traffic is captured. */
+function TrafficSection({ auth, days }) {
+  const [t, setT] = useState(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setT(null)
+    setFailed(false)
+    api(`/admin/analytics/traffic?days=${days}`, { auth }).then(setT).catch(() => setFailed(true))
+  }, [auth, days])
+
+  if (failed) return null
+  if (!t) return <Skeleton className="h-72 mt-6" />
+
+  if (!t.hasData) {
+    return (
+      <Panel title="Network traffic" className="mt-6">
+        <div className="py-8 text-center">
+          <Icon name="insights" className="text-[40px]! text-on-surface-variant/40" />
+          <p className="mt-2 text-on-surface-variant">No traffic recorded yet for this period.</p>
+          <p className="text-xs text-on-surface-variant mt-1 max-w-md mx-auto">
+            Usage is captured live from your routers going forward — these charts fill in as
+            customers browse. There is no history to backfill from before capture began.
+          </p>
+        </div>
+      </Panel>
+    )
+  }
+
+  const { up, down } = t.uploadDownload
+  const upDownData = [
+    { name: 'Download', value: Number(down) },
+    { name: 'Upload', value: Number(up) },
+  ]
+  const planData = t.usageByPlan.map((p) => ({ name: p.plan, value: Number(p.bytes) }))
+  const duCurrent = Number(t.dataUsage.current)
+  const duPrev = Number(t.dataUsage.previous)
+  const duChange = t.dataUsage.changePercent
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon name="router" className="text-primary" />
+        <h2 className="text-lg font-semibold text-on-surface">Network traffic</h2>
+      </div>
+
+      {/* Data total this period vs the previous one + up/down split */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Panel title="Data usage" hint="Current vs previous period">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="font-mono text-3xl font-bold tabular-nums text-on-surface">{fmtBytes(duCurrent)}</p>
+              <p className={`text-xs mt-1 ${
+                duChange === null || duChange === undefined ? 'text-on-surface-variant'
+                  : Number(duChange) >= 0 ? 'text-secondary' : 'text-error'
+              }`}>
+                {duChange === null || duChange === undefined
+                  ? 'No previous period to compare'
+                  : `${Number(duChange) >= 0 ? '+' : ''}${duChange}% vs ${fmtBytes(duPrev)} before`}
+              </p>
+            </div>
+            <div className="w-32 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[{ name: 'Prev', v: duPrev }, { name: 'Now', v: duCurrent }]}>
+                  <Bar dataKey="v" radius={[3, 3, 0, 0]}>
+                    <Cell fill="var(--color-surface-container-high)" />
+                    <Cell fill="var(--color-primary)" />
+                  </Bar>
+                  <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmtBytes(v)} cursor={{ fill: 'transparent' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Upload vs download">
+          <div className="flex items-center gap-4">
+            <div className="w-28 h-28 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={upDownData} dataKey="value" innerRadius={30} outerRadius={52} paddingAngle={2}>
+                    <Cell fill="var(--color-primary)" />
+                    <Cell fill="#38bdf8" />
+                  </Pie>
+                  <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmtBytes(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <dl className="flex-1 space-y-2">
+              <div className="flex justify-between items-baseline gap-2">
+                <dt className="text-sm flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-primary inline-block" /> Download</dt>
+                <dd className="font-semibold tabular-nums">{fmtBytes(down)}</dd>
+              </div>
+              <div className="flex justify-between items-baseline gap-2">
+                <dt className="text-sm flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#38bdf8' }} /> Upload</dt>
+                <dd className="font-semibold tabular-nums">{fmtBytes(up)}</dd>
+              </div>
+            </dl>
+          </div>
+        </Panel>
+      </div>
+
+      {/* Per-router performance */}
+      <Panel title="MikroTik performance" hint="Per router, this period" className="mb-6">
+        {t.perRouter.length === 0 ? (
+          <Empty>No per-router traffic yet.</Empty>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-on-surface-variant border-b border-outline-variant">
+                  <th className="pb-2 font-medium">Router</th>
+                  <th className="pb-2 font-medium text-right">Users</th>
+                  <th className="pb-2 font-medium text-right">Data</th>
+                  <th className="pb-2 font-medium text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.perRouter.map((r) => (
+                  <tr key={r.router} className="border-b border-outline-variant/50 last:border-0">
+                    <td className="py-2.5 font-medium">{r.router}</td>
+                    <td className="py-2.5 text-right tabular-nums">{fmtNum(r.users)}</td>
+                    <td className="py-2.5 text-right tabular-nums font-mono">{fmtBytes(r.bytes)}</td>
+                    <td className="py-2.5 text-right tabular-nums">{fmtKES(r.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      {/* Usage by plan + top talkers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Panel title="Usage by plan" hint="Share of total data">
+          {planData.length === 0 ? (
+            <Empty>No plan-attributed traffic yet.</Empty>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="w-32 h-32 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={planData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={60} paddingAngle={2}>
+                      {planData.map((_, i) => <Cell key={i} fill={SLICE_COLORS[i % SLICE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmtBytes(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="flex-1 space-y-1.5 min-w-0">
+                {planData.slice(0, 6).map((p, i) => (
+                  <li key={p.name} className="flex justify-between items-baseline gap-2 text-sm">
+                    <span className="flex items-center gap-1.5 min-w-0 truncate">
+                      <i className="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }} />
+                      <span className="truncate">{p.name}</span>
+                    </span>
+                    <span className="font-semibold tabular-nums shrink-0">{fmtBytes(p.value)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Top talkers" hint="Heaviest users">
+          {t.topTalkers.length === 0 ? (
+            <Empty>No usage yet.</Empty>
+          ) : (
+            <BarList
+              rows={t.topTalkers.map((u) => ({ label: u.user, value: Number(u.bytes) }))}
+              format={fmtBytes}
+            />
+          )}
+        </Panel>
+      </div>
+
+      {/* Weekday × hour heatmap */}
+      <Panel title="Traffic heatmap" hint="Distinct users by day & hour">
+        {t.heatmap.length === 0 ? <Empty>Not enough data yet.</Empty> : <TrafficHeatmap cells={t.heatmap} />}
+      </Panel>
+    </div>
   )
 }
 
@@ -334,30 +598,18 @@ export default function AnalyticsPage({ auth }) {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Panel title="When people buy" hint="Hotspot purchases by hour" className="lg:col-span-2">
-          {busiestHour === null ? (
-            <Empty>No hotspot purchases in this period yet.</Empty>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Panel title="Top customers" hint="Highest-paying, this period">
+          {(!data.topCustomers || data.topCustomers.length === 0) ? (
+            <Empty>No customer spend in this period yet.</Empty>
           ) : (
-            <>
-              <div className="flex items-end gap-1 h-36">
-                {data.byHour.map((h) => (
-                  <div key={h.hour} className="flex-1 h-full flex flex-col justify-end items-center gap-1"
-                    title={`${String(h.hour).padStart(2, '0')}:00 — ${h.count} purchase${h.count === 1 ? '' : 's'}`}>
-                    <div
-                      className={`w-full rounded-t-sm ${h.count === hourPeak ? 'bg-primary' : h.count ? 'bg-primary/50' : 'bg-surface-container-high'}`}
-                      style={{ height: `${Math.max(3, (h.count / hourPeak) * 100)}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-on-surface-variant">
-                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
-              </div>
-              <p className="mt-3 text-xs text-on-surface-variant">
-                Peak is {String(busiestHour.hour).padStart(2, '0')}:00 — the best window for a promo push.
-              </p>
-            </>
+            <BarList
+              rows={data.topCustomers.map((c) => ({
+                label: c.name,
+                value: c.spent,
+                note: c.name === c.phone ? null : c.phone,
+              }))}
+            />
           )}
         </Panel>
 
@@ -375,6 +627,32 @@ export default function AnalyticsPage({ auth }) {
           </div>
         </Panel>
       </div>
+
+      <Panel title="When people buy" hint="Hotspot purchases by hour" className="mb-6">
+        {busiestHour === null ? (
+          <Empty>No hotspot purchases in this period yet.</Empty>
+        ) : (
+          <>
+            <div className="flex items-end gap-1 h-36">
+              {data.byHour.map((h) => (
+                <div key={h.hour} className="flex-1 h-full flex flex-col justify-end items-center gap-1"
+                  title={`${String(h.hour).padStart(2, '0')}:00 — ${h.count} purchase${h.count === 1 ? '' : 's'}`}>
+                  <div
+                    className={`w-full rounded-t-sm ${h.count === hourPeak ? 'bg-primary' : h.count ? 'bg-primary/50' : 'bg-surface-container-high'}`}
+                    style={{ height: `${Math.max(3, (h.count / hourPeak) * 100)}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] text-on-surface-variant">
+              <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+            </div>
+            <p className="mt-3 text-xs text-on-surface-variant">
+              Peak is {String(busiestHour.hour).padStart(2, '0')}:00 — the best window for a promo push.
+            </p>
+          </>
+        )}
+      </Panel>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Panel title="Voucher sell-through" hint={`${fmtNum(vouchers.stock)} in stock`}>
@@ -427,6 +705,8 @@ export default function AnalyticsPage({ auth }) {
           </dl>
         </Panel>
       </div>
+
+      <TrafficSection auth={auth} days={days} />
     </div>
   )
 }

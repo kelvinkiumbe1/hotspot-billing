@@ -80,6 +80,22 @@ public class Voucher {
     @Column(nullable = false)
     private long routerUptimeSeconds = 0;
 
+    /**
+     * Last cumulative byte counters read from the router for this user, kept
+     * (like {@link #routerUptimeSeconds}) so each traffic poll records only
+     * the delta and copes with the counter resetting on reboot.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private long lastBytesIn = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private long lastBytesOut = 0;
+
+    /** The router this voucher was last seen active on; null until observed. */
+    private Long routerId;
+
     /** The duration this voucher actually grants (custom minutes if set, else the plan's). */
     @Transient
     public int getEffectiveDurationMinutes() {

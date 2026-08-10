@@ -23,4 +23,10 @@ public class AnalyticsController {
     public Map<String, Object> overview(@RequestParam(defaultValue = "30") int days) {
         return analyticsService.overview(days);
     }
+
+    /** Data-usage reports (per-router, heatmap, plans, top talkers, up/down). */
+    @GetMapping("/traffic")
+    public Map<String, Object> traffic(@RequestParam(defaultValue = "30") int days) {
+        return analyticsService.traffic(days);
+    }
 }

@@ -2,9 +2,11 @@ package com.spalimited.hotspotbilling.service;
 
 import com.spalimited.hotspotbilling.domain.Router;
 import com.spalimited.hotspotbilling.domain.Subscriber;
+import com.spalimited.hotspotbilling.domain.TrafficUsage;
 import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.RouterRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
+import com.spalimited.hotspotbilling.repository.TrafficUsageRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +32,7 @@ public class RouterMonitorJob {
     private final RouterRepository routers;
     private final SubscriberRepository subscribers;
     private final VoucherRepository vouchers;
+    private final TrafficUsageRepository trafficUsage;
     private final MikrotikService mikrotikService;
     private final SmsService smsService;
     private final AuditService audit;
@@ -60,6 +64,7 @@ public class RouterMonitorJob {
                 router.setActiveHotspotUsers((Integer) probe.get("hotspotUsers"));
                 router.setActivePppoeUsers((Integer) probe.get("pppoeUsers"));
                 refreshUsage(router);
+                captureTraffic(router);
             } else {
                 router.setLastError((String) probe.get("error"));
             }
@@ -142,6 +147,72 @@ public class RouterMonitorJob {
                 }
                 vouchers.save(v);
             });
+        }
+    }
+
+    /**
+     * Records hotspot data usage from the router's live per-session byte
+     * counters. Those counters are cumulative and reset when a session ends or
+     * the router reboots, so — exactly like {@link #snapshotHotspotUsage} does
+     * for time — we keep the last counters per voucher and fold only the delta
+     * into an hourly (router, user) row. Every traffic report is then an
+     * aggregation of the traffic_usage table.
+     */
+    private void captureTraffic(Router router) {
+        List<Map<String, String>> sessions;
+        try {
+            sessions = mikrotikService.activeSessions(router);
+        } catch (Exception e) {
+            log.debug("Traffic capture skipped for {}: {}", router.getName(), e.getMessage());
+            return;
+        }
+        Instant bucket = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        for (Map<String, String> session : sessions) {
+            if (!"hotspot".equals(session.get("kind"))) {
+                continue; // PPPoE byte counters aren't read yet (reported as 0)
+            }
+            String code = session.get("user");
+            if (code == null || code.isBlank()) {
+                continue;
+            }
+            // bytes-in = received from the client (upload); bytes-out = sent to
+            // the client (download), in RouterOS hotspot terms.
+            long observedUp = MikrotikService.parseBytes(session.get("bytesIn")).longValue();
+            long observedDown = MikrotikService.parseBytes(session.get("bytesOut")).longValue();
+
+            Voucher voucher = vouchers.findByCode(code).orElse(null);
+            if (voucher == null) {
+                continue; // unknown user — no cursor to diff against safely
+            }
+            long deltaUp = observedUp >= voucher.getLastBytesIn() ? observedUp - voucher.getLastBytesIn() : observedUp;
+            long deltaDown = observedDown >= voucher.getLastBytesOut() ? observedDown - voucher.getLastBytesOut() : observedDown;
+            voucher.setLastBytesIn(observedUp);
+            voucher.setLastBytesOut(observedDown);
+            if (voucher.getRouterId() == null) {
+                voucher.setRouterId(router.getId());
+            }
+            vouchers.save(voucher);
+
+            if (deltaUp <= 0 && deltaDown <= 0) {
+                continue;
+            }
+            Long planId = voucher.getPlan() != null ? voucher.getPlan().getId() : null;
+            TrafficUsage row = trafficUsage
+                    .findByBucketHourAndRouterIdAndUserKey(bucket, router.getId(), code)
+                    .orElseGet(() -> TrafficUsage.builder()
+                            .bucketHour(bucket)
+                            .routerId(router.getId())
+                            .userKey(code)
+                            .planId(planId)
+                            .bytesUp(0)
+                            .bytesDown(0)
+                            .build());
+            row.setBytesUp(row.getBytesUp() + Math.max(0, deltaUp));
+            row.setBytesDown(row.getBytesDown() + Math.max(0, deltaDown));
+            if (row.getPlanId() == null) {
+                row.setPlanId(planId);
+            }
+            trafficUsage.save(row);
         }
     }
 

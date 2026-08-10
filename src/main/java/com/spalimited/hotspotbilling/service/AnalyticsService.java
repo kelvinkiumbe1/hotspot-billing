@@ -29,6 +29,8 @@ public class AnalyticsService {
     private final ExpenseRepository expenses;
     private final LeadRepository leads;
     private final VoucherBatchRepository batches;
+    private final TrafficUsageRepository trafficUsage;
+    private final RouterRepository routers;
 
     private static final ZoneId ZONE = ZoneId.systemDefault();
 
@@ -84,6 +86,12 @@ public class AnalyticsService {
         Map<String, BigDecimal> planRevenue = new HashMap<>();
         Map<String, Integer> planSales = new HashMap<>();
 
+        // Highest-paying customers, keyed by phone number across both sides of
+        // the business. spendByPhone holds the money; labelByPhone prefers a
+        // known subscriber's name over the bare number when we have one.
+        Map<String, BigDecimal> spendByPhone = new HashMap<>();
+        Map<String, String> labelByPhone = new HashMap<>();
+
         for (Payment p : hotspotPaid) {
             LocalDate d = day(paidAt(p.getCompletedAt(), p.getCreatedAt()));
             BigDecimal amount = p.getAmount() == null ? BigDecimal.ZERO : p.getAmount();
@@ -103,6 +111,10 @@ public class AnalyticsService {
                         : (p.getPlan() != null ? p.getPlan().getName() : "Unknown");
                 planRevenue.merge(plan, amount, BigDecimal::add);
                 planSales.merge(plan, 1, Integer::sum);
+
+                if (p.getPhoneNumber() != null && !p.getPhoneNumber().isBlank()) {
+                    spendByPhone.merge(p.getPhoneNumber(), amount, BigDecimal::add);
+                }
             } else if (!d.isBefore(previousFrom) && !d.isAfter(previousTo)) {
                 hotspotBefore = hotspotBefore.add(amount);
             }
@@ -127,6 +139,13 @@ public class AnalyticsService {
                     pppoeCash = pppoeCash.add(amount);
                 } else {
                     pppoeMpesa = pppoeMpesa.add(amount);
+                }
+                Subscriber sub = p.getSubscriber();
+                if (sub != null && sub.getPhoneNumber() != null && !sub.getPhoneNumber().isBlank()) {
+                    spendByPhone.merge(sub.getPhoneNumber(), amount, BigDecimal::add);
+                    if (sub.getFullName() != null && !sub.getFullName().isBlank()) {
+                        labelByPhone.put(sub.getPhoneNumber(), sub.getFullName());
+                    }
                 }
             } else if (!d.isBefore(previousFrom) && !d.isAfter(previousTo)) {
                 pppoeBefore = pppoeBefore.add(amount);
@@ -251,6 +270,15 @@ public class AnalyticsService {
                         "sales", planSales.getOrDefault(e.getKey(), 0)))
                 .toList());
 
+        out.put("topCustomers", spendByPhone.entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .limit(8)
+                .map(e -> Map.<String, Object>of(
+                        "name", labelByPhone.getOrDefault(e.getKey(), maskPhone(e.getKey())),
+                        "phone", maskPhone(e.getKey()),
+                        "spent", e.getValue()))
+                .toList());
+
         List<Map<String, Object>> hours = new ArrayList<>();
         for (int h = 0; h < 24; h++) {
             hours.add(Map.of("hour", h, "count", byHour[h]));
@@ -289,6 +317,153 @@ public class AnalyticsService {
                         : BigDecimal.valueOf(convertedInWindow * 100.0 / leadsInWindow)
                                 .setScale(1, RoundingMode.HALF_UP)));
         return out;
+    }
+
+    /**
+     * Data-usage reports, aggregated from the traffic_usage rows the monitor
+     * job captures from the routers. All of these were empty before capture
+     * shipped, and only fill in as traffic accrues — there is no backfill.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> traffic(int days) {
+        int window = Math.max(1, Math.min(days, 365));
+        LocalDate today = LocalDate.now(ZONE);
+        LocalDate from = today.minusDays(window - 1L);
+        Instant fromInstant = from.atStartOfDay(ZONE).toInstant();
+        Instant previousFromInstant = from.minusDays(window).atStartOfDay(ZONE).toInstant();
+
+        // One read covers this window and the one before it (for current-vs-previous).
+        List<TrafficUsage> withPrev = trafficUsage.findByBucketHourGreaterThanEqual(previousFromInstant);
+        List<TrafficUsage> rows = new ArrayList<>();
+        long prevTotal = 0;
+        long nowTotal = 0;
+        for (TrafficUsage r : withPrev) {
+            long bytes = r.getBytesUp() + r.getBytesDown();
+            if (!r.getBucketHour().isBefore(fromInstant)) {
+                rows.add(r);
+                nowTotal += bytes;
+            } else {
+                prevTotal += bytes;
+            }
+        }
+
+        Map<Long, String> routerNames = new HashMap<>();
+        routers.findAll().forEach(rt -> routerNames.put(rt.getId(), rt.getName()));
+
+        Map<Long, long[]> perRouterBytes = new HashMap<>(); // [up, down]
+        Map<Long, Set<String>> perRouterUsers = new HashMap<>();
+        Map<Long, Long> planBytes = new HashMap<>();
+        Map<String, Long> talkerBytes = new HashMap<>();
+        Map<String, Set<String>> heatmapUsers = new HashMap<>(); // "weekday:hour" -> users
+        long totalUp = 0;
+        long totalDown = 0;
+
+        for (TrafficUsage r : rows) {
+            long up = r.getBytesUp();
+            long down = r.getBytesDown();
+            totalUp += up;
+            totalDown += down;
+
+            perRouterBytes.computeIfAbsent(r.getRouterId(), k -> new long[2]);
+            perRouterBytes.get(r.getRouterId())[0] += up;
+            perRouterBytes.get(r.getRouterId())[1] += down;
+            perRouterUsers.computeIfAbsent(r.getRouterId(), k -> new HashSet<>()).add(r.getUserKey());
+
+            if (r.getPlanId() != null) {
+                planBytes.merge(r.getPlanId(), up + down, Long::sum);
+            }
+            talkerBytes.merge(r.getUserKey(), up + down, Long::sum);
+
+            ZonedDateTime when = r.getBucketHour().atZone(ZONE);
+            String cell = (when.getDayOfWeek().getValue() - 1) + ":" + when.getHour();
+            heatmapUsers.computeIfAbsent(cell, k -> new HashSet<>()).add(r.getUserKey());
+        }
+
+        // Per-router revenue: attribute each settled hotspot payment to the
+        // router its voucher was seen on (null until traffic captured it).
+        Map<Long, BigDecimal> routerRevenue = new HashMap<>();
+        for (Payment p : payments.findAll()) {
+            if (!settled(p) || p.getVoucher() == null || p.getVoucher().getRouterId() == null) {
+                continue;
+            }
+            if (day(paidAt(p.getCompletedAt(), p.getCreatedAt())).isBefore(from)) {
+                continue;
+            }
+            BigDecimal amount = p.getAmount() == null ? BigDecimal.ZERO : p.getAmount();
+            routerRevenue.merge(p.getVoucher().getRouterId(), amount, BigDecimal::add);
+        }
+
+        List<Map<String, Object>> perRouter = new ArrayList<>();
+        for (Map.Entry<Long, long[]> e : perRouterBytes.entrySet()) {
+            Long rid = e.getKey();
+            perRouter.add(Map.of(
+                    "router", routerNames.getOrDefault(rid, "Router #" + rid),
+                    "bytesUp", e.getValue()[0],
+                    "bytesDown", e.getValue()[1],
+                    "bytes", e.getValue()[0] + e.getValue()[1],
+                    "users", perRouterUsers.getOrDefault(rid, Set.of()).size(),
+                    "revenue", routerRevenue.getOrDefault(rid, BigDecimal.ZERO)));
+        }
+        perRouter.sort((a, b) -> Long.compare((long) b.get("bytes"), (long) a.get("bytes")));
+
+        Map<Long, String> planNames = new HashMap<>();
+        vouchers.findAll().forEach(v -> {
+            if (v.getPlan() != null) {
+                planNames.putIfAbsent(v.getPlan().getId(), v.getPlan().getName());
+            }
+        });
+        List<Map<String, Object>> usageByPlan = planBytes.entrySet().stream()
+                .sorted(Map.Entry.<Long, Long>comparingByValue().reversed())
+                .map(e -> Map.<String, Object>of(
+                        "plan", planNames.getOrDefault(e.getKey(), "Plan #" + e.getKey()),
+                        "bytes", e.getValue()))
+                .toList();
+
+        List<Map<String, Object>> topTalkers = talkerBytes.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(10)
+                .map(e -> {
+                    String phone = vouchers.findByCode(e.getKey())
+                            .map(Voucher::getPhoneNumber).orElse(null);
+                    String label = phone != null && !phone.isBlank() ? maskPhone(phone) : e.getKey();
+                    return Map.<String, Object>of("user", label, "bytes", e.getValue());
+                })
+                .toList();
+
+        List<Map<String, Object>> heatmap = new ArrayList<>();
+        for (Map.Entry<String, Set<String>> e : heatmapUsers.entrySet()) {
+            String[] parts = e.getKey().split(":");
+            heatmap.add(Map.of(
+                    "weekday", Integer.parseInt(parts[0]),
+                    "hour", Integer.parseInt(parts[1]),
+                    "users", e.getValue().size()));
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("windowDays", window);
+        out.put("hasData", !rows.isEmpty());
+        out.put("perRouter", perRouter);
+        out.put("usageByPlan", usageByPlan);
+        out.put("topTalkers", topTalkers);
+        out.put("heatmap", heatmap);
+        out.put("uploadDownload", Map.of("up", totalUp, "down", totalDown));
+
+        Map<String, Object> dataUsage = new LinkedHashMap<>();
+        dataUsage.put("current", nowTotal);
+        dataUsage.put("previous", prevTotal);
+        dataUsage.put("changePercent", percentChange(
+                BigDecimal.valueOf(prevTotal), BigDecimal.valueOf(nowTotal)));
+        out.put("dataUsage", dataUsage);
+        return out;
+    }
+
+    /** Show enough of a number to recognise a customer without printing it in full. */
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.length() < 4) {
+            return phone;
+        }
+        String last3 = phone.substring(phone.length() - 3);
+        return "•••• " + last3;
     }
 
     /**
