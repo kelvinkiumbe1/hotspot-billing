@@ -247,7 +247,7 @@ function Login({ onLogin }) {
           <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
             <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]!" />
           </div>
-          <h1 className="text-2xl font-bold text-white">HotspotPro</h1>
+          <h1 className="text-2xl font-bold text-white">Zidi</h1>
           <p className="text-sm text-white/70">Network Manager</p>
         </div>
 
@@ -255,7 +255,7 @@ function Login({ onLogin }) {
           onSubmit={submit}
           className="bg-surface-container-lowest rounded-lg border border-outline-variant border-t-2 border-t-primary p-6 flex flex-col gap-4"
         >
-          <h2 className="text-lg font-semibold text-on-surface">Sign in to Hotspot Manager</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Sign in to Zidi</h2>
           <div>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="admin-user">
               Username
@@ -504,7 +504,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
       <div className="mb-5 px-4 flex items-center gap-3 shrink-0">
         <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]!" />
         <div>
-          <p className="text-xl font-bold text-primary-fixed leading-tight">HotspotPro</p>
+          <p className="text-xl font-bold text-primary-fixed leading-tight">Zidi</p>
           <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70">NETWORK MANAGER</p>
         </div>
       </div>
@@ -754,7 +754,7 @@ function Shell({ auth, onLogout }) {
           <button className="md:hidden p-2 -ml-2 text-on-surface cursor-pointer" onClick={() => setDrawer(true)} aria-label="Open menu">
             <Icon name="menu" />
           </button>
-          <span className="text-lg font-semibold text-on-surface hidden sm:inline">Hotspot Manager</span>
+          <span className="text-lg font-semibold text-on-surface hidden sm:inline">Zidi</span>
           <span className="text-on-surface-variant hidden sm:inline">/</span>
           <span className="text-lg font-bold text-primary">{TAB_TITLES[tab]}</span>
         </div>
