@@ -19,6 +19,7 @@ const SECTIONS = [
     items: [
       { key: 'branding', label: 'Branding', hint: 'Business name, logo, portal wording', icon: 'palette', need: 'OUTREACH' },
       { key: 'hotspot', label: 'Hotspot', hint: 'Post-purchase redirect, voucher expiry', icon: 'wifi', need: 'SETTINGS' },
+      { key: 'loyalty', label: 'Loyalty & rewards', hint: 'Points earned on spend, redeemed for free time', icon: 'loyalty', need: 'SETTINGS' },
     ],
   },
   {
@@ -578,6 +579,85 @@ function MessagingSection({ auth }) {
   )
 }
 
+function LoyaltySection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    api('/admin/settings/loyalty', { auth }).then(setForm).catch((e) => setMsg({ ok: false, text: e.message }))
+  }, [auth])
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      const res = await api('/admin/settings/loyalty', { method: 'PUT', auth, body: form })
+      setForm(res)
+      setMsg({ ok: true, text: 'Saved.' })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  const exampleSpend = 100
+  const exampleEarn = form.pointsPerHundredKes
+  const exampleMinutes = form.minRedeemMinutes
+  const exampleCost = form.minRedeemMinutes * form.pointsPerMinute
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Loyalty programme</span>
+            <span className="text-sm text-on-surface-variant">Customers earn points automatically as they pay, and redeem them for free minutes.</span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+      </section>
+
+      {form.enabled && (
+        <>
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL_CLS}>Points earned per KES 100 spent</label>
+              <input type="number" min="0" max="1000" className={INPUT_CLS} value={form.pointsPerHundredKes}
+                onChange={(e) => set({ pointsPerHundredKes: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Points to redeem 1 free minute</label>
+              <input type="number" min="1" max="1000" className={INPUT_CLS} value={form.pointsPerMinute}
+                onChange={(e) => set({ pointsPerMinute: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Smallest redemption (minutes)</label>
+              <input type="number" min="1" max="10080" className={INPUT_CLS} value={form.minRedeemMinutes}
+                onChange={(e) => set({ minRedeemMinutes: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Largest redemption (minutes)</label>
+              <input type="number" min="1" max="10080" className={INPUT_CLS} value={form.maxRedeemMinutes}
+                onChange={(e) => set({ maxRedeemMinutes: Number(e.target.value) })} />
+            </div>
+          </section>
+          <div className="rounded-lg bg-surface-container/60 border border-outline-variant/40 p-3 text-sm text-on-surface-variant">
+            <span className="font-medium text-on-surface">In practice:</span> spending KES {exampleSpend} earns{' '}
+            <span className="font-mono">{exampleEarn}</span> point(s). A {exampleMinutes}-minute reward costs{' '}
+            <span className="font-mono">{exampleCost}</span> point(s), delivered by SMS.
+          </div>
+        </>
+      )}
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+    </form>
+  )
+}
+
 function AlertsSection({ auth }) {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -1016,6 +1096,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="Alerts & digest" subtitle="Router-down alerts, outage compensation and a daily sales summary." />
               <AlertsSection auth={auth} />
+            </>
+          )}
+          {current === 'loyalty' && (
+            <>
+              <PageHeader title="Loyalty & rewards" subtitle="Customers earn points as they spend and redeem them for free time." />
+              <LoyaltySection auth={auth} />
             </>
           )}
           {current === 'security' && (

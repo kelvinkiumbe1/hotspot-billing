@@ -35,6 +35,7 @@ public class PortalSettingsController {
 
     private final PortalSettingsService portalSettings;
     private final HotspotSettingsService hotspotSettings;
+    private final LoyaltyService loyaltyService;
     private final NotificationService notifications;
     private final CustomPlanService customPlanService;
     private final VoucherService voucherService;
@@ -60,6 +61,7 @@ public class PortalSettingsController {
         out.put("trialMinutes", s.getTrialMinutes());
         out.put("postPurchaseRedirect", hotspotSettings.postPurchaseRedirect());
         out.put("portalTemplate", hotspotSettings.portalTemplate());
+        out.put("loyaltyEnabled", loyaltyService.settings().isEnabled());
         return out;
     }
 

@@ -33,6 +33,7 @@ public class PaymentService {
     private final PortalSettingsService portalSettingsService;
     private final SubscriptionService subscriptionService;
     private final WebhookService webhookService;
+    private final LoyaltyService loyaltyService;
 
     @Transactional(readOnly = true)
     public Payment get(Long id) {
@@ -169,5 +170,8 @@ public class PaymentService {
                 "code", voucher.getCode(),
                 "plan", planName,
                 "phone", payment.getPhoneNumber()));
+
+        // Reward the customer for the purchase (no-op if loyalty is off).
+        loyaltyService.earn(payment.getPhoneNumber(), payment.getAmount());
     }
 }

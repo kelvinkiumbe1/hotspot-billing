@@ -87,6 +87,7 @@ export default function Portal() {
   const [custom, setCustom] = useState(null)
   const [promo, setPromo] = useState(null)
   const [template, setTemplate] = useState('CLASSIC')
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   const pollRef = useRef(null)
 
   function loadPlans() {
@@ -94,7 +95,10 @@ export default function Portal() {
     api('/plans').then(setPlans).catch(() => setPlansError(true))
     api('/custom-plan').then(setCustom).catch(() => {})
     api('/promotion').then(setPromo).catch(() => {})
-    api('/portal-settings').then((s) => setTemplate(s.portalTemplate || 'CLASSIC')).catch(() => {})
+    api('/portal-settings').then((s) => {
+      setTemplate(s.portalTemplate || 'CLASSIC')
+      setLoyaltyEnabled(!!s.loyaltyEnabled)
+    }).catch(() => {})
   }
 
   useEffect(() => {
@@ -206,6 +210,7 @@ export default function Portal() {
       custom={custom}
       promo={promo}
       template={template}
+      loyaltyEnabled={loyaltyEnabled}
       plansError={plansError}
       onRetryPlans={loadPlans}
       onPromoExpire={loadPlans}
@@ -385,7 +390,93 @@ function CustomTimeCard({ custom, promo, onBuy }) {
   )
 }
 
-function PlansScreen({ plans, custom, promo, template = 'CLASSIC', plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function RewardsCard() {
+  const [phone, setPhone] = useState('')
+  const [bal, setBal] = useState(null) // { points, redeemableMinutes, pointsPerMinute, min, max }
+  const [minutes, setMinutes] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  async function check(e) {
+    e?.preventDefault()
+    setMsg(null); setBal(null); setBusy(true)
+    try {
+      const b = await api(`/loyalty/${normalizePhone(phone)}`)
+      if (!b.enabled) { setMsg({ ok: false, text: 'Rewards are not available right now.' }); return }
+      setBal(b)
+      setMinutes(b.minRedeemMinutes)
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function redeem() {
+    setMsg(null); setBusy(true)
+    try {
+      const r = await api(`/loyalty/${normalizePhone(phone)}/redeem`, { method: 'POST', body: { minutes } })
+      setMsg({ ok: true, text: r.message })
+      check() // refresh balance
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  const cost = bal ? minutes * bal.pointsPerMinute : 0
+  const canRedeem = bal && bal.points >= cost && minutes >= bal.minRedeemMinutes
+
+  return (
+    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up" style={{ animationDelay: '450ms' }}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon name="loyalty" className="text-primary" />
+        <h3 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Rewards</h3>
+      </div>
+      <form onSubmit={check} className="flex gap-3">
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Your phone e.g. 0712…"
+          className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+        />
+        <button type="submit" disabled={busy || !phone.trim()}
+          className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-base font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer disabled:opacity-40">
+          Check
+        </button>
+      </form>
+
+      {bal && (
+        <div className="mt-4">
+          <p className="text-sm text-on-surface-variant">
+            You have <span className="font-mono font-semibold text-on-background">{bal.points}</span> point(s) —
+            up to <span className="font-mono font-semibold text-on-background">{bal.redeemableMinutes}</span> free minutes.
+          </p>
+          {bal.redeemableMinutes >= bal.minRedeemMinutes ? (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-on-surface-variant mb-1">Minutes to redeem</label>
+                <input type="number" min={bal.minRedeemMinutes} max={bal.maxRedeemMinutes} step={bal.minRedeemMinutes}
+                  value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
+                  className="w-32 h-11 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono text-on-background focus:outline-none focus:border-primary" />
+              </div>
+              <span className="text-xs text-on-surface-variant pb-3">costs {cost} pts</span>
+              <button type="button" onClick={redeem} disabled={busy || !canRedeem}
+                className="h-11 px-6 bg-primary text-on-primary rounded-xl text-base font-semibold active:scale-95 transition-transform cursor-pointer disabled:opacity-40">
+                Redeem
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant mt-2">
+              Earn a bit more — you need at least {bal.minRedeemMinutes * bal.pointsPerMinute} points to redeem.
+            </p>
+          )}
+        </div>
+      )}
+      {msg && <p className={`text-sm mt-3 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
+    </section>
+  )
+}
+
+function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
   const isGrid = template === 'GRID'
   const isMinimal = template === 'MINIMAL'
   const mainWidth = isGrid ? 'max-w-3xl' : 'max-w-lg'
@@ -528,6 +619,8 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', plansError, o
             {redeemErr && <p className="text-sm text-error mt-2">{redeemErr}</p>}
           </form>
         </section>
+
+        {loyaltyEnabled && <RewardsCard />}
       </main>
 
       <div className="hidden md:block w-full"><Footer /></div>
