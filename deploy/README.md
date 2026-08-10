@@ -19,13 +19,22 @@ approach* at the end.
 ## One-time setup on the server
 
 A small VPS is enough to start: 4 GB RAM runs the proxy and roughly four
-tenants, since each is a JVM plus a Postgres.
+tenants, since each is a JVM plus a Postgres. Any provider with a plain
+Ubuntu 22.04/24.04 box works — Hetzner, DigitalOcean, Vultr, or a Kenyan
+host billing in shillings.
+
+On a fresh Ubuntu box, one script installs Docker, opens the firewall,
+builds the image and starts the edge proxy:
 
 ```bash
-# Docker, then:
 git clone <your repo> /srv/spa-billing
 cd /srv/spa-billing
+sudo ./deploy/server-setup.sh
+```
 
+Or the same steps by hand:
+
+```bash
 docker network create spa-edge
 docker build -t spa-billing:latest .
 docker compose -f deploy/edge/docker-compose.yml up -d
@@ -131,13 +140,9 @@ Two fallbacks, in descending order of comfort:
 ## Day to day
 
 ```bash
-# Upgrade everyone after a code change
-docker build -t spa-billing:latest .
-for f in deploy/tenants/*.env; do
-  slug=$(basename "$f" .env)
-  docker compose -p "spa-$slug" --env-file "$f" \
-    -f deploy/tenant/docker-compose.yml up -d
-done
+# Upgrade everyone after a code change: backs up each tenant, rebuilds the
+# image, restarts every tenant onto it, prunes the old image.
+./deploy/update-all-tenants.sh
 
 # Suspend a tenant who has not paid you
 docker compose -p spa-acme --env-file deploy/tenants/acme.env \
@@ -147,12 +152,12 @@ docker compose -p spa-acme --env-file deploy/tenants/acme.env \
 docker logs -f spa-acme-app-1
 ```
 
-Schema changes apply themselves on start (`DDL_AUTO=update`), so upgrading
-is a rebuild and a restart. That is convenient and it is also the sharpest
-edge here: Hibernate will add columns but it will not rename or drop them,
-and it has no rollback. **Take a backup before upgrading a live tenant** —
-see below — and consider moving to Flyway migrations before you have real
-money flowing through several ISPs.
+Schema changes are versioned Flyway migrations that run on start, and
+Hibernate only validates the schema (`DDL_AUTO=validate`) — it never edits
+tables, so an upgrade cannot silently alter a customer database. Upgrading
+is still a rebuild and a restart; `update-all-tenants.sh` does both, and
+backs up first. Flyway has no automatic rollback, so **a backup before
+upgrading a live tenant is still the rule**, not a nicety.
 
 ## Before you tell a tenant they are live
 
