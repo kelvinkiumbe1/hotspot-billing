@@ -65,6 +65,14 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- Email receipts, password resets and reports over SMTP. The
+		     operator's server credentials live in the DB, so JavaMailSender
+		     is built per-send rather than from static properties. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>me.legrange</groupId>
 			<artifactId>mikrotik</artifactId>

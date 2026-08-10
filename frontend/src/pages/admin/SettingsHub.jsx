@@ -33,6 +33,7 @@ const SECTIONS = [
       { key: 'payments', label: 'Payment gateways', hint: 'How customers pay you', icon: 'credit_card', need: 'SETTINGS' },
       { key: 'vat', label: 'VAT', hint: 'Tax rate, KRA PIN, invoice numbering', icon: 'percent', need: 'SETTINGS' },
       { key: 'messaging', label: 'SMS & WhatsApp', hint: 'Your own gateway credentials', icon: 'chat', need: 'SETTINGS' },
+      { key: 'email', label: 'Email (SMTP)', hint: 'Receipts, resets and reports', icon: 'mail', need: 'SETTINGS' },
     ],
   },
   {
@@ -547,6 +548,147 @@ function MessagingSection({ auth }) {
   )
 }
 
+function EmailSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [saved, setSaved] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [testTo, setTestTo] = useState('')
+  const [msg, setMsg] = useState(null)
+
+  const load = () =>
+    api('/admin/settings/email', { auth }).then((d) => {
+      setSaved(d)
+      setForm({
+        enabled: d.enabled,
+        host: d.host || '',
+        port: d.port || 587,
+        username: d.username || '',
+        password: '',
+        fromAddress: d.fromAddress || '',
+        fromName: d.fromName || '',
+        startTls: d.startTls,
+      })
+    }).catch((e) => setMsg({ ok: false, text: e.message }))
+
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }))
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true)
+    setMsg(null)
+    try {
+      await api('/admin/settings/email', { method: 'PUT', auth, body: form })
+      setMsg({ ok: true, text: 'Saved. Email will use these from the next send.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sendTest() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await api('/admin/settings/email/test', { method: 'POST', auth, body: { to: testTo.trim() } })
+      setMsg({ ok: true, text: r.message })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-3xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Send email through your SMTP server</span>
+            <span className="text-sm text-on-surface-variant">
+              Receipts, password resets and reports go out from your own mailbox.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        {form.enabled && (
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className={LABEL_CLS}>SMTP host</label>
+                <input className={INPUT_CLS} value={form.host}
+                  onChange={(e) => set({ host: e.target.value })} placeholder="smtp.gmail.com" />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Port</label>
+                <input type="number" min="1" max="65535" className={INPUT_CLS} value={form.port}
+                  onChange={(e) => set({ port: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLS}>Username</label>
+                <input className={INPUT_CLS} value={form.username} autoComplete="off"
+                  onChange={(e) => set({ username: e.target.value })} placeholder="often your email address" />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Password</label>
+                <input type="password" className={INPUT_CLS} value={form.password} autoComplete="new-password"
+                  onChange={(e) => set({ password: e.target.value })}
+                  placeholder={saved?.password || 'app password or SMTP key'} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLS}>From address</label>
+                <input className={INPUT_CLS} value={form.fromAddress}
+                  onChange={(e) => set({ fromAddress: e.target.value })} placeholder="billing@yourdomain.co.ke" />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>From name</label>
+                <input className={INPUT_CLS} value={form.fromName}
+                  onChange={(e) => set({ fromName: e.target.value })} placeholder="Zidi" />
+              </div>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" className="mt-1" checked={form.startTls}
+                onChange={(e) => set({ startTls: e.target.checked })} />
+              <span>
+                <span className="text-sm font-medium block">Use STARTTLS (port 587)</span>
+                <span className="text-xs text-on-surface-variant">
+                  Leave on for most providers. Turn off only for implicit SSL, usually on port 465.
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
+      </section>
+
+      {msg && (
+        <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        {saved?.working && (
+          <>
+            <input className={`${INPUT_CLS} max-w-xs`} type="email" value={testTo}
+              onChange={(e) => setTestTo(e.target.value)} placeholder="you@example.com" />
+            <button type="button" disabled={busy || !testTo.trim()}
+              className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-medium disabled:opacity-40"
+              onClick={sendTest}>Send test</button>
+          </>
+        )}
+      </div>
+    </form>
+  )
+}
+
 function ProfileSection({ auth, me }) {
   const [profile, setProfile] = useState({ fullName: '', phoneNumber: '', email: '' })
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirm: '' })
@@ -738,6 +880,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="SMS & WhatsApp" subtitle="Your own gateway accounts, so message costs land on you." />
               <MessagingSection auth={auth} />
+            </>
+          )}
+          {current === 'email' && (
+            <>
+              <PageHeader title="Email (SMTP)" subtitle="Your mail server, for receipts, password resets and reports." />
+              <EmailSection auth={auth} />
             </>
           )}
           {current === 'security' && (
