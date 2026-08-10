@@ -48,3 +48,6 @@ backups/
 
 # Local-only secrets (M-Pesa sandbox keys), read via spring.config.import
 local.properties
+
+# Raw source videos (compress into marketing/**/images/ before committing)
+/*_*fps.mp4
