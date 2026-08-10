@@ -1142,6 +1142,23 @@ function FormSection({ title, hint, children }) {
   )
 }
 
+// These three constants were referenced by the plan modal but never defined —
+// a ReferenceError that white-screened New Package / Edit plan on open.
+const DURATION_UNITS = { minutes: 1, hours: 60, days: 1440 }
+
+const AVAILABILITY = [
+  { key: 'LIVE', label: 'Live', hint: 'Shown on the portal and available to buy now.' },
+  { key: 'HIDDEN', label: 'Hidden', hint: 'Not listed on the portal, but still works for vouchers and direct links.' },
+  { key: 'OFF', label: 'Off', hint: 'Not sold and not usable.' },
+]
+
+// Matches Plan.FupAction on the backend (THROTTLE, BLOCK, NOTIFY).
+const FUP_ACTIONS = [
+  { key: 'THROTTLE', label: 'Throttle to a slower speed' },
+  { key: 'BLOCK', label: 'Block until reset' },
+  { key: 'NOTIFY', label: 'Notify only' },
+]
+
 function PlanModal({ auth, plan, onClose, onSaved }) {
   const editing = Boolean(plan)
   const [routers, setRouters] = useState([])
