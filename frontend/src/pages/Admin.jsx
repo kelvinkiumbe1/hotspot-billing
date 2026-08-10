@@ -690,14 +690,22 @@ function Shell({ auth, onLogout }) {
   useEffect(() => {
     api('/admin/staff/me', { auth })
       .then(setMe)
-      // An older backend without the endpoint should not blank the whole
-      // rail, so fall back to every permission.
-      .catch(() => setMe({
-        username: 'admin',
-        role: 'OWNER',
-        permissions: ['STAFF', 'SETTINGS', 'FINANCE', 'CUSTOMERS', 'NETWORK', 'OUTREACH', 'SELL'],
-        breakGlass: false,
-      }))
+      .catch((err) => {
+        // A stale or expired session (or the credential format changing under
+        // an old tab) must drop back to the login rather than leave a broken
+        // half-loaded shell. Anything else — e.g. an older backend missing the
+        // endpoint — falls back to full permissions so the rail still renders.
+        if (err.status === 401) {
+          onLogout()
+          return
+        }
+        setMe({
+          username: 'admin',
+          role: 'OWNER',
+          permissions: ['STAFF', 'SETTINGS', 'FINANCE', 'CUSTOMERS', 'NETWORK', 'OUTREACH', 'SELL'],
+          breakGlass: false,
+        })
+      })
   }, [auth])
 
   // If the current tab is not open to this role, fall back to the overview.
