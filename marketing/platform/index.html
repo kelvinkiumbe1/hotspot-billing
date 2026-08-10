@@ -79,6 +79,9 @@
     .hero .cta { display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; }
     .hero .logos { margin-top:40px; display:flex; gap:22px; flex-wrap:wrap; color:rgba(255,255,255,.6); font-size:13px; font-weight:600; letter-spacing:.02em; align-items:center; }
     .hero .logos b { color:#fff; }
+    .hero-grid { display:grid; grid-template-columns:1.05fr .95fr; gap:44px; align-items:center; }
+    .hero-media img { width:100%; height:auto; border-radius:14px; border:1px solid rgba(255,255,255,.14); box-shadow:0 30px 70px rgba(0,0,0,.45); display:block; }
+    @media (max-width:900px){ .hero-grid { grid-template-columns:1fr; } .hero-media { margin-top:8px; } }
 
     section { padding:76px 0; }
     .head { text-align:center; max-width:680px; margin:0 auto 48px; }
@@ -152,17 +155,24 @@
 
   <main>
     <section class="hero">
-      <div class="wrap">
-        <span class="eyebrow">◆ Built for African internet providers</span>
-        <h1>Billing that <span class="hl">runs your ISP</span> — not the other way round.</h1>
-        <p class="sub">Collect by M-Pesa, provision your MikroTik automatically, and bill hotspot and home customers from one dashboard. Your paybill, your brand, your customers.</p>
-        <div class="cta">
-          <a class="btn btn-primary" href="#demo">Book a free demo</a>
-          <a class="btn btn-ghost" href="#features">See what it does</a>
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow">◆ Built for African internet providers</span>
+          <h1>Billing that <span class="hl">runs your ISP</span> — not the other way round.</h1>
+          <p class="sub">Collect by M-Pesa, provision your MikroTik automatically, and bill hotspot and home customers from one dashboard. Your paybill, your brand, your customers.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="#demo">Book a free demo</a>
+            <a class="btn btn-ghost" href="#features">See what it does</a>
+          </div>
+          <div class="logos">
+            <span>Works with</span>
+            <b>M-Pesa</b> · <b>MikroTik RouterOS</b> · <b>PPPoE &amp; Hotspot</b>
+          </div>
         </div>
-        <div class="logos">
-          <span>Works with</span>
-          <b>M-Pesa</b> · <b>MikroTik RouterOS</b> · <b>PPPoE &amp; Hotspot</b>
+        <!-- Real product screenshot. Swap images/dashboard.png for any newer one. -->
+        <div class="hero-media">
+          <img src="images/dashboard.png" width="1600" height="1000" loading="eager"
+               alt="Zidi dashboard: revenue, transactions and new subscribers with trend charts" />
         </div>
       </div>
     </section>
