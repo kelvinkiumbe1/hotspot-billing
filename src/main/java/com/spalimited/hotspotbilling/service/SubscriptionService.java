@@ -210,6 +210,33 @@ public class SubscriptionService {
         return subscribers.save(sub);
     }
 
+    /**
+     * Pushes every active subscriber's expiry back by an outage's duration,
+     * so nobody pays for time the network was down. Returns how many
+     * accounts were credited. Suspended accounts are left alone — they were
+     * already off for their own reasons, not the outage.
+     */
+    @Transactional
+    public int compensateForOutage(java.time.Duration downtime) {
+        long minutes = downtime.toMinutes();
+        if (minutes <= 0) {
+            return 0;
+        }
+        int credited = 0;
+        for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.ACTIVE)) {
+            if (sub.getPaidUntil() == null) {
+                continue;
+            }
+            sub.setPaidUntil(sub.getPaidUntil().plus(minutes, ChronoUnit.MINUTES));
+            subscribers.save(sub);
+            credited++;
+        }
+        if (credited > 0) {
+            log.info("Outage compensation: extended {} subscriber(s) by {} minute(s)", credited, minutes);
+        }
+        return credited;
+    }
+
     @Transactional
     public Subscriber suspend(Long id) {
         Subscriber sub = get(id);

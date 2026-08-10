@@ -19,4 +19,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     long countByStatus(Payment.Status status);
 
     List<Payment> findTop100ByOrderByCreatedAtDesc();
+
+    // --- Sales digest: what completed since the start of the day ---
+
+    @Query("select coalesce(sum(p.amount), 0) from Payment p "
+            + "where p.status = :status and p.completedAt >= :since")
+    BigDecimal sumAmountByStatusSince(@Param("status") Payment.Status status, @Param("since") java.time.Instant since);
+
+    long countByStatusAndCompletedAtAfter(Payment.Status status, java.time.Instant since);
 }

@@ -34,6 +34,7 @@ const SECTIONS = [
       { key: 'vat', label: 'VAT', hint: 'Tax rate, KRA PIN, invoice numbering', icon: 'percent', need: 'SETTINGS' },
       { key: 'messaging', label: 'SMS & WhatsApp', hint: 'Your own gateway credentials', icon: 'chat', need: 'SETTINGS' },
       { key: 'email', label: 'Email (SMTP)', hint: 'Receipts, resets and reports', icon: 'mail', need: 'SETTINGS' },
+      { key: 'alerts', label: 'Alerts & digest', hint: 'Outage alerts, compensation, daily sales', icon: 'notifications_active', need: 'SETTINGS' },
     ],
   },
   {
@@ -577,6 +578,100 @@ function MessagingSection({ auth }) {
   )
 }
 
+function AlertsSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/admin/settings/alerts', { auth }).then(setForm).catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      const res = await api('/admin/settings/alerts', { method: 'PUT', auth, body: form })
+      setForm(res)
+      setMsg({ ok: true, text: 'Saved.' })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function testDigest() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api('/admin/settings/alerts/digest/test', { method: 'POST', auth })
+      setMsg({ ok: true, text: r.message })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Router-down alerts</span>
+            <span className="text-sm text-on-surface-variant">Text your alert phone when a router goes offline, and again when it recovers.</span>
+          </div>
+          <Toggle checked={form.routerOfflineAlert} onChange={(e) => set({ routerOfflineAlert: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">Alerts go to the phone set under SMS &amp; WhatsApp.</p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Outage compensation</span>
+            <span className="text-sm text-on-surface-variant">When the network recovers, push every active subscriber's expiry back by the downtime.</span>
+          </div>
+          <Toggle checked={form.outageCompensationEnabled} onChange={(e) => set({ outageCompensationEnabled: e.target.checked })} />
+        </div>
+        {form.outageCompensationEnabled && (
+          <div className="max-w-xs">
+            <label className={LABEL_CLS}>Only compensate outages longer than (minutes)</label>
+            <input type="number" min="0" max="1440" className={INPUT_CLS} value={form.minOutageMinutes}
+              onChange={(e) => set({ minOutageMinutes: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Short blips are ignored. Applies to home (PPPoE) subscriptions.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Daily sales digest</span>
+            <span className="text-sm text-on-surface-variant">A once-a-day summary of the day's takings, by SMS and email.</span>
+          </div>
+          <Toggle checked={form.salesDigestEnabled} onChange={(e) => set({ salesDigestEnabled: e.target.checked })} />
+        </div>
+        {form.salesDigestEnabled && (
+          <div className="max-w-xs">
+            <label className={LABEL_CLS}>Send at (hour, 0–23)</label>
+            <input type="number" min="0" max="23" className={INPUT_CLS} value={form.salesDigestHour}
+              onChange={(e) => set({ salesDigestHour: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Server time. Goes to your alert phone and SMTP from-address.</p>
+          </div>
+        )}
+      </section>
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        <button type="button" disabled={busy}
+          className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-medium disabled:opacity-40"
+          onClick={testDigest}>Send test digest now</button>
+      </div>
+    </form>
+  )
+}
+
 function EmailSection({ auth }) {
   const [form, setForm] = useState(null)
   const [saved, setSaved] = useState(null)
@@ -915,6 +1010,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="Email (SMTP)" subtitle="Your mail server, for receipts, password resets and reports." />
               <EmailSection auth={auth} />
+            </>
+          )}
+          {current === 'alerts' && (
+            <>
+              <PageHeader title="Alerts & digest" subtitle="Router-down alerts, outage compensation and a daily sales summary." />
+              <AlertsSection auth={auth} />
             </>
           )}
           {current === 'security' && (

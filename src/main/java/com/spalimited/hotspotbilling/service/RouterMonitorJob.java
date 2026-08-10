@@ -34,6 +34,8 @@ public class RouterMonitorJob {
     private final AuditService audit;
 
     private final MessagingSettingsService messagingSettings;
+    private final OperatorAlertSettingsService alertSettings;
+    private final SubscriptionService subscriptionService;
 
     @Scheduled(fixedDelay = 120_000, initialDelay = 20_000)
     @Transactional
@@ -43,6 +45,7 @@ public class RouterMonitorJob {
         }
         for (Router router : routers.findByEnabledTrue()) {
             boolean wasOnline = router.isOnline();
+            Instant lastSeenBefore = router.getLastSeenAt();
             Map<String, Object> probe = mikrotikService.probe(router);
             boolean online = Boolean.TRUE.equals(probe.get("online"));
 
@@ -62,19 +65,21 @@ public class RouterMonitorJob {
             }
             routers.save(router);
 
+            boolean alertsOn = alertSettings.get().isRouterOfflineAlert();
             if (wasOnline && !online) {
                 audit.system("router.offline", "Router " + router.getName() + " went offline: " + router.getLastError());
                 String alertPhone = messagingSettings.alertPhone();
-                if (alertPhone != null && !alertPhone.isBlank()) {
+                if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "ALERT: SPA WiFi router '" + router.getName() + "' is offline.");
                 }
                 log.warn("Router {} went offline", router.getName());
             } else if (!wasOnline && online) {
                 audit.system("router.online", "Router " + router.getName() + " is back online");
                 String alertPhone = messagingSettings.alertPhone();
-                if (alertPhone != null && !alertPhone.isBlank()) {
+                if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "Recovered: SPA WiFi router '" + router.getName() + "' is back online.");
                 }
+                compensateForOutage(router, lastSeenBefore);
                 // A reboot can wipe the hotspot users. Re-create any that are
                 // missing and pin everyone to their remaining time, so paid
                 // customers reconnect and continue from where they left off.
@@ -137,6 +142,36 @@ public class RouterMonitorJob {
                 }
                 vouchers.save(v);
             });
+        }
+    }
+
+    /**
+     * When the operator has opted in, credits active subscribers for a
+     * network outage by pushing their expiry back by the downtime. Only the
+     * default router (the one carrying paid customers) triggers this, and
+     * only outages past the configured minimum are counted.
+     */
+    private void compensateForOutage(Router router, Instant lastSeenBefore) {
+        if (!router.isDefaultRouter() || lastSeenBefore == null) {
+            return;
+        }
+        var settings = alertSettings.get();
+        if (!settings.isOutageCompensationEnabled()) {
+            return;
+        }
+        java.time.Duration downtime = java.time.Duration.between(lastSeenBefore, Instant.now());
+        if (downtime.toMinutes() < settings.getMinOutageMinutes()) {
+            return;
+        }
+        try {
+            int credited = subscriptionService.compensateForOutage(downtime);
+            if (credited > 0) {
+                audit.system("outage.compensate", "Extended " + credited + " subscriber(s) by "
+                        + downtime.toMinutes() + " min after a " + downtime.toMinutes() + "-minute outage on "
+                        + router.getName());
+            }
+        } catch (Exception e) {
+            log.warn("Outage compensation failed for {}: {}", router.getName(), e.getMessage());
         }
     }
 
