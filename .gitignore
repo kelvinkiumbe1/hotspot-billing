@@ -45,3 +45,6 @@ backups/
 
 # Heavy stock-photo originals — use the resized copies in marketing/**/images/
 *-unsplash.jpg
+
+# Local-only secrets (M-Pesa sandbox keys), read via spring.config.import
+local.properties
