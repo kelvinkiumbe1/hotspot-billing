@@ -42,3 +42,6 @@ src/main/resources/static/
 # Per-tenant credentials and database dumps
 deploy/tenants/
 backups/
+
+# Heavy stock-photo originals — use the resized copies in marketing/**/images/
+*-unsplash.jpg
