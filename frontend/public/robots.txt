@@ -1,0 +1,10 @@
+# This deployment is the application, not a marketing site. Keep the private
+# and functional areas out of search — nobody should reach a staff login or a
+# customer's account through Google. Marketing/landing content lives on a
+# separate site (see below), which is what you actually want ranked.
+User-agent: *
+Disallow: /admin
+Disallow: /tech
+Disallow: /pay
+Disallow: /my-account
+Disallow: /api/
