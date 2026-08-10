@@ -155,6 +155,87 @@ public class MikrotikService {
         log.info("Provisioned hotspot user for voucher {}", voucher.getCode());
     }
 
+    /** Code → connect-time used, read from the router's per-user uptime counter. */
+    public Map<String, Long> hotspotUserUptimes(Router router) {
+        Map<String, Long> out = new HashMap<>();
+        if (!live(router)) {
+            return out;
+        }
+        try (ApiConnection connection = login(router)) {
+            for (Map<String, String> u : connection.execute("/ip/hotspot/user/print")) {
+                String name = u.get("name");
+                if (name != null && !name.isBlank()) {
+                    out.put(name, parseUptime(u.get("uptime")));
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not read hotspot users from {}: {}", router.getName(), e.getMessage());
+        }
+        return out;
+    }
+
+    /**
+     * Re-establishes every still-valid voucher on a router that has just come
+     * back online. A reboot can drop the hotspot users entirely (a hard power
+     * cut, a config reset, a replaced board), which would lock out customers
+     * who have paid and still have time. For each voucher this re-adds it if
+     * missing, and in every case pins the router's remaining time to what the
+     * app knows is left — so people continue from where they were, not with a
+     * fresh full pass. Returns how many users had to be re-created.
+     */
+    @Transactional
+    public int reconcileHotspotUsers(Router router, List<Voucher> vouchers) {
+        if (!live(router)) {
+            return 0;
+        }
+        int restored = 0;
+        try (ApiConnection connection = login(router)) {
+            java.util.Set<String> existing = new java.util.HashSet<>();
+            for (Map<String, String> u : connection.execute("/ip/hotspot/user/print")) {
+                existing.add(u.get("name"));
+            }
+            for (Voucher v : vouchers) {
+                if (v.isExhausted()) {
+                    continue; // no time left — leave it to expire/be removed
+                }
+                long remainingMinutes = Math.max(1, (long) Math.ceil(v.getRemainingSeconds() / 60.0));
+                String limit = remainingMinutes + "m";
+                String profile = ensureHotspotProfile(connection, v.getPlan());
+                // Keep it locked to its device across the reboot when MAC-bound.
+                String mac = v.getBoundMac() != null && !v.getBoundMac().isBlank()
+                        ? " mac-address=" + v.getBoundMac() : "";
+                if (existing.contains(v.getCode())) {
+                    // The router kept the user; its own counter may have survived,
+                    // reset, or drifted — make the app's remaining time authoritative.
+                    connection.execute(String.format(
+                            "/ip/hotspot/user/set [find name=%s] profile=%s limit-uptime=%s%s",
+                            v.getCode(), profile, limit, mac));
+                    try {
+                        connection.execute("/ip/hotspot/user/reset-counters [find name=" + v.getCode() + "]");
+                    } catch (Exception ignore) {
+                        // reset-counters is best-effort; limit-uptime still caps them.
+                    }
+                } else {
+                    connection.execute(String.format(
+                            "/ip/hotspot/user/add name=%s password=%s profile=%s limit-uptime=%s%s",
+                            v.getCode(), v.getCode(), profile, limit, mac));
+                    restored++;
+                }
+                // The router counter is 0 now (freshly added or reset), so the next
+                // usage poll measures the delta from zero.
+                v.setRouterUptimeSeconds(0);
+                voucherRepository.save(v);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik reconcile failed: " + e.getMessage(), e);
+        }
+        if (restored > 0) {
+            log.info("Reconcile re-created {} hotspot user(s) on {} after it came back online",
+                    restored, router.getName());
+        }
+        return restored;
+    }
+
     public void removeVoucher(Voucher voucher) {
         Router router = defaultRouter();
         if (!live(router)) {
@@ -400,6 +481,32 @@ public class MikrotikService {
             throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
         }
         log.info("Disconnected {} ({}) from {}", user, kind, router.getName());
+    }
+
+    /** RouterOS uptime like "1w2d3h4m5s", "6h31m8s" or "45s" → seconds. */
+    public static long parseUptime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return 0;
+        }
+        long total = 0;
+        long num = 0;
+        for (char c : raw.trim().toCharArray()) {
+            if (c >= '0' && c <= '9') {
+                num = num * 10 + (c - '0');
+            } else {
+                long mult = switch (c) {
+                    case 'w' -> 604_800L;
+                    case 'd' -> 86_400L;
+                    case 'h' -> 3_600L;
+                    case 'm' -> 60L;
+                    case 's' -> 1L;
+                    default -> 0L;
+                };
+                total += num * mult;
+                num = 0;
+            }
+        }
+        return total;
     }
 
     /** Parses RouterOS byte counters, which may be "123" or "123/456". */

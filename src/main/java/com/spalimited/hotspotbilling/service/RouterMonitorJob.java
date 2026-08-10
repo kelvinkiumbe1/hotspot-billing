@@ -2,8 +2,10 @@ package com.spalimited.hotspotbilling.service;
 
 import com.spalimited.hotspotbilling.domain.Router;
 import com.spalimited.hotspotbilling.domain.Subscriber;
+import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.RouterRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
+import com.spalimited.hotspotbilling.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,6 +28,7 @@ public class RouterMonitorJob {
 
     private final RouterRepository routers;
     private final SubscriberRepository subscribers;
+    private final VoucherRepository vouchers;
     private final MikrotikService mikrotikService;
     private final SmsService smsService;
     private final AuditService audit;
@@ -71,7 +75,68 @@ public class RouterMonitorJob {
                 if (alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "Recovered: SPA WiFi router '" + router.getName() + "' is back online.");
                 }
+                // A reboot can wipe the hotspot users. Re-create any that are
+                // missing and pin everyone to their remaining time, so paid
+                // customers reconnect and continue from where they left off.
+                if (router.isDefaultRouter()) {
+                    try {
+                        List<Voucher> active = vouchers.findByStatusIn(
+                                List.of(Voucher.Status.UNUSED, Voucher.Status.ACTIVE));
+                        int restored = mikrotikService.reconcileHotspotUsers(router, active);
+                        if (restored > 0) {
+                            audit.system("router.reconcile", "Re-created " + restored
+                                    + " hotspot user(s) on " + router.getName() + " after it recovered");
+                        }
+                    } catch (Exception e) {
+                        log.warn("Hotspot reconcile failed for {}: {}", router.getName(), e.getMessage());
+                    }
+                }
             }
+
+            // Keep the app's used-time record current so, if the router later
+            // loses its counters, reconcile still knows how much is left.
+            if (online && router.isDefaultRouter()) {
+                snapshotHotspotUsage(router);
+            }
+        }
+    }
+
+    /**
+     * Reads each hotspot user's uptime from the router and folds it into the
+     * voucher's authoritative used-time. Adds only the delta since the last
+     * poll, and treats a counter that went backwards (a reboot, or our own
+     * reconcile resetting it) as counting up from zero.
+     */
+    private void snapshotHotspotUsage(Router router) {
+        Map<String, Long> uptimes;
+        try {
+            uptimes = mikrotikService.hotspotUserUptimes(router);
+        } catch (Exception e) {
+            log.debug("Hotspot usage snapshot skipped for {}: {}", router.getName(), e.getMessage());
+            return;
+        }
+        for (Map.Entry<String, Long> entry : uptimes.entrySet()) {
+            vouchers.findByCode(entry.getKey()).ifPresent(v -> {
+                long observed = entry.getValue();
+                long prev = v.getRouterUptimeSeconds();
+                long delta = observed >= prev ? observed - prev : observed;
+                if (delta > 0) {
+                    v.setUsedSeconds(v.getUsedSeconds() + delta);
+                }
+                v.setRouterUptimeSeconds(observed);
+                // A voucher used at the hotspot login (not via the redeem page)
+                // is still UNUSED in the app until we see it here.
+                if (v.getStatus() == Voucher.Status.UNUSED && v.getUsedSeconds() > 0) {
+                    v.setStatus(Voucher.Status.ACTIVE);
+                    if (v.getActivatedAt() == null) {
+                        v.setActivatedAt(Instant.now());
+                    }
+                }
+                if (v.getStatus() == Voucher.Status.ACTIVE && v.isExhausted()) {
+                    v.setStatus(Voucher.Status.EXPIRED);
+                }
+                vouchers.save(v);
+            });
         }
     }
 

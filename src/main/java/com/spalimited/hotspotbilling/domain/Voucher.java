@@ -62,9 +62,43 @@ public class Voucher {
 
     private Instant expiresAt;
 
+    /**
+     * Connect-time used so far, in seconds — the app's authoritative total, so
+     * a router that reboots and loses its own counter can be handed back the
+     * customer's *remaining* time rather than a fresh pass or a lockout.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private long usedSeconds = 0;
+
+    /**
+     * The last uptime counter read from the router for this user. Kept so each
+     * poll adds only the delta since the previous one, and so a counter that
+     * has reset (reboot, or our own reconcile) is detected and handled.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private long routerUptimeSeconds = 0;
+
     /** The duration this voucher actually grants (custom minutes if set, else the plan's). */
     @Transient
     public int getEffectiveDurationMinutes() {
         return customDurationMinutes != null ? customDurationMinutes : plan.getDurationMinutes();
+    }
+
+    @Transient
+    public long getDurationSeconds() {
+        return getEffectiveDurationMinutes() * 60L;
+    }
+
+    /** Connect-time left before the pass is spent, in seconds (never negative). */
+    @Transient
+    public long getRemainingSeconds() {
+        return Math.max(0, getDurationSeconds() - usedSeconds);
+    }
+
+    @Transient
+    public boolean isExhausted() {
+        return getRemainingSeconds() <= 0;
     }
 }
