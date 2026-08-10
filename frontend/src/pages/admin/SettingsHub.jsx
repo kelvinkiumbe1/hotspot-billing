@@ -58,8 +58,20 @@ function DeveloperSection({ auth }) {
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  // Webhooks
+  const [hooks, setHooks] = useState(null)
+  const [events, setEvents] = useState([])
+  const [wform, setWform] = useState({ label: '', url: '', events: [] })
+  const [whCreated, setWhCreated] = useState(null)
+  const [wbusy, setWbusy] = useState(false)
+
   const load = () => api('/admin/api-tokens', { auth }).then(setTokens).catch(() => setTokens([]))
-  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const loadHooks = () => api('/admin/webhooks', { auth }).then(setHooks).catch(() => setHooks([]))
+  useEffect(() => {
+    load()
+    loadHooks()
+    api('/admin/webhooks/events', { auth }).then(setEvents).catch(() => {})
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function create(e) {
     e.preventDefault()
@@ -81,8 +93,41 @@ function DeveloperSection({ auth }) {
     load()
   }
 
+  function toggleEvent(ev) {
+    setWform((f) => ({
+      ...f,
+      events: f.events.includes(ev) ? f.events.filter((x) => x !== ev) : [...f.events, ev],
+    }))
+  }
+
+  async function createHook(e) {
+    e.preventDefault()
+    if (!wform.label.trim() || !wform.url.trim() || wform.events.length === 0) return
+    setWbusy(true)
+    try {
+      const c = await api('/admin/webhooks', { method: 'POST', auth, body: wform })
+      setWhCreated(c)
+      setWform({ label: '', url: '', events: [] })
+      loadHooks()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setWbusy(false)
+    }
+  }
+
+  async function testHook(id) {
+    await api(`/admin/webhooks/${id}/test`, { method: 'POST', auth }).catch(() => {})
+    setTimeout(loadHooks, 1200)
+  }
+
+  async function deleteHook(id) {
+    await api(`/admin/webhooks/${id}`, { method: 'DELETE', auth }).catch(() => {})
+    loadHooks()
+  }
+
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-8 max-w-3xl">
       <form onSubmit={create} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
         <label className={LABEL_CLS}>Create a token</label>
         <p className="text-sm text-on-surface-variant mt-1 mb-3">
@@ -133,6 +178,73 @@ function DeveloperSection({ auth }) {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Webhooks */}
+      <div>
+        <h3 className="text-base font-semibold text-on-surface mb-1">Webhooks</h3>
+        <p className="text-sm text-on-surface-variant mb-3">
+          Forward events to your own endpoint. Every request is signed{' '}
+          <code className="font-mono">X-Zidi-Signature: sha256=HMAC(secret, body)</code>.
+        </p>
+
+        <form onSubmit={createHook} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input className={INPUT_CLS} placeholder="Label (e.g. Slack notifier)"
+              value={wform.label} onChange={(e) => setWform({ ...wform, label: e.target.value })} />
+            <input className={INPUT_CLS} placeholder="https://example.com/webhooks/zidi"
+              value={wform.url} onChange={(e) => setWform({ ...wform, url: e.target.value })} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Events</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {events.map((ev) => (
+                <label key={ev} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" className="accent-[#fdbf2d]"
+                    checked={wform.events.includes(ev)} onChange={() => toggleEvent(ev)} />
+                  <span className="font-mono text-xs">{ev}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <PrimaryButton disabled={wbusy}>{wbusy ? 'Adding…' : 'Add webhook'}</PrimaryButton>
+        </form>
+
+        {whCreated && (
+          <div className="mt-3 rounded-lg p-4 border border-primary/50 bg-primary/5">
+            <p className="text-sm font-semibold text-on-surface">Signing secret — copy it now, shown once.</p>
+            <code className="font-mono text-sm break-all block mt-2 bg-surface-container rounded px-3 py-2">{whCreated.secret}</code>
+          </div>
+        )}
+
+        <div className="mt-3 bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
+          {hooks === null ? (
+            <div className="p-4"><Skeleton className="h-16" /></div>
+          ) : hooks.length === 0 ? (
+            <p className="p-4 text-sm text-on-surface-variant">No webhooks configured.</p>
+          ) : (
+            <table className="data-table w-full text-left">
+              <thead><tr><th>Label</th><th>URL</th><th>Events</th><th>Last</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {hooks.map((h) => (
+                  <tr key={h.id}>
+                    <td className="font-medium">{h.label}</td>
+                    <td className="font-mono text-xs break-all max-w-[220px]">{h.url}</td>
+                    <td className="text-xs text-on-surface-variant">{h.events.length}</td>
+                    <td className="text-xs">
+                      {h.lastStatus === '' ? <span className="text-on-surface-variant">—</span>
+                        : <span className={Number(h.lastStatus) >= 200 && Number(h.lastStatus) < 300 ? 'text-secondary' : 'text-error'}>{h.lastStatus}</span>}
+                    </td>
+                    <td className="text-right whitespace-nowrap">
+                      <button onClick={() => testHook(h.id)} className="text-sm font-semibold text-primary hover:underline cursor-pointer mr-3">Test</button>
+                      <button onClick={() => deleteHook(h.id)} className="text-sm font-semibold text-error hover:underline cursor-pointer">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   )

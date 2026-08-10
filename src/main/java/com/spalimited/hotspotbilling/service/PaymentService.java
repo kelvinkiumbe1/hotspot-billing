@@ -32,6 +32,7 @@ public class PaymentService {
     private final NotificationService notificationService;
     private final PortalSettingsService portalSettingsService;
     private final SubscriptionService subscriptionService;
+    private final WebhookService webhookService;
 
     @Transactional(readOnly = true)
     public Payment get(Long id) {
@@ -156,5 +157,17 @@ public class PaymentService {
                 java.util.Map.of(
                         "business", portalSettingsService.settings().getBusinessName(),
                         "code", voucher.getCode()));
+
+        String planName = voucher.getPlan() != null ? voucher.getPlan().getName() : "Custom";
+        webhookService.dispatch("payment.received", java.util.Map.of(
+                "paymentId", payment.getId(),
+                "amount", payment.getAmount(),
+                "phone", payment.getPhoneNumber(),
+                "plan", planName,
+                "receipt", receiptNumber == null ? "" : receiptNumber));
+        webhookService.dispatch("voucher.generated", java.util.Map.of(
+                "code", voucher.getCode(),
+                "plan", planName,
+                "phone", payment.getPhoneNumber()));
     }
 }
