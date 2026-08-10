@@ -45,6 +45,7 @@ public class WebAuthnService {
 
     private final StaffUserRepository staff;
     private final WebAuthnCredentialRepository credentials;
+    private final SecuritySettingsService securitySettings;
 
     @Value("${webauthn.rp-id}")
     private String rpId;
@@ -52,8 +53,6 @@ public class WebAuthnService {
     private String rpName;
     @Value("${webauthn.origins}")
     private String originsCsv;
-    @Value("${webauthn.enrollment-required}")
-    private boolean enrollmentRequired;
 
     private final WebAuthnManager webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager();
     private final ObjectConverter objectConverter = new ObjectConverter();
@@ -104,7 +103,7 @@ public class WebAuthnService {
     }
 
     public boolean enrollmentRequiredFor(StaffUser user) {
-        return enrollmentRequired && credentials.countByStaffUserId(user.getId()) == 0;
+        return securitySettings.requirePasskeys() && credentials.countByStaffUserId(user.getId()) == 0;
     }
 
     public boolean hasPasskeys(Long staffUserId) {

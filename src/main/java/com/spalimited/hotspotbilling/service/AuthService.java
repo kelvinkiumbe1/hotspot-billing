@@ -32,16 +32,12 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
 
-    /** Wrong passwords before the account is shut until an owner intervenes. */
-    public static final int MAX_ATTEMPTS = 5;
-
-    private static final Duration TOKEN_LIFETIME = Duration.ofHours(12);
-
     private final StaffUserRepository staff;
     private final AuthTokenRepository tokens;
     private final PasswordEncoder encoder;
     private final TotpService totp;
     private final LoginAttemptService attempts;
+    private final SecuritySettingsService securitySettings;
     private final SecureRandom random = new SecureRandom();
 
     @Value("${admin.username}")
@@ -66,6 +62,7 @@ public class AuthService {
     public Session signIn(String username, String password, String code,
                           String userAgent, String ip) {
         String name = username == null ? "" : username.trim().toLowerCase();
+        int maxAttempts = securitySettings.maxLoginAttempts();
         StaffUser user = staff.findByUsername(name).orElse(null);
 
         // Unknown username and wrong password answer identically, so the
@@ -76,12 +73,12 @@ public class AuthService {
 
         if (user.isLocked()) {
             throw new IllegalStateException(
-                    "This account is locked after " + MAX_ATTEMPTS + " failed attempts. "
+                    "This account is locked after " + maxAttempts + " failed attempts. "
                             + "An owner has to set a new password before you can sign in.");
         }
 
         if (!encoder.matches(password == null ? "" : password, user.getPasswordHash())) {
-            int left = attempts.recordFailure(user.getId(), MAX_ATTEMPTS);
+            int left = attempts.recordFailure(user.getId(), maxAttempts);
             throw new IllegalArgumentException(left > 0
                     ? "Wrong username or password. " + left
                             + (left == 1 ? " attempt left" : " attempts left") + " before the account locks."
@@ -96,7 +93,7 @@ public class AuthService {
             if (!totp.verify(user.getTotpSecret(), code)) {
                 // A wrong code counts too, or the second factor could be
                 // brute-forced freely once the password was known.
-                int left = attempts.recordFailure(user.getId(), MAX_ATTEMPTS);
+                int left = attempts.recordFailure(user.getId(), maxAttempts);
                 throw new IllegalArgumentException(left > 0
                         ? "That code is not right. " + left
                                 + (left == 1 ? " attempt left." : " attempts left.")
@@ -107,7 +104,7 @@ public class AuthService {
 
         attempts.recordSuccess(user.getId());
 
-        return new Session(issue(user, userAgent, ip), Instant.now().plus(TOKEN_LIFETIME), user);
+        return new Session(issue(user, userAgent, ip), Instant.now().plus(securitySettings.tokenLifetime()), user);
     }
 
     /**
@@ -118,7 +115,7 @@ public class AuthService {
      */
     public Session startSession(StaffUser user, String userAgent, String ip) {
         attempts.recordSuccess(user.getId());
-        return new Session(issue(user, userAgent, ip), Instant.now().plus(TOKEN_LIFETIME), user);
+        return new Session(issue(user, userAgent, ip), Instant.now().plus(securitySettings.tokenLifetime()), user);
     }
 
     // No @Transactional here: this is called from within the same class, and
@@ -133,7 +130,7 @@ public class AuthService {
                 .token(value)
                 .staffUserId(user.getId())
                 .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plus(TOKEN_LIFETIME))
+                .expiresAt(Instant.now().plus(securitySettings.tokenLifetime()))
                 .userAgent(userAgent == null ? null
                         : userAgent.substring(0, Math.min(userAgent.length(), 255)))
                 .ipAddress(ip)

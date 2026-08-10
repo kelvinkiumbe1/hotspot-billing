@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api.js'
 import {
-  Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS,
+  Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS, Toggle,
 } from '../../components/ui.jsx'
 import PaymentGatewaysPage from './PaymentGateways.jsx'
 import TaxSettingsPage from './TaxSettings.jsx'
@@ -37,10 +37,74 @@ const SECTIONS = [
   {
     group: 'Account',
     items: [
+      { key: 'security', label: 'Security', hint: 'Passkeys, sessions, sign-in lockout', icon: 'lock', need: 'SETTINGS' },
       { key: 'profile', label: 'Your profile', hint: 'Your name, contact and password', icon: 'account_circle' },
     ],
   },
 ]
+
+/** Passkey enforcement, session length and lockout — the policy behind the
+ *  auth flow, editable instead of living in env files. */
+function SecuritySection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api('/admin/settings/security', { auth }).then(setForm).catch(() => {})
+  }, [auth])
+
+  if (!form) return <Skeleton className="h-64" />
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true)
+    setSaved(false)
+    try {
+      const res = await api('/admin/settings/security', { method: 'PUT', auth, body: form })
+      setForm(res)
+      setSaved(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant flex items-start justify-between gap-4">
+        <div>
+          <label className={LABEL_CLS}>Require passkeys</label>
+          <p className="text-sm text-on-surface-variant mt-1">
+            Staff without a passkey must set one up on their next sign-in. Turn this on only once the
+            site is on HTTPS — passkeys can't be created over plain http.
+          </p>
+        </div>
+        <Toggle checked={form.requirePasskeys}
+          onChange={(e) => setForm({ ...form, requirePasskeys: e.target.checked })} />
+      </section>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className={LABEL_CLS}>Session timeout (hours)</label>
+          <input type="number" min="1" max="720" className={INPUT_CLS} value={form.sessionTimeoutHours}
+            onChange={(e) => setForm({ ...form, sessionTimeoutHours: Number(e.target.value) })} />
+          <p className="text-xs text-on-surface-variant mt-1">How long a signed-in session lasts before it must sign in again.</p>
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Lock account after (failed attempts)</label>
+          <input type="number" min="3" max="20" className={INPUT_CLS} value={form.maxLoginAttempts}
+            onChange={(e) => setForm({ ...form, maxLoginAttempts: Number(e.target.value) })} />
+          <p className="text-xs text-on-surface-variant mt-1">After this many wrong sign-ins, an owner must reset the password.</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        {saved && <span className="text-sm text-secondary">Saved.</span>}
+      </div>
+    </form>
+  )
+}
 
 function MessagingSection({ auth }) {
   const [form, setForm] = useState(null)
@@ -393,6 +457,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="SMS & WhatsApp" subtitle="Your own gateway accounts, so message costs land on you." />
               <MessagingSection auth={auth} />
+            </>
+          )}
+          {current === 'security' && (
+            <>
+              <PageHeader title="Security" subtitle="Passkeys, session length and sign-in lockout." />
+              <SecuritySection auth={auth} />
             </>
           )}
           {current === 'profile' && (
