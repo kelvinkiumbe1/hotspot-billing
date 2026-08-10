@@ -30,7 +30,7 @@ public class MessagingSettingsService {
     @Value("${app.alert-phone:}")
     private String alertPhoneFallback;
 
-    public record SmsConfig(boolean enabled, String username, String apiKey,
+    public record SmsConfig(boolean enabled, String provider, String username, String apiKey,
                             String senderId, String baseUrl) {
     }
 
@@ -48,10 +48,10 @@ public class MessagingSettingsService {
     public SmsConfig sms() {
         MessagingSettings s = repository.findById(ROW_ID).orElse(null);
         if (s != null && s.isSmsConfigured()) {
-            return new SmsConfig(true, s.getSmsUsername(), s.getSmsApiKey(),
+            return new SmsConfig(true, s.getSmsProvider(), s.getSmsUsername(), s.getSmsApiKey(),
                     s.getSmsSenderId(), smsProps.baseUrl());
         }
-        return new SmsConfig(smsProps.enabled(), smsProps.username(), smsProps.apiKey(),
+        return new SmsConfig(smsProps.enabled(), "AFRICASTALKING", smsProps.username(), smsProps.apiKey(),
                 smsProps.senderId(), smsProps.baseUrl());
     }
 
@@ -85,6 +85,7 @@ public class MessagingSettingsService {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("smsEnabled", s.isSmsEnabled());
+        out.put("smsProvider", s.getSmsProvider());
         out.put("smsUsername", s.getSmsUsername());
         out.put("smsApiKey", mask(s.getSmsApiKey()));
         out.put("smsSenderId", s.getSmsSenderId());
@@ -110,6 +111,8 @@ public class MessagingSettingsService {
     public MessagingSettings save(MessagingSettings incoming, String updatedBy) {
         MessagingSettings s = settings();
         s.setSmsEnabled(incoming.isSmsEnabled());
+        String provider = incoming.getSmsProvider();
+        s.setSmsProvider("TWILIO".equalsIgnoreCase(provider) ? "TWILIO" : "AFRICASTALKING");
         s.setSmsUsername(trim(incoming.getSmsUsername()));
         s.setSmsSenderId(trim(incoming.getSmsSenderId()));
         // A blank secret means "keep what is stored" — it can no longer be

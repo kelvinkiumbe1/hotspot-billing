@@ -32,11 +32,18 @@ public class MessagingSettings {
     @Column(nullable = false)
     private boolean smsEnabled = false;
 
+    /** Which gateway sends the SMS: AFRICASTALKING or TWILIO. */
+    @Builder.Default
+    @Column(nullable = false, length = 40)
+    private String smsProvider = "AFRICASTALKING";
+
+    /** Africa's Talking username, or the Twilio Account SID. */
     private String smsUsername;
 
+    /** Africa's Talking API key, or the Twilio Auth Token. */
     private String smsApiKey;
 
-    /** The name recipients see instead of a number; must be registered first. */
+    /** Africa's Talking sender ID, or the Twilio "From" number. */
     private String smsSenderId;
 
     // --- WhatsApp (Meta Cloud API) ---

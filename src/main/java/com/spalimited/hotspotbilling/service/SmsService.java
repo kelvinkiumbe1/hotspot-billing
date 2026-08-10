@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -102,6 +103,14 @@ public class SmsService {
 
     private void dispatch(String to, String message) {
         var cfg = messagingSettings.sms();
+        if ("TWILIO".equalsIgnoreCase(cfg.provider())) {
+            dispatchTwilio(cfg, to, message);
+        } else {
+            dispatchAfricasTalking(cfg, to, message);
+        }
+    }
+
+    private void dispatchAfricasTalking(MessagingSettingsService.SmsConfig cfg, String to, String message) {
         try {
             StringBuilder form = new StringBuilder()
                     .append("username=").append(encode(cfg.username()))
@@ -122,12 +131,52 @@ public class SmsService {
                 throw new IllegalStateException("SMS gateway returned HTTP " + response.statusCode()
                         + ": " + response.body());
             }
-            log.info("SMS batch submitted ({} chars to {})", message.length(), to.split(",").length + " numbers");
+            log.info("SMS batch submitted ({} chars to {} numbers)", message.length(), to.split(",").length);
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException("SMS send failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Twilio's Messages API sends to one recipient per request, so a batch is
+     * split and sent individually. Auth is HTTP Basic with the Account SID and
+     * Auth Token (stored in the username/apiKey fields); the From number is the
+     * sender-id field.
+     */
+    private void dispatchTwilio(MessagingSettingsService.SmsConfig cfg, String to, String message) {
+        String sid = cfg.username() == null ? "" : cfg.username().trim();
+        String basic = Base64.getEncoder().encodeToString(
+                (sid + ":" + (cfg.apiKey() == null ? "" : cfg.apiKey())).getBytes(StandardCharsets.UTF_8));
+        String url = "https://api.twilio.com/2010-04-01/Accounts/" + sid + "/Messages.json";
+        for (String raw : to.split(",")) {
+            String number = raw.trim();
+            if (number.isEmpty()) {
+                continue;
+            }
+            try {
+                String form = "To=" + encode(number)
+                        + "&From=" + encode(cfg.senderId() == null ? "" : cfg.senderId())
+                        + "&Body=" + encode(message);
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Authorization", "Basic " + basic)
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(form))
+                        .build();
+                HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() >= 300) {
+                    throw new IllegalStateException("Twilio returned HTTP " + response.statusCode()
+                            + ": " + response.body());
+                }
+            } catch (IllegalStateException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalStateException("Twilio send failed: " + e.getMessage(), e);
+            }
+        }
+        log.info("Twilio SMS sent ({} chars to {} numbers)", message.length(), to.split(",").length);
     }
 
     private String encode(String value) {

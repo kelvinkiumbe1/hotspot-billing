@@ -378,6 +378,7 @@ function MessagingSection({ auth }) {
       setSaved(d)
       setForm({
         smsEnabled: d.smsEnabled,
+        smsProvider: d.smsProvider || 'AFRICASTALKING',
         smsUsername: d.smsUsername || '',
         smsApiKey: '',
         smsSenderId: d.smsSenderId || '',
@@ -438,35 +439,49 @@ function MessagingSection({ auth }) {
           <input type="checkbox" className="mt-1" checked={form.smsEnabled}
             onChange={(e) => set({ smsEnabled: e.target.checked })} />
           <span>
-            <span className="text-base font-semibold block">
-              SMS <span className="font-normal text-on-surface-variant">via Africa's Talking</span>
-            </span>
+            <span className="text-base font-semibold block">SMS gateway</span>
             <span className="text-sm text-on-surface-variant">
               Used for vouchers, expiry reminders and campaigns.
             </span>
           </span>
         </label>
-        {form.smsEnabled && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className={LABEL_CLS}>Username</label>
-              <input className={INPUT_CLS} value={form.smsUsername}
-                onChange={(e) => set({ smsUsername: e.target.value })} placeholder="sandbox or your username" />
+        {form.smsEnabled && (() => {
+          const twilio = form.smsProvider === 'TWILIO'
+          const L = twilio
+            ? { user: 'Account SID', key: 'Auth token', sender: 'From number', userPh: 'ACxxxxxxxx', keyPh: 'Twilio auth token', senderPh: '+1508…', senderHint: 'Your Twilio phone number.' }
+            : { user: 'Username', key: 'API key', sender: 'Sender ID', userPh: 'sandbox or your username', keyPh: 'from Africa’s Talking', senderPh: 'optional', senderHint: 'Must be registered with them first.' }
+          return (
+            <div className="mt-4 space-y-4">
+              <div className="max-w-xs">
+                <label className={LABEL_CLS}>Provider</label>
+                <select className={INPUT_CLS} value={form.smsProvider}
+                  onChange={(e) => set({ smsProvider: e.target.value })}>
+                  <option value="AFRICASTALKING">Africa's Talking</option>
+                  <option value="TWILIO">Twilio</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={LABEL_CLS}>{L.user}</label>
+                  <input className={INPUT_CLS} value={form.smsUsername}
+                    onChange={(e) => set({ smsUsername: e.target.value })} placeholder={L.userPh} />
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>{L.key}</label>
+                  <input className={INPUT_CLS} type="password" value={form.smsApiKey}
+                    onChange={(e) => set({ smsApiKey: e.target.value })}
+                    placeholder={saved?.smsApiKey || L.keyPh} />
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>{L.sender}</label>
+                  <input className={INPUT_CLS} value={form.smsSenderId}
+                    onChange={(e) => set({ smsSenderId: e.target.value })} placeholder={L.senderPh} />
+                  <p className="text-xs text-on-surface-variant mt-1">{L.senderHint}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className={LABEL_CLS}>API key</label>
-              <input className={INPUT_CLS} type="password" value={form.smsApiKey}
-                onChange={(e) => set({ smsApiKey: e.target.value })}
-                placeholder={saved?.smsApiKey || 'from Africa’s Talking'} />
-            </div>
-            <div>
-              <label className={LABEL_CLS}>Sender ID</label>
-              <input className={INPUT_CLS} value={form.smsSenderId}
-                onChange={(e) => set({ smsSenderId: e.target.value })} placeholder="optional" />
-              <p className="text-xs text-on-surface-variant mt-1">Must be registered with them first.</p>
-            </div>
-          </div>
-        )}
+          )
+        })()}
       </section>
 
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">

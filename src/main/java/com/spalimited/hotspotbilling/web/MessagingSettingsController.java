@@ -33,6 +33,7 @@ public class MessagingSettingsController {
 
     public record MessagingRequest(
             boolean smsEnabled,
+            String smsProvider,
             String smsUsername,
             String smsApiKey,
             String smsSenderId,
@@ -47,6 +48,7 @@ public class MessagingSettingsController {
     public Map<String, Object> save(@Valid @RequestBody MessagingRequest request, Principal principal) {
         settingsService.save(MessagingSettings.builder()
                 .smsEnabled(request.smsEnabled())
+                .smsProvider(request.smsProvider())
                 .smsUsername(request.smsUsername())
                 .smsApiKey(request.smsApiKey())
                 .smsSenderId(request.smsSenderId())
