@@ -7,6 +7,7 @@ import {
 import PaymentGatewaysPage from './PaymentGateways.jsx'
 import TaxSettingsPage from './TaxSettings.jsx'
 import BrandingPage from './Branding.jsx'
+import { PORTAL_THEMES } from '../../portalThemes.js'
 
 /**
  * The settings sections, grouped the way an operator thinks about them
@@ -287,6 +288,43 @@ function HotspotSection({ auth }) {
   return (
     <form onSubmit={save} className="space-y-6 max-w-2xl">
       <div>
+        <label className={LABEL_CLS}>Captive-portal theme</label>
+        <p className="text-xs text-on-surface-variant mb-3">The colour and style customers see. Preview shows the accent and card look.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {PORTAL_THEMES.map((th) => {
+            const active = (form.portalTheme || 'AMBER') === th.key
+            const pv = th.preview
+            return (
+              <button type="button" key={th.key}
+                onClick={() => setForm({ ...form, portalTheme: th.key })}
+                title={th.desc}
+                className={`text-left rounded-lg border p-2 transition-all cursor-pointer ${
+                  active ? 'border-primary ring-2 ring-primary/40' : 'border-outline-variant hover:border-outline'
+                }`}>
+                {/* Mini live-styled preview built from the same palette the portal uses */}
+                <div className="rounded-md overflow-hidden mb-2" style={{ background: pv.bg }}>
+                  <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                    <span className="text-[9px] font-bold" style={{ color: pv.accent, fontFamily: th.serif ? 'Georgia, serif' : 'inherit' }}>WiFi</span>
+                    <span className="w-3 h-3" style={{ background: pv.accent, borderRadius: th.sharp ? 0 : 9999 }} />
+                  </div>
+                  <div className="px-2 pb-2 space-y-1">
+                    <div className="p-1.5 flex items-center justify-between" style={{ background: pv.surface, borderRadius: th.sharp ? 0 : 6 }}>
+                      <span className="h-1.5 w-8 rounded-full" style={{ background: pv.muted, opacity: 0.5 }} />
+                      <span className="text-[8px] font-mono" style={{ color: pv.accent }}>KES</span>
+                    </div>
+                    <div className="h-4 flex items-center justify-center text-[8px] font-bold" style={{ background: pv.accent, color: pv.onAccent, borderRadius: th.sharp ? 0 : 6 }}>Buy</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 px-0.5">
+                  <span className="text-xs font-semibold text-on-surface truncate">{th.name}</span>
+                  {active && <Icon name="check_circle" className="text-primary text-[15px]! ml-auto" />}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div>
         <label className={LABEL_CLS}>Captive-portal template</label>
         <p className="text-xs text-on-surface-variant mb-3">The layout customers see when they connect to your WiFi.</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -304,6 +342,24 @@ function HotspotSection({ auth }) {
                   {active && <Icon name="check_circle" className="text-primary text-[18px]! ml-auto" />}
                 </div>
                 <p className="text-xs text-on-surface-variant">{t.hint}</p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Default portal language</label>
+        <p className="text-xs text-on-surface-variant mb-2">Customers can still switch language themselves on the portal.</p>
+        <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
+          {[['EN', 'English'], ['SW', 'Kiswahili']].map(([code, name]) => {
+            const active = (form.defaultLanguage || 'EN') === code
+            return (
+              <button type="button" key={code}
+                onClick={() => setForm({ ...form, defaultLanguage: code })}
+                className={`px-4 py-2 text-sm font-medium cursor-pointer transition-colors ${
+                  active ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-container'
+                }`}>
+                {name}
               </button>
             )
           })}

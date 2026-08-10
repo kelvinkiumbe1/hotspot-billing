@@ -34,6 +34,16 @@ public class HotspotSettings {
     @Column(nullable = false, length = 20)
     private String portalTemplate = "CLASSIC";
 
+    /** Default captive-portal language: EN (English) or SW (Swahili). */
+    @Builder.Default
+    @Column(nullable = false, length = 5)
+    private String defaultLanguage = "EN";
+
+    /** Captive-portal visual theme key (see portalThemes.js), e.g. AMBER. */
+    @Builder.Default
+    @Column(nullable = false, length = 20)
+    private String portalTheme = "AMBER";
+
     /** Where to send a customer after a successful purchase (blank = stay). */
     @Column(length = 512)
     private String postPurchaseRedirect;

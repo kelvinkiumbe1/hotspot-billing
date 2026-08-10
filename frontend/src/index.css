@@ -103,13 +103,26 @@ body {
    so the glow is desktop-only and there is nothing to fix on a phone. */
 @media (min-width: 768px) {
   .portal-theme {
-    background-color: #000;
+    background-color: var(--color-background, #000);
     background-image:
-      radial-gradient(55rem 55rem at 12% -12%, rgba(253, 191, 45, 0.10), transparent 60%),
-      radial-gradient(45rem 45rem at 92% 112%, rgba(253, 191, 45, 0.07), transparent 55%);
+      radial-gradient(55rem 55rem at 12% -12%, var(--portal-glow1, rgba(253, 191, 45, 0.10)), transparent 60%),
+      radial-gradient(45rem 45rem at 92% 112%, var(--portal-glow2, rgba(253, 191, 45, 0.07)), transparent 55%);
     background-repeat: no-repeat;
     background-attachment: fixed;
   }
+}
+
+/* Per-theme structure. Colours ride in as inline CSS variables from
+   portalThemes.js; these two touches (heading font, square edges) are the
+   bits a palette alone can't carry. */
+.portal-theme h1,
+.portal-theme h2,
+.portal-theme h3 {
+  font-family: var(--portal-heading-font, inherit);
+}
+.portal-theme[data-skin="EMERALD"] [class*="rounded"],
+.portal-theme[data-skin="STEEL"] [class*="rounded"] {
+  border-radius: 0 !important;
 }
 
 /* ------------------------------------------------------------------ */

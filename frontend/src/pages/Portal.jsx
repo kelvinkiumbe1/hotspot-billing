@@ -1,7 +1,201 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { themeByKey } from '../portalThemes.js'
 import heroCity from '../assets/hero-city.jpg'
 import customerPhoto from '../assets/customer.jpg'
+
+/* ------------------------------------------------------------------ */
+/* Localization — English + Kiswahili for the customer captive portal  */
+/* ------------------------------------------------------------------ */
+
+const STRINGS = {
+  EN: {
+    'hero.title': 'Get Connected in Seconds',
+    'hero.sub': 'Fast, reliable internet across the city.',
+    'hero.minTitle': 'Get Connected',
+    'hero.minSub': 'Pick a pass and pay with M-Pesa.',
+    'hero.gridSub': 'Choose a pass below — fast, reliable internet.',
+    'group.Hourly': 'Hourly Passes',
+    'group.Daily': 'Daily Passes',
+    'group.Weekly': 'Weekly Passes',
+    'group.Monthly': 'Monthly Passes',
+    'plans.retry': 'Retry',
+    'plans.offline': "We can't reach the server right now. Check your connection and try again.",
+    'voucher.label': 'Have a voucher code?',
+    'voucher.placeholder': 'Enter code',
+    'voucher.redeem': 'Redeem',
+    'nav.connect': 'Connect',
+    'nav.plans': 'Plans',
+    'nav.help': 'Help',
+    'card.popular': 'MOST POPULAR',
+    'card.price': 'Price',
+    'card.buy': 'Buy with M-Pesa',
+    'card.devices': 'device',
+    'card.devices_plural': 'devices',
+    'custom.heading': 'Custom Pass',
+    'custom.title': 'Only need a little time?',
+    'custom.perHour': 'KES {n}/hour, billed per minute',
+    'custom.minutes': 'Minutes you need',
+    'custom.youPay': 'You pay',
+    'custom.range': 'Choose between {min} and {max} minutes.',
+    'custom.buy': 'Buy {dur} with M-Pesa',
+    'pay.complete': 'Complete Payment',
+    'pay.sub': 'Fast, secure M-Pesa transaction.',
+    'pay.summary': 'Selected Plan Summary',
+    'pay.access': '{name} Access',
+    'pay.phone': 'M-Pesa Phone Number',
+    'pay.info': "You'll receive an M-Pesa prompt on your phone. Enter your PIN to complete the transaction.",
+    'pay.send': 'Send Payment Request',
+    'pay.sending': 'Sending request…',
+    'wait.title': 'Awaiting Payment',
+    'wait.sub': 'Check your phone for the M-Pesa prompt.',
+    'wait.sent': 'Request sent',
+    'wait.pin': 'Enter your M-Pesa PIN',
+    'wait.activating': 'Activating your access',
+    'wait.cancel': 'Cancel payment',
+    'ok.title': "You're Connected!",
+    'ok.codeLabel': 'Access Code',
+    'ok.usePre': 'Use this code as your WiFi',
+    'ok.username': 'username',
+    'ok.and': 'and',
+    'ok.password': 'password',
+    'ok.copyConnect': 'Copy Code & Connect',
+    'ok.copied': 'Code Copied!',
+    'ok.continue': 'Continue',
+    'ok.return': 'Return to Home',
+    'ok.closingRedirect': 'Taking you on in {n}s — connect with your code first.',
+    'ok.closing': 'This page will close in {n}s — connect to SPA WiFi with your code.',
+    'ok.closed': 'You can now connect to SPA WiFi with your code.',
+    'err.title': 'Payment Failed',
+    'err.badge': 'Error',
+    'err.retry': 'Retry Payment',
+    'err.choose': 'Choose another plan',
+    'err.support': 'Support:',
+    'rewards.title': 'Rewards',
+    'rewards.phone': 'Your phone e.g. 0712…',
+    'rewards.check': 'Check',
+    'rewards.youHave': 'You have',
+    'rewards.points': 'point(s) — up to',
+    'rewards.freeMin': 'free minutes.',
+    'rewards.minutesLabel': 'Minutes to redeem',
+    'rewards.costs': 'costs {n} pts',
+    'rewards.redeem': 'Redeem',
+    'rewards.needMore': 'Earn a bit more — you need at least {n} points to redeem.',
+    'rewards.unavailable': 'Rewards are not available right now.',
+    'foot.terms': 'Terms',
+    'foot.help': 'Help',
+    'foot.powered': 'Powered by SPA Limited',
+    'promo.endsIn': 'Ends in',
+  },
+  SW: {
+    'hero.title': 'Pata Intaneti kwa Sekunde',
+    'hero.sub': 'Intaneti ya haraka na ya kuaminika mjini kote.',
+    'hero.minTitle': 'Pata Intaneti',
+    'hero.minSub': 'Chagua kifurushi ulipe na M-Pesa.',
+    'hero.gridSub': 'Chagua kifurushi hapa chini — intaneti ya haraka na ya kuaminika.',
+    'group.Hourly': 'Vifurushi vya Saa',
+    'group.Daily': 'Vifurushi vya Siku',
+    'group.Weekly': 'Vifurushi vya Wiki',
+    'group.Monthly': 'Vifurushi vya Mwezi',
+    'plans.retry': 'Jaribu tena',
+    'plans.offline': 'Hatuwezi kufikia seva kwa sasa. Angalia muunganisho wako ujaribu tena.',
+    'voucher.label': 'Una nambari ya kuponi?',
+    'voucher.placeholder': 'Weka nambari',
+    'voucher.redeem': 'Tumia',
+    'nav.connect': 'Unganisha',
+    'nav.plans': 'Vifurushi',
+    'nav.help': 'Msaada',
+    'card.popular': 'MAARUFU ZAIDI',
+    'card.price': 'Bei',
+    'card.buy': 'Nunua na M-Pesa',
+    'card.devices': 'kifaa',
+    'card.devices_plural': 'vifaa',
+    'custom.heading': 'Kifurushi Maalum',
+    'custom.title': 'Unahitaji muda kidogo tu?',
+    'custom.perHour': 'KES {n}/saa, hulipwa kwa dakika',
+    'custom.minutes': 'Dakika unazohitaji',
+    'custom.youPay': 'Unalipa',
+    'custom.range': 'Chagua kati ya dakika {min} na {max}.',
+    'custom.buy': 'Nunua {dur} na M-Pesa',
+    'pay.complete': 'Kamilisha Malipo',
+    'pay.sub': 'Malipo ya haraka na salama ya M-Pesa.',
+    'pay.summary': 'Muhtasari wa Kifurushi',
+    'pay.access': '{name}',
+    'pay.phone': 'Nambari ya Simu ya M-Pesa',
+    'pay.info': 'Utapokea ombi la M-Pesa kwenye simu yako. Weka PIN yako kukamilisha malipo.',
+    'pay.send': 'Tuma Ombi la Malipo',
+    'pay.sending': 'Inatuma ombi…',
+    'wait.title': 'Inasubiri Malipo',
+    'wait.sub': 'Angalia simu yako kwa ombi la M-Pesa.',
+    'wait.sent': 'Ombi limetumwa',
+    'wait.pin': 'Weka PIN yako ya M-Pesa',
+    'wait.activating': 'Inawasha ufikiaji wako',
+    'wait.cancel': 'Ghairi malipo',
+    'ok.title': 'Umeunganishwa!',
+    'ok.codeLabel': 'Nambari ya Ufikiaji',
+    'ok.usePre': 'Tumia nambari hii kama',
+    'ok.username': 'jina la mtumiaji',
+    'ok.and': 'na',
+    'ok.password': 'nenosiri',
+    'ok.copyConnect': 'Nakili Nambari & Unganisha',
+    'ok.copied': 'Imenakiliwa!',
+    'ok.continue': 'Endelea',
+    'ok.return': 'Rudi Mwanzo',
+    'ok.closingRedirect': 'Tunakupeleka baada ya sekunde {n} — unganisha na nambari yako kwanza.',
+    'ok.closing': 'Ukurasa huu utafunga baada ya sekunde {n} — unganisha na SPA WiFi kwa nambari yako.',
+    'ok.closed': 'Sasa unaweza kuunganisha na SPA WiFi kwa nambari yako.',
+    'err.title': 'Malipo Yameshindikana',
+    'err.badge': 'Hitilafu',
+    'err.retry': 'Jaribu Malipo Tena',
+    'err.choose': 'Chagua kifurushi kingine',
+    'err.support': 'Msaada:',
+    'rewards.title': 'Zawadi',
+    'rewards.phone': 'Simu yako mf. 0712…',
+    'rewards.check': 'Angalia',
+    'rewards.youHave': 'Una',
+    'rewards.points': 'pointi — hadi',
+    'rewards.freeMin': 'dakika za bure.',
+    'rewards.minutesLabel': 'Dakika za kutumia',
+    'rewards.costs': 'gharama pointi {n}',
+    'rewards.redeem': 'Tumia',
+    'rewards.needMore': 'Pata zaidi kidogo — unahitaji angalau pointi {n} kutumia.',
+    'rewards.unavailable': 'Zawadi hazipatikani kwa sasa.',
+    'foot.terms': 'Masharti',
+    'foot.help': 'Msaada',
+    'foot.powered': 'Inaendeshwa na SPA Limited',
+    'promo.endsIn': 'Inaisha baada ya',
+  },
+}
+
+const LangContext = createContext({ lang: 'EN', setLang: () => {}, theme: 'AMBER' })
+
+function useT() {
+  const { lang, setLang, theme } = useContext(LangContext)
+  const t = (key, vars) => {
+    let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.EN[key] || key
+    if (vars) {
+      for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k])
+    }
+    return s
+  }
+  // Everything the portal shell needs to paint itself in the chosen theme.
+  const themeVars = themeByKey(theme).vars
+  return { t, lang, setLang, theme, themeVars }
+}
+
+function LangToggle() {
+  const { lang, setLang } = useContext(LangContext)
+  return (
+    <button
+      type="button"
+      onClick={() => setLang(lang === 'EN' ? 'SW' : 'EN')}
+      className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:bg-surface-container transition-colors cursor-pointer"
+      aria-label="Switch language"
+    >
+      {lang === 'EN' ? 'Kiswahili' : 'English'}
+    </button>
+  )
+}
 
 const POLL_INTERVAL_MS = 3000
 const MAX_POLLS = 40
@@ -60,14 +254,15 @@ function Brand() {
 }
 
 function Footer() {
+  const { t } = useT()
   return (
     <footer className="bg-surface-container-lowest border-t border-surface-variant flex flex-col items-center gap-4 w-full mt-auto p-6">
       <div className="flex gap-6 text-xs font-semibold tracking-wider uppercase text-on-surface-variant">
-        <a className="hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">Terms</a>
-        <a className="hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">Help</a>
+        <a className="hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">{t('foot.terms')}</a>
+        <a className="hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">{t('foot.help')}</a>
       </div>
       <p className="text-xs font-semibold tracking-wider text-on-surface-variant">
-        © {new Date().getFullYear()} Powered by SPA Limited
+        © {new Date().getFullYear()} {t('foot.powered')}
       </p>
     </footer>
   )
@@ -88,6 +283,9 @@ export default function Portal() {
   const [promo, setPromo] = useState(null)
   const [template, setTemplate] = useState('CLASSIC')
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
+  const [lang, setLang] = useState('EN')
+  const [theme, setTheme] = useState('AMBER')
+  const langChosen = useRef(false)
   const pollRef = useRef(null)
 
   function loadPlans() {
@@ -98,8 +296,13 @@ export default function Portal() {
     api('/portal-settings').then((s) => {
       setTemplate(s.portalTemplate || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
+      if (s.portalTheme) setTheme(s.portalTheme)
+      // Honour the operator's default only until the customer picks for themselves.
+      if (!langChosen.current && s.defaultLanguage) setLang(s.defaultLanguage)
     }).catch(() => {})
   }
+
+  const chooseLang = (l) => { langChosen.current = true; setLang(l) }
 
   useEffect(() => {
     loadPlans()
@@ -176,8 +379,9 @@ export default function Portal() {
     window.scrollTo(0, 0)
   }
 
+  let screen_
   if (screen === 'pay') {
-    return (
+    screen_ = (
       <PayScreen
         plan={selected}
         phone={phone}
@@ -187,39 +391,42 @@ export default function Portal() {
         onClose={backToPlans}
       />
     )
-  }
-  if (screen === 'waiting') {
-    return <WaitingScreen onCancel={() => { stopPoll(); setScreen('pay') }} />
-  }
-  if (screen === 'success') {
-    return <SuccessScreen code={result.code} note={result.note} onHome={backToPlans} />
-  }
-  if (screen === 'error') {
-    return (
+  } else if (screen === 'waiting') {
+    screen_ = <WaitingScreen onCancel={() => { stopPoll(); setScreen('pay') }} />
+  } else if (screen === 'success') {
+    screen_ = <SuccessScreen code={result.code} note={result.note} onHome={backToPlans} />
+  } else if (screen === 'error') {
+    screen_ = (
       <ErrorScreen
         message={errorMsg}
         onRetry={() => setScreen(selected ? 'pay' : 'plans')}
         onChoosePlan={backToPlans}
       />
     )
+  } else {
+    screen_ = (
+      <PlansScreen
+        plans={plans}
+        custom={custom}
+        promo={promo}
+        template={template}
+        loyaltyEnabled={loyaltyEnabled}
+        plansError={plansError}
+        onRetryPlans={loadPlans}
+        onPromoExpire={loadPlans}
+        onBuy={choosePlan}
+        redeemCode={redeemCode}
+        setRedeemCode={setRedeemCode}
+        redeemErr={redeemErr}
+        onRedeem={redeem}
+      />
+    )
   }
 
   return (
-    <PlansScreen
-      plans={plans}
-      custom={custom}
-      promo={promo}
-      template={template}
-      loyaltyEnabled={loyaltyEnabled}
-      plansError={plansError}
-      onRetryPlans={loadPlans}
-      onPromoExpire={loadPlans}
-      onBuy={choosePlan}
-      redeemCode={redeemCode}
-      setRedeemCode={setRedeemCode}
-      redeemErr={redeemErr}
-      onRedeem={redeem}
-    />
+    <LangContext.Provider value={{ lang, setLang: chooseLang, theme }}>
+      {screen_}
+    </LangContext.Provider>
   )
 }
 
@@ -254,6 +461,7 @@ function formatCountdown(ms) {
 }
 
 function PromoBanner({ promo, onExpire }) {
+  const { t } = useT()
   const remaining = useCountdown(promo.endsAt)
   const expired = remaining <= 0
 
@@ -270,7 +478,7 @@ function PromoBanner({ promo, onExpire }) {
         <p className="font-bold text-lg leading-tight">{promo.title}</p>
         <p className="text-sm text-white/90 flex items-center gap-1.5 mt-0.5">
           <Icon name="timer" className="text-[16px]!" />
-          Ends in <span className="font-mono font-bold tabular-nums">{formatCountdown(remaining)}</span>
+          {t('promo.endsIn')} <span className="font-mono font-bold tabular-nums">{formatCountdown(remaining)}</span>
         </p>
       </div>
       <span className="text-2xl font-bold whitespace-nowrap">-{promo.discountPercent}%</span>
@@ -279,8 +487,10 @@ function PromoBanner({ promo, onExpire }) {
 }
 
 function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
+  const { t } = useT()
   const speed = speedLabel(plan.bandwidth)
   const discounted = promoPrice(plan.price, promo)
+  const deviceCount = plan.effectiveMaxDevices || 1
   return (
     <div
       className={`bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] flex flex-col gap-3 relative overflow-hidden fade-up transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(15,23,42,0.08)] ${
@@ -290,7 +500,7 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
     >
       {popular && (
         <div className="absolute top-0 right-0 bg-primary text-on-primary text-xs font-semibold tracking-wider px-3 py-1 rounded-bl-lg">
-          MOST POPULAR
+          {t('card.popular')}
         </div>
       )}
       <div className={`flex justify-between items-center border-b border-surface-container pb-3 ${popular ? 'mt-2' : ''}`}>
@@ -302,12 +512,12 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
             )}
             <span className="flex items-center gap-1">
               <Icon name="devices" className="text-[16px]!" />
-              {(plan.effectiveMaxDevices || 1)} device{(plan.effectiveMaxDevices || 1) > 1 ? 's' : ''}
+              {deviceCount} {deviceCount > 1 ? t('card.devices_plural') : t('card.devices')}
             </span>
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Price</p>
+          <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('card.price')}</p>
           {discounted != null && discounted < plan.price ? (
             <>
               <p className="font-mono text-sm text-on-surface-variant line-through">KES {plan.price}</p>
@@ -322,13 +532,14 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
         onClick={() => onBuy(discounted != null && discounted < plan.price ? { ...plan, price: discounted } : plan)}
         className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
       >
-        <Icon name="payments" /> Buy with M-Pesa
+        <Icon name="payments" /> {t('card.buy')}
       </button>
     </div>
   )
 }
 
 function CustomTimeCard({ custom, promo, onBuy }) {
+  const { t } = useT()
   const [minutes, setMinutes] = useState(custom.minMinutes)
   const m = Number(minutes) || 0
   const valid = m >= custom.minMinutes && m <= custom.maxMinutes
@@ -339,23 +550,23 @@ function CustomTimeCard({ custom, promo, onBuy }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3 fade-up">
-        <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">Custom Pass</h2>
+        <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">{t('custom.heading')}</h2>
         <div className="h-px bg-outline-variant/50 flex-1"></div>
       </div>
       <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary fade-up flex flex-col gap-4">
         <div className="flex justify-between items-start gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-on-background">Only need a little time?</h3>
+            <h3 className="text-lg font-semibold text-on-background">{t('custom.title')}</h3>
             <p className="text-sm text-on-surface-variant flex items-center gap-1 mt-1">
               {speed && (<><Icon name="speed" className="text-[16px]!" /> {speed} · </>)}
-              KES {custom.pricePerHour}/hour, billed per minute
+              {t('custom.perHour', { n: custom.pricePerHour })}
             </p>
           </div>
         </div>
         <div className="flex items-end gap-4 flex-wrap">
           <div className="flex-1 min-w-[140px]">
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="custom-minutes">
-              Minutes you need
+              {t('custom.minutes')}
             </label>
             <input
               id="custom-minutes"
@@ -368,22 +579,22 @@ function CustomTimeCard({ custom, promo, onBuy }) {
             />
           </div>
           <div className="text-right pb-1">
-            <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
+            <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('custom.youPay')}</p>
             {valid && price < basePrice && <p className="font-mono text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
-            <p className={`font-mono text-2xl font-bold tabular-nums ${valid ? (price < basePrice ? 'text-[#ffd479]' : 'text-primary') : 'text-outline'}`}>
+            <p className={`font-mono text-2xl font-bold tabular-nums ${valid ? 'text-primary' : 'text-outline'}`}>
               KES {valid ? price : '—'}
             </p>
           </div>
         </div>
         {!valid && (
-          <p className="text-sm text-error">Choose between {custom.minMinutes} and {custom.maxMinutes.toLocaleString()} minutes.</p>
+          <p className="text-sm text-error">{t('custom.range', { min: custom.minMinutes, max: custom.maxMinutes.toLocaleString() })}</p>
         )}
         <button
           onClick={() => valid && onBuy({ id: 'custom', customMinutes: m, name: `${formatDuration(m)} Custom`, price, bandwidth: custom.bandwidth })}
           disabled={!valid}
-          className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
+          className="w-full h-12 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
         >
-          <Icon name="payments" /> Buy {valid ? formatDuration(m) : ''} with M-Pesa
+          <Icon name="payments" /> {t('custom.buy', { dur: valid ? formatDuration(m) : '' })}
         </button>
       </div>
     </div>
@@ -391,6 +602,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
 }
 
 function RewardsCard() {
+  const { t } = useT()
   const [phone, setPhone] = useState('')
   const [bal, setBal] = useState(null) // { points, redeemableMinutes, pointsPerMinute, min, max }
   const [minutes, setMinutes] = useState(0)
@@ -402,7 +614,7 @@ function RewardsCard() {
     setMsg(null); setBal(null); setBusy(true)
     try {
       const b = await api(`/loyalty/${normalizePhone(phone)}`)
-      if (!b.enabled) { setMsg({ ok: false, text: 'Rewards are not available right now.' }); return }
+      if (!b.enabled) { setMsg({ ok: false, text: t('rewards.unavailable') }); return }
       setBal(b)
       setMinutes(b.minRedeemMinutes)
     } catch (err) {
@@ -428,45 +640,45 @@ function RewardsCard() {
     <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up" style={{ animationDelay: '450ms' }}>
       <div className="flex items-center gap-2 mb-2">
         <Icon name="loyalty" className="text-primary" />
-        <h3 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Rewards</h3>
+        <h3 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('rewards.title')}</h3>
       </div>
       <form onSubmit={check} className="flex gap-3">
         <input
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Your phone e.g. 0712…"
+          placeholder={t('rewards.phone')}
           className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
         />
         <button type="submit" disabled={busy || !phone.trim()}
           className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-base font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer disabled:opacity-40">
-          Check
+          {t('rewards.check')}
         </button>
       </form>
 
       {bal && (
         <div className="mt-4">
           <p className="text-sm text-on-surface-variant">
-            You have <span className="font-mono font-semibold text-on-background">{bal.points}</span> point(s) —
-            up to <span className="font-mono font-semibold text-on-background">{bal.redeemableMinutes}</span> free minutes.
+            {t('rewards.youHave')} <span className="font-mono font-semibold text-on-background">{bal.points}</span> {t('rewards.points')}{' '}
+            <span className="font-mono font-semibold text-on-background">{bal.redeemableMinutes}</span> {t('rewards.freeMin')}
           </p>
           {bal.redeemableMinutes >= bal.minRedeemMinutes ? (
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <div>
-                <label className="block text-xs text-on-surface-variant mb-1">Minutes to redeem</label>
+                <label className="block text-xs text-on-surface-variant mb-1">{t('rewards.minutesLabel')}</label>
                 <input type="number" min={bal.minRedeemMinutes} max={bal.maxRedeemMinutes} step={bal.minRedeemMinutes}
                   value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
                   className="w-32 h-11 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono text-on-background focus:outline-none focus:border-primary" />
               </div>
-              <span className="text-xs text-on-surface-variant pb-3">costs {cost} pts</span>
+              <span className="text-xs text-on-surface-variant pb-3">{t('rewards.costs', { n: cost })}</span>
               <button type="button" onClick={redeem} disabled={busy || !canRedeem}
                 className="h-11 px-6 bg-primary text-on-primary rounded-xl text-base font-semibold active:scale-95 transition-transform cursor-pointer disabled:opacity-40">
-                Redeem
+                {t('rewards.redeem')}
               </button>
             </div>
           ) : (
             <p className="text-xs text-on-surface-variant mt-2">
-              Earn a bit more — you need at least {bal.minRedeemMinutes * bal.pointsPerMinute} points to redeem.
+              {t('rewards.needMore', { n: bal.minRedeemMinutes * bal.pointsPerMinute })}
             </p>
           )}
         </div>
@@ -477,13 +689,15 @@ function RewardsCard() {
 }
 
 function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+  const { t, theme, themeVars } = useT()
   const isGrid = template === 'GRID'
   const isMinimal = template === 'MINIMAL'
   const mainWidth = isGrid ? 'max-w-3xl' : 'max-w-lg'
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
         <Brand />
+        <LangToggle />
       </header>
 
       <main className={`flex-1 w-full ${mainWidth} mx-auto pb-24 px-5 pt-6 flex flex-col gap-6`}>
@@ -494,8 +708,8 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
                 <Icon name="wifi" filled className="text-primary text-[22px]!" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-on-background">Get Connected</h1>
-                <p className="text-sm text-on-surface-variant">Pick a pass and pay with M-Pesa.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-on-background">{t('hero.minTitle')}</h1>
+                <p className="text-sm text-on-surface-variant">{t('hero.minSub')}</p>
               </div>
             </div>
           </section>
@@ -506,8 +720,8 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
             <div className="relative z-10 px-6 py-6 flex items-center gap-3">
               <Icon name="wifi" filled className="text-primary-fixed text-[26px]!" />
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">Get Connected in Seconds</h1>
-                <p className="text-sm text-white/80 mt-0.5">Choose a pass below — fast, reliable internet.</p>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
+                <p className="text-sm text-white/80 mt-0.5">{t('hero.gridSub')}</p>
               </div>
             </div>
           </section>
@@ -520,8 +734,8 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
                 <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
                   <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
                 </div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Get Connected in Seconds</h1>
-                <p className="text-base text-white/80 mt-2 max-w-sm">Fast, reliable internet across the city.</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
+                <p className="text-base text-white/80 mt-2 max-w-sm">{t('hero.sub')}</p>
               </div>
               <img
                 src={customerPhoto}
@@ -552,7 +766,7 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
                 <div key={group} className="flex flex-col gap-4">
                   <div className="flex items-center gap-3 fade-up">
                     <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">
-                      {group} Passes
+                      {t('group.' + group)}
                     </h2>
                     <div className="h-px bg-outline-variant/50 flex-1"></div>
                   </div>
@@ -583,12 +797,12 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
           {plansError && (
             <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-error flex flex-col items-center text-center gap-3">
               <Icon name="cloud_off" className="text-error text-[32px]!" />
-              <p className="text-base text-on-surface-variant">We can't reach the server right now. Check your connection and try again.</p>
+              <p className="text-base text-on-surface-variant">{t('plans.offline')}</p>
               <button
                 onClick={onRetryPlans}
                 className="h-12 px-6 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center gap-2 active:scale-95 transition-transform cursor-pointer"
               >
-                <Icon name="refresh" /> Retry
+                <Icon name="refresh" /> {t('plans.retry')}
               </button>
             </div>
           )}
@@ -597,7 +811,7 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
         <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up" style={{ animationDelay: '400ms' }}>
           <form onSubmit={onRedeem}>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
-              Have a voucher code?
+              {t('voucher.label')}
             </label>
             <div className="flex gap-3">
               <input
@@ -606,14 +820,14 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
                 required
                 value={redeemCode}
                 onChange={(e) => setRedeemCode(e.target.value)}
-                placeholder="Enter code"
+                placeholder={t('voucher.placeholder')}
                 className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono uppercase text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
               />
               <button
                 type="submit"
                 className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-lg font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
               >
-                Redeem
+                {t('voucher.redeem')}
               </button>
             </div>
             {redeemErr && <p className="text-sm text-error mt-2">{redeemErr}</p>}
@@ -632,18 +846,18 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
           className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20 cursor-pointer"
         >
           <Icon name="wifi_tethering" className="mb-1 group-hover:text-primary transition-colors" />
-          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">Connect</span>
+          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.connect')}</span>
         </button>
         <button className="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-1.5 w-20 cursor-pointer">
           <Icon name="payments" filled className="mb-1" />
-          <span className="text-xs font-semibold tracking-wider">Plans</span>
+          <span className="text-xs font-semibold tracking-wider">{t('nav.plans')}</span>
         </button>
         <a
           href="tel:+254700000000"
           className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5 rounded-xl group transition-colors w-20"
         >
           <Icon name="support_agent" className="mb-1 group-hover:text-primary transition-colors" />
-          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">Help</span>
+          <span className="text-xs font-semibold tracking-wider group-hover:text-primary transition-colors">{t('nav.help')}</span>
         </a>
       </nav>
     </div>
@@ -655,8 +869,9 @@ function PlansScreen({ plans, custom, promo, template = 'CLASSIC', loyaltyEnable
 /* ------------------------------------------------------------------ */
 
 function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
+  const { t, theme, themeVars } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
       <header className="bg-surface border-b border-outline-variant flex items-center justify-between px-5 h-16 w-full sticky top-0 z-50">
         <Brand />
         <button
@@ -672,13 +887,13 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         <div className="w-24 h-24 mb-6 rounded-full bg-surface-container-low flex items-center justify-center shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
           <Icon name="wifi" filled className="text-primary text-[48px]!" />
         </div>
-        <h1 className="text-2xl font-bold text-center mb-2">Complete Payment</h1>
-        <p className="text-sm text-on-surface-variant text-center mb-8">Fast, secure M-Pesa transaction.</p>
+        <h1 className="text-2xl font-bold text-center mb-2">{t('pay.complete')}</h1>
+        <p className="text-sm text-on-surface-variant text-center mb-8">{t('pay.sub')}</p>
 
         <div className="w-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mb-6 border-t-4 border-primary">
-          <h2 className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">Selected Plan Summary</h2>
+          <h2 className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">{t('pay.summary')}</h2>
           <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold">{plan.name} Access</span>
+            <span className="text-lg font-semibold">{t('pay.access', { name: plan.name })}</span>
             <span className="font-mono text-lg font-semibold text-primary">KES {plan.price}</span>
           </div>
         </div>
@@ -686,7 +901,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         <form className="w-full" onSubmit={onSubmit}>
           <div className="w-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mb-6">
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="mpesa-phone">
-              M-Pesa Phone Number
+              {t('pay.phone')}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-lg font-semibold text-on-surface-variant">+254</span>
@@ -709,17 +924,17 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
           <div className="w-full flex items-start gap-3 bg-surface-container-low p-4 rounded-lg mb-8 border border-surface-dim">
             <Icon name="info" className="text-primary text-[20px]! mt-0.5" />
             <p className="text-sm text-on-surface-variant">
-              You'll receive an M-Pesa prompt on your phone. Enter your PIN to complete the transaction.
+              {t('pay.info')}
             </p>
           </div>
 
           <button
             type="submit"
             disabled={sending}
-            className="w-full bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+            className="w-full bg-primary text-on-primary text-lg font-semibold h-12 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
           >
             <Icon name="send_money" />
-            {sending ? 'Sending request…' : 'Send Payment Request'}
+            {sending ? t('pay.sending') : t('pay.send')}
           </button>
         </form>
       </main>
@@ -734,8 +949,9 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
 /* ------------------------------------------------------------------ */
 
 function WaitingScreen({ onCancel }) {
+  const { t, theme, themeVars } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col items-center justify-center">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col items-center justify-center" style={themeVars} data-skin={theme}>
       <main className="w-full max-w-md px-5 flex flex-col items-center py-8">
         <div className="flex items-center gap-2 mb-8">
           <Icon name="wifi" className="text-primary text-[28px]!" />
@@ -751,8 +967,8 @@ function WaitingScreen({ onCancel }) {
         </div>
 
         <div className="text-center mb-8 w-full">
-          <h1 className="text-2xl font-bold text-on-background mb-2">Awaiting Payment</h1>
-          <p className="text-base text-on-surface-variant px-4">Check your phone for the M-Pesa prompt.</p>
+          <h1 className="text-2xl font-bold text-on-background mb-2">{t('wait.title')}</h1>
+          <p className="text-base text-on-surface-variant px-4">{t('wait.sub')}</p>
         </div>
 
         <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 relative">
@@ -762,7 +978,7 @@ function WaitingScreen({ onCancel }) {
             <div className="bg-surface-container-lowest rounded-full p-1 border-2 border-surface-container-lowest shadow-sm flex-shrink-0">
               <Icon name="check_circle" filled className="text-primary text-[20px]!" />
             </div>
-            <p className="pt-1 text-lg font-semibold text-on-background">Request sent</p>
+            <p className="pt-1 text-lg font-semibold text-on-background">{t('wait.sent')}</p>
           </div>
 
           <div className="flex items-start gap-4 relative z-10 mb-6">
@@ -772,14 +988,14 @@ function WaitingScreen({ onCancel }) {
                 <div className="w-2 h-2 bg-on-primary rounded-full"></div>
               </div>
             </div>
-            <p className="pt-1 text-lg font-semibold text-primary">Enter your M-Pesa PIN</p>
+            <p className="pt-1 text-lg font-semibold text-primary">{t('wait.pin')}</p>
           </div>
 
           <div className="flex items-start gap-4 relative z-10">
             <div className="bg-surface-container-lowest rounded-full p-1 border-2 border-surface-container-lowest shadow-sm flex-shrink-0">
               <div className="w-5 h-5 rounded-full border-2 border-outline-variant bg-surface-container-lowest"></div>
             </div>
-            <p className="pt-1 text-base text-on-surface-variant">Activating your access</p>
+            <p className="pt-1 text-base text-on-surface-variant">{t('wait.activating')}</p>
           </div>
         </div>
 
@@ -787,7 +1003,7 @@ function WaitingScreen({ onCancel }) {
           onClick={onCancel}
           className="mt-8 w-full flex items-center justify-center h-12 rounded-xl border-2 border-primary text-primary text-lg font-semibold hover:bg-primary/5 transition-colors duration-200 cursor-pointer"
         >
-          Cancel payment
+          {t('wait.cancel')}
         </button>
       </main>
     </div>
@@ -834,6 +1050,7 @@ function Confetti() {
 }
 
 function SuccessScreen({ code, note, onHome }) {
+  const { t, theme, themeVars } = useT()
   const [copied, setCopied] = useState(false)
   const [closeIn, setCloseIn] = useState(10)
   const [redirect, setRedirect] = useState(null)
@@ -879,7 +1096,7 @@ function SuccessScreen({ code, note, onHome }) {
   }
 
   return (
-    <div className="portal-theme bg-background text-on-background flex flex-col min-h-screen relative overflow-hidden">
+    <div className="portal-theme bg-background text-on-background flex flex-col min-h-screen relative overflow-hidden" style={themeVars} data-skin={theme}>
       <Confetti />
 
       <main className="flex-grow flex flex-col items-center justify-center px-5 py-8 z-10 w-full max-w-md mx-auto">
@@ -887,14 +1104,14 @@ function SuccessScreen({ code, note, onHome }) {
           <Icon name="check_circle" filled className="text-[64px]! text-primary" />
         </div>
 
-        <h1 className="text-2xl font-bold text-primary mb-2 text-center">You're Connected!</h1>
+        <h1 className="text-2xl font-bold text-primary mb-2 text-center">{t('ok.title')}</h1>
         <p className="text-sm text-on-surface-variant text-center mb-8">{note}</p>
 
         <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-2 border-dashed border-outline-variant p-6 relative flex flex-col items-center mb-6">
           <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-background rounded-full border-r-2 border-dashed border-outline-variant"></div>
           <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-background rounded-full border-l-2 border-dashed border-outline-variant"></div>
 
-          <p className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">Access Code</p>
+          <p className="text-xs font-semibold tracking-wider uppercase text-outline mb-3">{t('ok.codeLabel')}</p>
           <div className="flex items-center justify-center gap-4 bg-surface-container-low px-4 py-3 rounded-lg w-full mb-4">
             <span className="text-lg font-medium font-mono tracking-widest text-on-surface">{code}</span>
             <button
@@ -906,8 +1123,8 @@ function SuccessScreen({ code, note, onHome }) {
             </button>
           </div>
           <p className="text-[13px] text-on-surface-variant text-center">
-            Use this code as your WiFi <strong className="text-on-surface font-semibold">username</strong> and{' '}
-            <strong className="text-on-surface font-semibold">password</strong>.
+            {t('ok.usePre')} <strong className="text-on-surface font-semibold">{t('ok.username')}</strong> {t('ok.and')}{' '}
+            <strong className="text-on-surface font-semibold">{t('ok.password')}</strong>.
           </p>
         </div>
 
@@ -916,7 +1133,7 @@ function SuccessScreen({ code, note, onHome }) {
           className="w-full bg-primary text-on-primary text-lg font-semibold py-3 px-6 rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-primary-container transition-colors active:scale-95 duration-100 flex items-center justify-center gap-3 cursor-pointer"
         >
           <Icon name="wifi" filled />
-          {copied ? 'Code Copied!' : 'Copy Code & Connect'}
+          {copied ? t('ok.copied') : t('ok.copyConnect')}
         </button>
 
         {redirect && (
@@ -924,18 +1141,18 @@ function SuccessScreen({ code, note, onHome }) {
             href={redirect}
             className="mt-4 w-full border border-primary text-primary text-sm font-semibold py-3 px-6 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
-            Continue <Icon name="arrow_forward" className="text-[18px]!" />
+            {t('ok.continue')} <Icon name="arrow_forward" className="text-[18px]!" />
           </a>
         )}
         <p className="mt-4 text-sm text-on-surface-variant text-center">
           {closeIn > 0
             ? (redirect
-                ? `Taking you on in ${closeIn}s — connect with your code first.`
-                : `This page will close in ${closeIn}s — connect to SPA WiFi with your code.`)
-            : 'You can now connect to SPA WiFi with your code.'}
+                ? t('ok.closingRedirect', { n: closeIn })
+                : t('ok.closing', { n: closeIn }))
+            : t('ok.closed')}
         </p>
         <button onClick={onHome} className="mt-3 text-sm text-primary hover:underline cursor-pointer">
-          Return to Home
+          {t('ok.return')}
         </button>
       </main>
 
@@ -949,11 +1166,12 @@ function SuccessScreen({ code, note, onHome }) {
 /* ------------------------------------------------------------------ */
 
 function ErrorScreen({ message, onRetry, onChoosePlan }) {
+  const { t, theme, themeVars } = useT()
   return (
-    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col">
+    <div className="portal-theme bg-background text-on-background min-h-screen flex flex-col" style={themeVars} data-skin={theme}>
       <header className="bg-surface border-b border-outline-variant w-full top-0 z-50 flex items-center justify-between px-5 h-16 sticky">
         <Brand />
-        <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">Error</span>
+        <span className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('err.badge')}</span>
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-center px-5 py-8 w-full max-w-md mx-auto">
@@ -962,7 +1180,7 @@ function ErrorScreen({ message, onRetry, onChoosePlan }) {
             <Icon name="error" filled className="text-[40px]!" />
           </div>
 
-          <h1 className="text-2xl font-bold text-on-surface">Payment Failed</h1>
+          <h1 className="text-2xl font-bold text-on-surface">{t('err.title')}</h1>
           <p className="text-base text-on-surface-variant max-w-[280px]">{message}</p>
 
           <div className="w-full flex flex-col gap-3 mt-4">
@@ -971,20 +1189,20 @@ function ErrorScreen({ message, onRetry, onChoosePlan }) {
               className="w-full h-12 bg-primary text-on-primary text-lg font-semibold rounded-xl shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:bg-surface-tint active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer"
             >
               <Icon name="refresh" className="group-hover:rotate-180 transition-transform duration-500" />
-              Retry Payment
+              {t('err.retry')}
             </button>
             <button
               onClick={onChoosePlan}
               className="w-full h-12 bg-surface-container-lowest text-primary border border-primary text-lg font-semibold rounded-xl hover:bg-surface-container-low active:scale-95 transition-all duration-200 cursor-pointer"
             >
-              Choose another plan
+              {t('err.choose')}
             </button>
           </div>
 
           <div className="mt-3 pt-3 border-t border-outline-variant w-full">
             <p className="text-sm text-on-surface-variant flex items-center justify-center gap-2">
               <Icon name="support_agent" className="text-[16px]!" />
-              Support:{' '}
+              {t('err.support')}{' '}
               <a className="text-primary hover:underline font-semibold text-sm" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
                 {SUPPORT_PHONE}
               </a>
