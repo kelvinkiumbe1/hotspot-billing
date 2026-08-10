@@ -5,6 +5,7 @@ import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,37 @@ public class VoucherService {
 
     private final VoucherRepository voucherRepository;
     private final MikrotikService mikrotikService;
+    private final HotspotSettingsService hotspotSettings;
     private final SecureRandom random = new SecureRandom();
+
+    /**
+     * Invalidates vouchers that were printed but never used, once they pass
+     * the age set in Hotspot settings. Runs nightly; a zero setting means
+     * unused vouchers never expire.
+     */
+    @Scheduled(cron = "0 20 3 * * *")
+    @Transactional
+    public void expireStaleUnusedVouchers() {
+        int days = hotspotSettings.unusedVoucherExpiryDays();
+        if (days <= 0) {
+            return;
+        }
+        Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+        int expired = 0;
+        for (Voucher v : voucherRepository.findByStatusAndCreatedAtBefore(Voucher.Status.UNUSED, cutoff)) {
+            v.setStatus(Voucher.Status.EXPIRED);
+            voucherRepository.save(v);
+            try {
+                mikrotikService.removeVoucher(v);
+            } catch (Exception ignore) {
+                // Router may be offline; the reconcile pass will drop it later.
+            }
+            expired++;
+        }
+        if (expired > 0) {
+            log.info("Auto-expired {} unused voucher(s) older than {} days", expired, days);
+        }
+    }
 
     /**
      * Creates a voucher for the plan and provisions it on the router,

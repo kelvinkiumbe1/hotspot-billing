@@ -698,13 +698,33 @@ function Confetti() {
 function SuccessScreen({ code, note, onHome }) {
   const [copied, setCopied] = useState(false)
   const [closeIn, setCloseIn] = useState(10)
+  const [redirect, setRedirect] = useState(null)
+  // Read in a ref so the countdown, which is set up once, sees the value
+  // even though it arrives from the network a moment later.
+  const redirectRef = useRef(null)
+
+  useEffect(() => {
+    api('/portal-settings')
+      .then((s) => {
+        const url = s?.postPurchaseRedirect || null
+        setRedirect(url)
+        redirectRef.current = url
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const t = setInterval(() => {
       setCloseIn((s) => {
         if (s <= 1) {
           clearInterval(t)
-          window.close() // works in captive-portal popups; regular tabs show the fallback text
+          // Send them to the ISP's page if one is set, otherwise close the
+          // captive-portal popup (regular tabs just show the fallback text).
+          if (redirectRef.current) {
+            window.location.href = redirectRef.current
+          } else {
+            window.close()
+          }
           return 0
         }
         return s - 1
@@ -761,10 +781,20 @@ function SuccessScreen({ code, note, onHome }) {
           {copied ? 'Code Copied!' : 'Copy Code & Connect'}
         </button>
 
+        {redirect && (
+          <a
+            href={redirect}
+            className="mt-4 w-full border border-primary text-primary text-sm font-semibold py-3 px-6 rounded-xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            Continue <Icon name="arrow_forward" className="text-[18px]!" />
+          </a>
+        )}
         <p className="mt-4 text-sm text-on-surface-variant text-center">
           {closeIn > 0
-            ? `This page will close in ${closeIn}s — connect to SPA WiFi with your code.`
-            : 'You can now close this page and connect to SPA WiFi with your code.'}
+            ? (redirect
+                ? `Taking you on in ${closeIn}s — connect with your code first.`
+                : `This page will close in ${closeIn}s — connect to SPA WiFi with your code.`)
+            : 'You can now connect to SPA WiFi with your code.'}
         </p>
         <button onClick={onHome} className="mt-3 text-sm text-primary hover:underline cursor-pointer">
           Return to Home

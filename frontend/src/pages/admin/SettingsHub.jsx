@@ -18,6 +18,7 @@ const SECTIONS = [
     group: 'General',
     items: [
       { key: 'branding', label: 'Branding', hint: 'Business name, logo, portal wording', icon: 'palette', need: 'OUTREACH' },
+      { key: 'hotspot', label: 'Hotspot', hint: 'Post-purchase redirect, voucher expiry', icon: 'wifi', need: 'SETTINGS' },
     ],
   },
   {
@@ -42,6 +43,59 @@ const SECTIONS = [
     ],
   },
 ]
+
+/** Hotspot lifecycle — where buyers go next, and cleanup of stale vouchers. */
+function HotspotSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api('/admin/settings/hotspot', { auth }).then(setForm).catch(() => {})
+  }, [auth])
+
+  if (!form) return <Skeleton className="h-56" />
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true)
+    setSaved(false)
+    try {
+      const res = await api('/admin/settings/hotspot', { method: 'PUT', auth, body: form })
+      setForm(res)
+      setSaved(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <div>
+        <label className={LABEL_CLS}>Post-purchase redirect</label>
+        <input className={INPUT_CLS} placeholder="https://your-site.co.ke (leave blank to stay)"
+          value={form.postPurchaseRedirect || ''}
+          onChange={(e) => setForm({ ...form, postPurchaseRedirect: e.target.value })} />
+        <p className="text-xs text-on-surface-variant mt-1">
+          Where to send a customer after a successful purchase. Leave blank to keep them on the success page.
+        </p>
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Unused voucher expiry (days)</label>
+        <input type="number" min="0" max="3650" className={`${INPUT_CLS} max-w-xs`}
+          value={form.unusedVoucherExpiryDays}
+          onChange={(e) => setForm({ ...form, unusedVoucherExpiryDays: Number(e.target.value) })} />
+        <p className="text-xs text-on-surface-variant mt-1">
+          Auto-invalidate a voucher that was printed but never used after this many days. 0 = never.
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        {saved && <span className="text-sm text-secondary">Saved.</span>}
+      </div>
+    </form>
+  )
+}
 
 /** Passkey enforcement, session length and lockout — the policy behind the
  *  auth flow, editable instead of living in env files. */
@@ -453,6 +507,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
           {current === 'payments' && <PaymentGatewaysPage auth={auth} />}
           {current === 'vat' && <TaxSettingsPage auth={auth} />}
           {current === 'branding' && <BrandingPage auth={auth} />}
+          {current === 'hotspot' && (
+            <>
+              <PageHeader title="Hotspot" subtitle="What happens after a purchase, and voucher cleanup." />
+              <HotspotSection auth={auth} />
+            </>
+          )}
           {current === 'messaging' && (
             <>
               <PageHeader title="SMS & WhatsApp" subtitle="Your own gateway accounts, so message costs land on you." />

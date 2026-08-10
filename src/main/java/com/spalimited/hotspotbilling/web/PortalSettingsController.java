@@ -34,6 +34,7 @@ import java.util.Map;
 public class PortalSettingsController {
 
     private final PortalSettingsService portalSettings;
+    private final HotspotSettingsService hotspotSettings;
     private final NotificationService notifications;
     private final CustomPlanService customPlanService;
     private final VoucherService voucherService;
@@ -57,6 +58,7 @@ public class PortalSettingsController {
         out.put("termsText", s.getTermsText());
         out.put("trialEnabled", s.isTrialEnabled());
         out.put("trialMinutes", s.getTrialMinutes());
+        out.put("postPurchaseRedirect", hotspotSettings.postPurchaseRedirect());
         return out;
     }
 

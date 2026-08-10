@@ -18,6 +18,9 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     /** Vouchers that should exist on the router — issued or in use, not spent. */
     List<Voucher> findByStatusIn(java.util.Collection<Voucher.Status> statuses);
 
+    /** Used to auto-expire vouchers printed but never used after a set age. */
+    List<Voucher> findByStatusAndCreatedAtBefore(Voucher.Status status, Instant cutoff);
+
     long countByStatus(Voucher.Status status);
 
     List<Voucher> findTop100ByOrderByCreatedAtDesc();
