@@ -36,6 +36,12 @@ const SECTIONS = [
     ],
   },
   {
+    group: 'Developer',
+    items: [
+      { key: 'developer', label: 'API tokens', hint: 'Programmatic access to the API', icon: 'key', need: 'SETTINGS' },
+    ],
+  },
+  {
     group: 'Account',
     items: [
       { key: 'security', label: 'Security', hint: 'Passkeys, sessions, sign-in lockout', icon: 'lock', need: 'SETTINGS' },
@@ -43,6 +49,94 @@ const SECTIONS = [
     ],
   },
 ]
+
+/** Developer — personal access tokens for the REST API. Shown in full once. */
+function DeveloperSection({ auth }) {
+  const [tokens, setTokens] = useState(null)
+  const [name, setName] = useState('')
+  const [created, setCreated] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const load = () => api('/admin/api-tokens', { auth }).then(setTokens).catch(() => setTokens([]))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function create(e) {
+    e.preventDefault()
+    if (!name.trim()) return
+    setBusy(true)
+    setCopied(false)
+    try {
+      const c = await api('/admin/api-tokens', { method: 'POST', auth, body: { name: name.trim() } })
+      setCreated(c)
+      setName('')
+      load()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function revoke(id) {
+    await api(`/admin/api-tokens/${id}`, { method: 'DELETE', auth }).catch(() => {})
+    load()
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <form onSubmit={create} className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
+        <label className={LABEL_CLS}>Create a token</label>
+        <p className="text-sm text-on-surface-variant mt-1 mb-3">
+          Use it as <code className="font-mono">Authorization: Bearer &lt;token&gt;</code> against the API. It carries your role and permissions. Treat it like a password.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <input className={`${INPUT_CLS} flex-1 min-w-[200px]`} placeholder="e.g. mpesa-reconciler"
+            value={name} onChange={(e) => setName(e.target.value)} />
+          <PrimaryButton disabled={busy}>{busy ? 'Creating…' : 'Create token'}</PrimaryButton>
+        </div>
+      </form>
+
+      {created && (
+        <div className="rounded-lg p-4 border border-primary/50 bg-primary/5">
+          <p className="text-sm font-semibold text-on-surface">Copy this now — it won't be shown again.</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="font-mono text-sm break-all bg-surface-container rounded px-3 py-2 flex-1">{created.token}</code>
+            <button type="button"
+              onClick={() => { navigator.clipboard?.writeText(created.token); setCopied(true) }}
+              className="h-9 px-3 rounded-md border border-outline-variant text-sm font-semibold hover:bg-surface-container-high cursor-pointer">
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
+        {tokens === null ? (
+          <div className="p-4"><Skeleton className="h-20" /></div>
+        ) : tokens.length === 0 ? (
+          <p className="p-4 text-sm text-on-surface-variant">No API tokens yet.</p>
+        ) : (
+          <table className="data-table w-full text-left">
+            <thead><tr><th>Name</th><th>Token</th><th>Created</th><th>Last used</th><th className="text-right">Actions</th></tr></thead>
+            <tbody>
+              {tokens.map((t) => (
+                <tr key={t.id}>
+                  <td className="font-medium">{t.name}</td>
+                  <td className="font-mono text-xs">{t.masked}</td>
+                  <td className="text-xs">{t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-KE') : ''}<span className="text-on-surface-variant">{t.createdBy ? ` · ${t.createdBy}` : ''}</span></td>
+                  <td className="text-xs text-on-surface-variant">{t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleDateString('en-KE') : 'never'}</td>
+                  <td className="text-right">
+                    <button onClick={() => revoke(t.id)}
+                      className="text-sm font-semibold text-error hover:underline cursor-pointer">Revoke</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
 
 /** Hotspot lifecycle — where buyers go next, and cleanup of stale vouchers. */
 function HotspotSection({ auth }) {
@@ -523,6 +617,12 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="Security" subtitle="Passkeys, session length and sign-in lockout." />
               <SecuritySection auth={auth} />
+            </>
+          )}
+          {current === 'developer' && (
+            <>
+              <PageHeader title="API tokens" subtitle="Personal access tokens for the REST API." />
+              <DeveloperSection auth={auth} />
             </>
           )}
           {current === 'profile' && (

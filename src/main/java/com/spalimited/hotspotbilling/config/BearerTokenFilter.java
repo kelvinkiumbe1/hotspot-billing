@@ -1,6 +1,7 @@
 package com.spalimited.hotspotbilling.config;
 
 import com.spalimited.hotspotbilling.domain.StaffUser;
+import com.spalimited.hotspotbilling.service.ApiTokenService;
 import com.spalimited.hotspotbilling.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,6 +32,7 @@ import java.util.List;
 public class BearerTokenFilter extends OncePerRequestFilter {
 
     private final AuthService authService;
+    private final ApiTokenService apiTokenService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -39,7 +41,10 @@ public class BearerTokenFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = header.substring(7).trim();
-            authService.resolve(token).ifPresent(user -> authenticate(user, request));
+            // A session token first; failing that, a long-lived API token.
+            authService.resolve(token)
+                    .or(() -> apiTokenService.resolve(token))
+                    .ifPresent(user -> authenticate(user, request));
         }
         chain.doFilter(request, response);
     }
