@@ -21,6 +21,7 @@ public class ProvisioningWorker {
 
     private final TenantRepository tenants;
     private final Provisioner provisioner;
+    private final MailService mailService;
 
     /**
      * @param ownerPassword held only in memory on this worker thread for the
@@ -45,11 +46,13 @@ public class ProvisioningWorker {
                 tenant.setStatus(Tenant.Status.ACTIVE);
                 tenant.setReadyAt(Instant.now());
                 tenant.setStatusDetail("Your account is ready.");
+                tenants.save(tenant);
+                mailService.sendAccountReady(tenant);
             } else {
                 tenant.setStatus(Tenant.Status.FAILED);
                 tenant.setStatusDetail(result.detail());
+                tenants.save(tenant);
             }
-            tenants.save(tenant);
         });
     }
 }
