@@ -143,6 +143,21 @@ one because a solo team cannot absorb a cross-tenant leak.
 - **Abuse**: public signup invites junk/abuse; add email verification + rate
   limiting + a manual-approval option for the first cut.
 
-## What I need from you
-Pick the architecture (A or B — I recommend **B** first), and I'll turn the
-chosen sub-phases into a task list and start with the foundation.
+## Deploying the control plane (Option B, being built)
+The control plane (`control-plane/`) runs on the Docker host beside the tenant
+stacks, on its own port (8090). Point the apex/marketing domain at it and route:
+- `/` and `/start` → the signup page
+- `/console` → the platform-admin page (enter `ZIDI_ADMIN_TOKEN`)
+- `/api/**` → the control-plane API
+
+Set `ZIDI_PROVISIONER=SCRIPT` (default is DRY_RUN), `ZIDI_ADMIN_TOKEN`,
+`ZIDI_BASE_DOMAIN`, and give it Docker access so `ScriptProvisioner` can run
+`deploy/new-tenant.sh`. The landing page's "Start free"/"Start your ISP" and the
+demo banner's "Create your own account" already link to `/start`.
+
+## Status / what I need from you
+Chose **B**. Built so far (dry-run verified): signup + registry + async
+provisioning + credential delivery (owner picks password; passkeys optional) +
+platform-admin page + signup rate limit + funnel wiring. Remaining: email the
+"account ready" notice (needs SMTP), verify real Docker provisioning on the
+host, and (optional) email verification on signup.

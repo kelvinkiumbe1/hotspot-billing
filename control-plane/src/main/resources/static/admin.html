@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zidi · Tenants</title>
+  <style>
+    :root { --bg:#0a0a0c; --fg:#f5f5f4; --muted:#a1a1aa; --line:#26262b;
+      --surface:#141418; --yellow:#fdbf2d; --ok:#4ade80; --warn:#fbbf24; --err:#f87171; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:24px; }
+    .wrap { max-width:1000px; margin:0 auto; }
+    h1 { font-size:22px; margin:0 0 4px; }
+    p.sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+    .token { display:flex; gap:8px; margin-bottom:20px; }
+    input { flex:1; height:42px; background:var(--surface); color:var(--fg);
+      border:1px solid var(--line); border-radius:10px; padding:0 12px; font-size:14px; }
+    button { height:42px; padding:0 16px; border:0; border-radius:10px; cursor:pointer;
+      background:var(--yellow); color:#161200; font-weight:700; font-size:14px; }
+    button.ghost { background:var(--surface); color:var(--fg); border:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; background:var(--surface);
+      border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    th, td { text-align:left; padding:11px 14px; font-size:14px; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+    tr:last-child td { border-bottom:0; }
+    .badge { font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; }
+    .PROVISIONING { background:#3a2f12; color:var(--warn); }
+    .ACTIVE { background:#16301f; color:var(--ok); }
+    .FAILED { background:#3a1618; color:var(--err); }
+    .SUSPENDED { background:#26262b; color:var(--muted); }
+    td.actions button { height:32px; padding:0 12px; font-size:13px; margin-left:6px; }
+    .msg { margin:12px 0; font-size:14px; }
+    .empty { text-align:center; color:var(--muted); padding:30px; }
+    a { color:var(--yellow); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tenants</h1>
+    <p class="sub">Every ISP that has signed up. Retry a failed provision, or suspend a non-paying account.</p>
+
+    <div class="token">
+      <input id="token" type="password" placeholder="Admin token" />
+      <button onclick="load()">Load</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div id="list"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id)
+
+    function headers() { return { 'X-Admin-Token': $('token').value } }
+
+    async function load() {
+      $('msg').textContent = ''
+      sessionStorage.setItem('zidiAdminToken', $('token').value)
+      try {
+        const res = await fetch('/api/admin/tenants', { headers: headers() })
+        if (res.status === 401) { $('msg').textContent = 'Wrong admin token.'; $('list').innerHTML = ''; return }
+        const rows = await res.json()
+        render(rows)
+      } catch (e) {
+        $('msg').textContent = 'Could not load: ' + e.message
+      }
+    }
+
+    function render(rows) {
+      if (!rows.length) { $('list').innerHTML = '<div class="empty">No signups yet.</div>'; return }
+      const body = rows.map((t) => `
+        <tr>
+          <td><strong>${esc(t.businessName)}</strong><br><span style="color:var(--muted);font-size:12px">${esc(t.subdomain)}</span></td>
+          <td>${esc(t.ownerEmail)}</td>
+          <td><span class="badge ${t.status}">${t.status}</span><br><span style="color:var(--muted);font-size:11px">${esc(t.statusDetail || '')}</span></td>
+          <td class="actions">
+            ${t.status === 'FAILED' ? `<button onclick="act('${t.slug}','retry')">Retry</button>` : ''}
+            ${t.status !== 'SUSPENDED' ? `<button class="ghost" onclick="act('${t.slug}','suspend')">Suspend</button>` : ''}
+          </td>
+        </tr>`).join('')
+      $('list').innerHTML = `<table><thead><tr><th>Business</th><th>Owner</th><th>Status</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+    }
+
+    async function act(slug, action) {
+      try {
+        const res = await fetch('/api/admin/tenants/' + slug + '/' + action, { method: 'POST', headers: headers() })
+        const data = await res.json()
+        $('msg').textContent = data.message || ''
+        load()
+      } catch (e) { $('msg').textContent = e.message }
+    }
+
+    function esc(s) { return String(s ?? '').replace(/[&<>]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])) }
+
+    // Remember the token across reloads.
+    const saved = sessionStorage.getItem('zidiAdminToken')
+    if (saved) { $('token').value = saved; load() }
+  </script>
+</body>
+</html>

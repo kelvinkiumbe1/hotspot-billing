@@ -1,11 +1,14 @@
 package com.spalimited.controlplane;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,6 +21,7 @@ public class SignupController {
 
     private final SignupService signupService;
     private final TenantRepository tenants;
+    private final SignupRateLimiter rateLimiter;
 
     public record SignupBody(
             @NotBlank @Size(max = 160) String businessName,
@@ -28,10 +32,22 @@ public class SignupController {
     }
 
     @PostMapping
-    public Map<String, Object> signup(@Valid @RequestBody SignupBody body) {
+    public Map<String, Object> signup(@Valid @RequestBody SignupBody body, HttpServletRequest http) {
+        if (!rateLimiter.allow(clientIp(http))) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many signups from here — please try again later.");
+        }
         Tenant tenant = signupService.signup(new SignupService.SignupRequest(
                 body.businessName(), body.slug(), body.ownerName(), body.ownerEmail(), body.password()));
         return view(tenant);
+    }
+
+    private static String clientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @GetMapping("/{slug}/status")

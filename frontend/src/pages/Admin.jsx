@@ -1042,7 +1042,7 @@ function Shell({ auth, onLogout }) {
         <div className="fixed top-0 inset-x-0 h-8 z-50 bg-primary text-on-primary flex items-center justify-center gap-2 px-4 text-xs sm:text-sm font-semibold">
           <Icon name="visibility" className="text-[16px]!" />
           <span>Demo — read only. Changes are disabled.</span>
-          <a href="/#demo" className="underline underline-offset-2 hidden sm:inline hover:opacity-80">Create your own account →</a>
+          <a href="/start" className="underline underline-offset-2 hidden sm:inline hover:opacity-80">Create your own account →</a>
         </div>
       )}
 
