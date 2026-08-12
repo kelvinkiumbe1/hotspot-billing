@@ -165,6 +165,7 @@
         <a class="link" href="#features">Features</a>
         <a class="link" href="#how">How it works</a>
         <a class="link" href="#pricing">Pricing</a>
+        <a class="link" href="/login">Sign in</a>
         <a class="btn btn-primary" href="/start">Start free</a>
       </nav>
     </div>
@@ -361,7 +362,7 @@
       document.querySelectorAll('a[href^="/admin"]').forEach(function (a) {
         a.href = APP + a.getAttribute('href');
       });
-      document.querySelectorAll('a[href^="/start"]').forEach(function (a) {
+      document.querySelectorAll('a[href^="/start"], a[href^="/login"]').forEach(function (a) {
         a.href = SIGNUP + a.getAttribute('href');
       });
     })();

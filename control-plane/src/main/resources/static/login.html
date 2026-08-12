@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in to Zidi</title>
+  <meta name="theme-color" content="#0a0a0c" />
+  <link rel="icon" type="image/png" href="/media/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#08080a; --panel:#0b0b0e; --fg:#f6f6f5; --muted:#9b9ba3; --faint:#6c6c74;
+      --line:#232329; --line-strong:#33333b; --surface:#131318;
+      --yellow:#fdbf2d; --yellow-deep:#e0a413; --yellow-soft:rgba(253,191,45,.16);
+      --display:'Sora',system-ui,sans-serif; --ui:'Inter',system-ui,-apple-system,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html,body { height:100%; }
+    body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--ui);
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+    .wrap { display:flex; min-height:100vh; }
+
+    .media { position:relative; flex:1.15; overflow:hidden;
+      background:#160b05 url('/media/hero-poster.jpg') center/cover no-repeat; }
+    .media video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1.1s ease; }
+    .media video.playing { opacity:1; }
+    .media .scrim { position:absolute; inset:0; pointer-events:none;
+      background:
+        radial-gradient(120% 90% at 20% 15%, rgba(253,191,45,.10), transparent 55%),
+        linear-gradient(180deg, rgba(8,8,10,.35) 0%, rgba(8,8,10,0) 30%, rgba(8,8,10,.55) 70%, rgba(8,8,10,.92) 100%),
+        linear-gradient(90deg, rgba(8,8,10,.35), transparent 40%); }
+    .media .content { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; padding:44px 52px; z-index:2; }
+    .brand .logo { height:34px; width:auto; display:block; }
+    .lede { max-width:520px; }
+    .lede h2 { font-family:var(--display); font-weight:800; font-size:clamp(28px,3.2vw,42px); line-height:1.08; letter-spacing:-.025em; margin:0; text-shadow:0 2px 30px rgba(0,0,0,.5); }
+    .lede h2 .hl { color:var(--yellow); }
+
+    .panel { flex:.85; display:flex; align-items:center; justify-content:center; padding:40px 28px;
+      background:radial-gradient(90% 60% at 50% 0%, rgba(253,191,45,.05), transparent 60%), var(--panel); }
+    .card { width:100%; max-width:400px; }
+    .card .brand { display:none; margin-bottom:22px; }
+    .card .brand .logo { height:30px; }
+    h1 { font-family:var(--display); font-weight:700; font-size:26px; letter-spacing:-.02em; margin:0 0 6px; }
+    p.sub { color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 22px; }
+    label { display:block; font-size:11.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--faint); margin:16px 0 7px; }
+    .addr { display:flex; align-items:stretch; }
+    .addr input { flex:1; min-width:0; height:46px; background:var(--surface); color:var(--fg); font-family:var(--ui);
+      border:1px solid var(--line); border-right:0; border-radius:11px 0 0 11px; padding:0 13px; font-size:15px; outline:none;
+      transition:border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+    .addr input::placeholder { color:#565660; }
+    .addr .suffix { display:flex; align-items:center; padding:0 13px; font-size:14px; color:var(--muted);
+      background:#101015; border:1px solid var(--line); border-radius:0 11px 11px 0; white-space:nowrap; }
+    .addr input:focus { border-color:var(--yellow); background:#17130a; box-shadow:0 0 0 4px var(--yellow-soft); }
+    button { width:100%; height:50px; margin-top:22px; border:0; border-radius:11px; cursor:pointer;
+      font-family:var(--display); font-size:15.5px; font-weight:700; color:#161200;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep)); box-shadow:0 8px 24px rgba(253,191,45,.28);
+      transition:transform .15s ease, box-shadow .2s ease, filter .2s ease; }
+    button:hover { transform:translateY(-1px); box-shadow:0 12px 30px rgba(253,191,45,.4); filter:brightness(1.04); }
+    .hint { color:var(--faint); font-size:12px; line-height:1.5; margin:9px 0 0; }
+    .msg.err { color:#f87171; font-size:14px; margin-top:12px; }
+    .foot { margin-top:26px; font-size:13px; color:var(--muted); }
+    .foot a { color:var(--yellow); text-decoration:none; font-weight:600; }
+    .foot a:hover { text-decoration:underline; }
+    @media (max-width: 900px) {
+      .wrap { flex-direction:column; }
+      .media { flex:none; height:180px; }
+      .media .content { padding:22px 24px; justify-content:flex-end; }
+      .media .lede h2 { font-size:22px; }
+      .panel { flex:1; padding:30px 22px 44px; }
+      .card .brand { display:inline-flex; }
+      .media .content .brand { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="media">
+      <video id="hero" muted loop playsinline preload="none" poster="/media/hero-poster.jpg">
+        <source src="/media/hero.mp4" type="video/mp4" />
+      </video>
+      <div class="scrim"></div>
+      <div class="content">
+        <div class="brand"><img class="logo" src="/media/zidi-logo.png" alt="Zidi" /></div>
+        <div class="lede"><h2>Welcome back to <span class="hl">your network.</span></h2></div>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="card">
+        <div class="brand"><img class="logo" src="/media/zidi-logo.png" alt="Zidi" /></div>
+        <h1>Sign in</h1>
+        <p class="sub">Go to your ISP's dashboard. Enter the address you chose when you signed up.</p>
+
+        <label for="slug">Your Zidi address</label>
+        <div class="addr">
+          <input id="slug" placeholder="acme" autocomplete="off" autofocus />
+          <span class="suffix">.zidi.co.ke</span>
+        </div>
+        <p class="hint">You'll sign in with your email &amp; password (or fingerprint/face) on your own dashboard.</p>
+
+        <button id="go">Go to my dashboard</button>
+        <div class="msg err" id="error"></div>
+
+        <p class="foot">New to Zidi? <a href="/start">Start free →</a></p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id)
+    const slug = $('slug')
+    slug.addEventListener('input', () => { slug.value = slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
+    function go() {
+      const s = slug.value.trim()
+      if (!s) { $('error').textContent = 'Enter your Zidi address to continue.'; slug.focus(); return }
+      // Each ISP signs in on their own subdomain.
+      window.location.href = 'https://' + s + '.zidi.co.ke/admin'
+    }
+    $('go').addEventListener('click', go)
+    slug.addEventListener('keydown', (e) => { if (e.key === 'Enter') go() })
+
+    // Play the hero only on wide screens with motion allowed (poster otherwise).
+    ;(function () {
+      const v = $('hero')
+      if (v && window.matchMedia('(min-width: 901px)').matches
+          && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        v.setAttribute('autoplay', '')
+        v.addEventListener('playing', () => v.classList.add('playing'), { once: true })
+        v.load(); const p = v.play(); if (p && p.catch) p.catch(() => {})
+      }
+    })()
+  </script>
+</body>
+</html>
