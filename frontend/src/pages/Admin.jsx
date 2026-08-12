@@ -1325,7 +1325,7 @@ function Overview({ auth, onNav }) {
                 <p className="text-[11px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
                   Collected today
                 </p>
-                <p className="font-mono text-[40px] leading-none font-semibold tabular-nums mt-1.5 text-on-surface">
+                <p className="font-mono text-[30px] sm:text-[40px] leading-none font-semibold tabular-nums mt-1.5 text-on-surface">
                   {fmtKES(money.today)}
                 </p>
                 <p className="text-xs mt-2">
@@ -1476,11 +1476,11 @@ function Overview({ auth, onNav }) {
           >
             <div className="p-4 flex items-end gap-6">
               <div>
-                <p className="font-mono text-[32px] leading-none font-semibold tabular-nums">{data.stock.unused}</p>
+                <p className="font-mono text-[26px] sm:text-[32px] leading-none font-semibold tabular-nums">{data.stock.unused}</p>
                 <p className="text-xs text-on-surface-variant mt-1">unsold</p>
               </div>
               <div>
-                <p className="font-mono text-[32px] leading-none font-semibold tabular-nums text-on-surface-variant">
+                <p className="font-mono text-[26px] sm:text-[32px] leading-none font-semibold tabular-nums text-on-surface-variant">
                   {data.stock.active}
                 </p>
                 <p className="text-xs text-on-surface-variant mt-1">in use</p>
