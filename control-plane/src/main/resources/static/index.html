@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Start your ISP on Zidi</title>
   <meta name="theme-color" content="#0a0a0c" />
+  <link rel="icon" type="image/png" href="/media/favicon.png" />
   <!-- Signup is internet-facing (unlike the offline captive portal), so a web
        font here is fine. Sora = premium geometric display; Inter = clean UI. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -49,6 +50,8 @@
       display:grid; place-items:center; color:#161200; font-size:18px;
       box-shadow:0 6px 20px rgba(253,191,45,.35); }
     .brand strong { font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:-.01em; }
+    .brand .logo { height:34px; width:auto; display:block; }
+    .card .brand .logo { height:30px; }
 
     .lede { max-width:520px; }
     .eyebrow { font-size:12px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
@@ -146,7 +149,7 @@
       <div class="scrim"></div>
       <div class="glow"></div>
       <div class="content">
-        <div class="brand anim d1"><span class="mark">Z</span><strong>Zidi</strong></div>
+        <div class="brand anim d1"><img src="/media/zidi-logo.png" alt="Zidi" class="logo" /></div>
         <div class="lede">
           <p class="eyebrow anim d2">Zidi for ISPs</p>
           <h2 class="anim d3">Bill your whole network from <span class="hl">one screen.</span></h2>
@@ -162,7 +165,7 @@
     <!-- Right: form -->
     <main class="panel">
       <div class="card">
-        <div class="brand anim d1"><span class="mark">Z</span><strong>Zidi</strong></div>
+        <div class="brand anim d1"><img src="/media/zidi-logo.png" alt="Zidi" class="logo" /></div>
 
         <!-- Signup form -->
         <div id="form-view">

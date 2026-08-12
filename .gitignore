@@ -51,3 +51,6 @@ local.properties
 
 # Raw source videos (compress into marketing/**/images/ before committing)
 /*_*fps.mp4
+
+# Raw logo-maker export (processed assets live in each app)
+Logo maker project*

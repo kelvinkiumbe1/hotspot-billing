@@ -6,6 +6,7 @@ import { enrollPasskey, passkeyLogin, passkeySupported } from '../passkey.js'
 import { triggerInstall } from '../pwa.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
+import zidiLogo from '../assets/zidi-logo.png'
 import RoutersPage from './admin/Routers.jsx'
 import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
@@ -538,12 +539,13 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
 
   return (
     <div className="flex flex-col h-full py-5 px-3">
-      <div className={`mb-5 px-4 flex items-center gap-3 shrink-0 ${collapsible ? 'md:px-0 md:justify-center md:group-hover:px-4 md:group-hover:justify-start' : ''}`}>
-        <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]! shrink-0" />
-        <div className={railBlock}>
-          <p className="text-xl font-bold text-primary-fixed leading-tight whitespace-nowrap">Zidi</p>
-          <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70 whitespace-nowrap">NETWORK MANAGER</p>
-        </div>
+      <div className={`mb-5 px-4 shrink-0 flex flex-col ${collapsible ? 'md:px-2 md:items-center md:group-hover:items-start md:group-hover:px-4' : ''}`}>
+        <img
+          src={zidiLogo}
+          alt="Zidi"
+          className={`w-auto object-contain object-left shrink-0 ${collapsible ? 'h-7 md:group-hover:h-9' : 'h-9'}`}
+        />
+        <p className={`mt-1.5 text-[10px] font-semibold tracking-wider text-surface-variant/70 whitespace-nowrap ${railBlock}`}>NETWORK MANAGER</p>
       </div>
       <div className="relative flex-1 min-h-0 flex">
       <nav
