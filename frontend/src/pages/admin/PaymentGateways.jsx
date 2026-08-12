@@ -60,6 +60,8 @@ function ConfigureForm({ auth, gateway, saved, onCancel, onSaved }) {
     consumerSecret: '',
     shortCode: saved?.shortCode || '',
     passkey: '',
+    initiatorName: saved?.initiatorName || '',
+    securityCredential: '',
     paybillNumber: saved?.paybillNumber || '',
     tillNumber: saved?.tillNumber || '',
     bankName: saved?.bankName || '',
@@ -150,6 +152,33 @@ function ConfigureForm({ auth, gateway, saved, onCancel, onSaved }) {
                 placeholder={saved?.passkey || 'from your Daraja app'} />
             </div>
           </div>
+
+          {/* Optional: only needed to verify customers' pasted M-Pesa codes
+              (Transaction Status API). STK push works without these. */}
+          <details className="rounded-lg border border-outline-variant p-3">
+            <summary className="text-sm font-medium cursor-pointer text-on-surface">
+              Verify M-Pesa codes (optional)
+            </summary>
+            <p className="text-xs text-on-surface-variant mt-1 mb-3">
+              Lets customers who paid by Paybill/Till claim access by entering their M-Pesa code.
+              Needs your Daraja initiator name and Security Credential. Leave blank if unused.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLS}>Initiator name</label>
+                <input className={INPUT_CLS} value={form.initiatorName}
+                  onChange={(e) => set({ initiatorName: e.target.value })}
+                  placeholder={saved?.initiatorName || 'e.g. apiuser'} />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Security credential</label>
+                <input className={INPUT_CLS} type="password" value={form.securityCredential}
+                  onChange={(e) => set({ securityCredential: e.target.value })}
+                  placeholder={saved?.securityCredential || 'encrypted initiator password'} />
+              </div>
+            </div>
+          </details>
+
           {saved?.consumerKey && (
             <p className="text-xs text-on-surface-variant">
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.

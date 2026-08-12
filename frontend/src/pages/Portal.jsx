@@ -37,15 +37,26 @@ const STRINGS = {
     'steps.of': 'Step {n} of {m}',
     'neon.confirmed': 'payment confirmed',
     'neon.grant': 'ACCESS GRANTED',
+    'recover.q': 'Already paid but not connected?',
+    'recover.hint': 'Enter the number you paid with and we’ll text your access code.',
+    'recover.phone': 'Phone you paid with',
+    'recover.btn': 'Send my code',
+    'recover.sending': 'Checking…',
+    'verify.q': 'Paid by Paybill or Till?',
+    'verify.hint': 'Enter your M-Pesa code and the number you paid with — we’ll verify it and text your access code.',
+    'verify.code': 'M-Pesa code',
+    'verify.btn': 'Verify payment',
+    'verify.sending': 'Verifying…',
     'group.Hourly': 'Hourly Passes',
     'group.Daily': 'Daily Passes',
     'group.Weekly': 'Weekly Passes',
     'group.Monthly': 'Monthly Passes',
     'plans.retry': 'Retry',
     'plans.offline': "We can't reach the server right now. Check your connection and try again.",
-    'voucher.label': 'Have a voucher code?',
-    'voucher.placeholder': 'Enter code',
+    'voucher.label': 'Have a voucher or M-Pesa code?',
+    'voucher.placeholder': 'Enter code, or paste your M-Pesa message',
     'voucher.redeem': 'Redeem',
+    'voucher.checking': 'Checking…',
     'nav.connect': 'Connect',
     'nav.plans': 'Plans',
     'nav.help': 'Help',
@@ -137,15 +148,26 @@ const STRINGS = {
     'steps.of': 'Hatua {n} kati ya {m}',
     'neon.confirmed': 'malipo yamethibitishwa',
     'neon.grant': 'UFIKIAJI UMERUHUSIWA',
+    'recover.q': 'Umelipa lakini hujaunganishwa?',
+    'recover.hint': 'Weka nambari uliyolipia nayo, tutakutumia nambari yako ya ufikiaji kwa SMS.',
+    'recover.phone': 'Simu uliyolipia nayo',
+    'recover.btn': 'Nitumie nambari yangu',
+    'recover.sending': 'Inaangalia…',
+    'verify.q': 'Ulilipa kwa Paybill au Till?',
+    'verify.hint': 'Weka nambari ya M-Pesa na simu uliyolipia nayo — tutaithibitisha na kukutumia nambari yako ya ufikiaji.',
+    'verify.code': 'Nambari ya M-Pesa',
+    'verify.btn': 'Thibitisha malipo',
+    'verify.sending': 'Inathibitisha…',
     'group.Hourly': 'Vifurushi vya Saa',
     'group.Daily': 'Vifurushi vya Siku',
     'group.Weekly': 'Vifurushi vya Wiki',
     'group.Monthly': 'Vifurushi vya Mwezi',
     'plans.retry': 'Jaribu tena',
     'plans.offline': 'Hatuwezi kufikia seva kwa sasa. Angalia muunganisho wako ujaribu tena.',
-    'voucher.label': 'Una nambari ya kuponi?',
-    'voucher.placeholder': 'Weka nambari',
+    'voucher.label': 'Una kuponi au nambari ya M-Pesa?',
+    'voucher.placeholder': 'Weka nambari, au bandika ujumbe wa M-Pesa',
     'voucher.redeem': 'Tumia',
+    'voucher.checking': 'Inaangalia…',
     'nav.connect': 'Unganisha',
     'nav.plans': 'Vifurushi',
     'nav.help': 'Msaada',
@@ -332,8 +354,6 @@ export default function Portal() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState(null) // { code, note } on success
   const [errorMsg, setErrorMsg] = useState('')
-  const [redeemCode, setRedeemCode] = useState('')
-  const [redeemErr, setRedeemErr] = useState(null)
   const [plansError, setPlansError] = useState(false)
   const [custom, setCustom] = useState(null)
   const [promo, setPromo] = useState(null)
@@ -416,23 +436,16 @@ export default function Portal() {
     }
   }
 
-  async function redeem(e) {
-    e.preventDefault()
-    setRedeemErr(null)
-    try {
-      const v = await api(`/vouchers/${redeemCode.trim().toUpperCase()}/activate`, { method: 'POST' })
-      setResult({ code: v.code, note: `Voucher activated — you have ${formatDuration(v.effectiveDurationMinutes || v.plan.durationMinutes)} of internet.` })
-      setScreen('success')
-      window.scrollTo(0, 0)
-    } catch (err) {
-      setRedeemErr(err.message)
-    }
+  // Called by the redeem/verify box when a voucher is activated on the spot.
+  function showActivated({ code, note }) {
+    setResult({ code, note })
+    setScreen('success')
+    window.scrollTo(0, 0)
   }
 
   function backToPlans() {
     stopPoll()
     setScreen('plans')
-    setRedeemErr(null)
     window.scrollTo(0, 0)
   }
 
@@ -471,10 +484,7 @@ export default function Portal() {
         onRetryPlans={loadPlans}
         onPromoExpire={loadPlans}
         onBuy={choosePlan}
-        redeemCode={redeemCode}
-        setRedeemCode={setRedeemCode}
-        redeemErr={redeemErr}
-        onRedeem={redeem}
+        onActivated={showActivated}
       />
     )
   }
@@ -768,11 +778,56 @@ function PlansScreen(props) {
 
 /* --- Sections every design reuses; the design's tokens restyle them --- */
 
-function VoucherSection({ redeemCode, setRedeemCode, redeemErr, onRedeem, delay = 400 }) {
+/* One box for getting online with something you already have: a voucher code,
+   an M-Pesa confirmation code, or the whole M-Pesa SMS pasted in. It scans the
+   code out of the text, tries it as a voucher first, and — where the operator
+   has enabled it — falls back to verifying it as an M-Pesa payment (which
+   reconnects an already-claimed code to the time still left on it). */
+function VoucherSection({ onActivated, delay = 400 }) {
   const { t } = useT()
+  const [input, setInput] = useState('')
+  const [codeVerify, setCodeVerify] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null) // { ok, text }
+
+  useEffect(() => {
+    api('/portal-settings').then((s) => setCodeVerify(!!s.codeVerifyEnabled)).catch(() => {})
+  }, [])
+
+  async function submit(e) {
+    e.preventDefault()
+    // A pasted M-Pesa SMS begins with the confirmation code; for a bare code
+    // this is just the code itself.
+    const code = (input.trim().split(/\s+/)[0] || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (!code) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const v = await api(`/vouchers/${code}/activate`, { method: 'POST' })
+      onActivated({
+        code: v.code,
+        note: `Voucher activated — you have ${formatDuration(v.effectiveDurationMinutes || v.plan.durationMinutes)} of internet.`,
+      })
+      return // navigates to the success screen
+    } catch (voucherErr) {
+      if (codeVerify) {
+        try {
+          const r = await api('/payments/verify-code', { method: 'POST', body: { code } })
+          setMsg({ ok: r.result === 'CHECKING' || r.result === 'ALREADY_ACTIVE', text: r.message })
+        } catch (e2) {
+          setMsg({ ok: false, text: e2.message })
+        }
+      } else {
+        setMsg({ ok: false, text: voucherErr.message })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up" style={{ animationDelay: `${delay}ms` }}>
-      <form onSubmit={onRedeem}>
+      <form onSubmit={submit}>
         <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
           {t('voucher.label')}
         </label>
@@ -781,23 +836,81 @@ function VoucherSection({ redeemCode, setRedeemCode, redeemErr, onRedeem, delay 
             id="voucher"
             type="text"
             required
-            value={redeemCode}
-            onChange={(e) => setRedeemCode(e.target.value)}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             placeholder={t('voucher.placeholder')}
-            className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm font-mono uppercase text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
           />
           <button
             type="submit"
-            className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-lg font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer"
+            disabled={busy || !input.trim()}
+            className="h-12 px-6 bg-surface text-primary border border-primary rounded-xl text-lg font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer disabled:opacity-40"
           >
-            {t('voucher.redeem')}
+            {busy ? t('voucher.checking') : t('voucher.redeem')}
           </button>
         </div>
-        {redeemErr && <p className="text-sm text-error mt-2">{redeemErr}</p>}
+        {msg && <p className={`text-sm mt-2 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
       </form>
+      <div className="mt-4 pt-4 border-t border-outline-variant">
+        <RecoverBox compact />
+      </div>
     </section>
   )
 }
+
+/* "I paid but wasn't connected." Enters the paying number, triggers an
+   on-demand reconcile on the backend, and the code is texted to that number —
+   never shown here, so nobody can pull someone else's voucher. Reused on the
+   plans screen and the error screen. */
+function RecoverBox({ compact = false }) {
+  const { t } = useT()
+  const [phone, setPhone] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await api('/payments/recover', { method: 'POST', body: { phoneNumber: normalizePhone(phone) } })
+      setMsg({ ok: r.result === 'SENT', text: r.message })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className={compact ? '' : 'bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)]'}>
+      <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-1" htmlFor="recover-phone">
+        {t('recover.q')}
+      </label>
+      <p className="text-xs text-on-surface-variant mb-2">{t('recover.hint')}</p>
+      <div className="flex gap-3">
+        <input
+          id="recover-phone"
+          type="tel"
+          required
+          value={phone}
+          onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ''))}
+          placeholder="0712 345 678"
+          className="flex-1 min-w-0 h-12 bg-surface-bright border border-outline-variant rounded-xl px-3 text-sm text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+        />
+        <button
+          type="submit"
+          disabled={busy || !phone.trim()}
+          className="h-12 px-5 bg-surface text-primary border border-primary rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors active:scale-95 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+        >
+          {busy ? t('recover.sending') : t('recover.btn')}
+        </button>
+      </div>
+      {msg && <p className={`text-sm mt-2 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
+    </form>
+  )
+}
+
 
 function PlansFallback({ plans, plansError, onRetryPlans }) {
   const { t } = useT()
@@ -859,7 +972,7 @@ function MobileNav() {
 
 /* --- Design: Signature (CLASSIC) — black canvas, amber accent, photo hero --- */
 
-function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -922,7 +1035,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
         </section>
 
         <div className="mt-3">
-          <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} />
+          <VoucherSection onActivated={onActivated} />
         </div>
 
         {loyaltyEnabled && <RewardsCard />}
@@ -936,7 +1049,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
 
 /* --- Design: Breeze (BREEZE) — light, airy, tabs + list rows, voucher first --- */
 
-function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   const [tab, setTab] = useState('All')
   const groups = PLAN_GROUPS.filter((g) => plans.some((p) => planGroup(p.durationMinutes) === g))
@@ -957,7 +1070,7 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
           <p className="text-sm text-on-surface-variant mt-1">{t('breeze.sub')}</p>
         </section>
 
-        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={100} />
+        <VoucherSection onActivated={onActivated} delay={100} />
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
@@ -1022,7 +1135,7 @@ function BreezeRow({ plan, promo, onBuy, index = 0 }) {
 
 /* --- Design: Market Poster (POSTER) — cream paper, serif display, price tags --- */
 
-function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -1050,7 +1163,7 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={200} />
+        <VoucherSection onActivated={onActivated} delay={200} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1082,7 +1195,7 @@ function PosterTag({ plan, promo, onBuy, index = 0 }) {
 
 /* --- Design: Compact Grid (MATRIX) — every plan on screen as a small tile --- */
 
-function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -1113,7 +1226,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={150} />
+        <VoucherSection onActivated={onActivated} delay={150} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1144,7 +1257,7 @@ function MatrixTile({ plan, promo, onBuy, index = 0 }) {
 
 /* --- Design: Step-by-Step (STEPS) — numbered how-to first, then simple rows --- */
 
-function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -1179,7 +1292,7 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
           <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         </section>
 
-        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={250} />
+        <VoucherSection onActivated={onActivated} delay={250} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1215,7 +1328,7 @@ function StepsRow({ plan, promo, onBuy, index = 0 }) {
 
 /* --- Design: Terminal (NEON) — black, monospace, command-line menu --- */
 
-function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, redeemCode, setRedeemCode, redeemErr, onRedeem }) {
+function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -1249,7 +1362,7 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
         )}
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection redeemCode={redeemCode} setRedeemCode={setRedeemCode} redeemErr={redeemErr} onRedeem={onRedeem} delay={200} />
+        <VoucherSection onActivated={onActivated} delay={200} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -2066,7 +2179,12 @@ function ErrorScreen({ message, onRetry, onChoosePlan }) {
           </button>
         </div>
 
-        <p className="mt-12 text-xs text-on-surface-variant flex items-center justify-center gap-2 fade-up" style={{ animationDelay: '320ms' }}>
+        {/* A charged-but-not-connected customer can recover their code here. */}
+        <div className="w-full mt-8 text-left fade-up" style={{ animationDelay: '280ms' }}>
+          <RecoverBox />
+        </div>
+
+        <p className="mt-10 text-xs text-on-surface-variant flex items-center justify-center gap-2 fade-up" style={{ animationDelay: '320ms' }}>
           <Icon name="support_agent" className="text-[15px]!" />
           {t('err.support')}{' '}
           <a className="text-primary hover:underline font-semibold" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
