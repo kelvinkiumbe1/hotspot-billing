@@ -1277,6 +1277,7 @@ function Panel({ title, action, children, className = '' }) {
 function OnboardingCard({ auth, onNav }) {
   const [ob, setOb] = useState(null)
   const [hidden, setHidden] = useState(() => localStorage.getItem('onboardingDismissed') === '1')
+  const [hotspotOnly, setHotspotOnly] = useState(() => localStorage.getItem('onboardingHotspotOnly') === '1')
 
   useEffect(() => {
     let alive = true
@@ -1284,12 +1285,21 @@ function OnboardingCard({ auth, onNav }) {
     return () => { alive = false }
   }, [auth])
 
-  if (hidden || !ob || ob.allDone) return null
+  if (hidden || !ob) return null
 
-  const pct = Math.round((ob.completed / ob.total) * 100)
-  const next = ob.steps.find((s) => !s.done)
-  const done = ob.steps.filter((s) => s.done)
-  const remaining = ob.steps.filter((s) => !s.done && s !== next)
+  // A hotspot-only ISP has no PPPoE router, so let them mark that step done
+  // rather than leaving the card stuck at 5/6 forever (per-browser, like
+  // the dismiss). Recompute the counts from the adjusted steps.
+  const steps = ob.steps.map((s) => (s.key === 'router' && hotspotOnly ? { ...s, done: true } : s))
+  const completed = steps.filter((s) => s.done).length
+  const total = steps.length
+  if (completed === total) return null
+
+  const pct = Math.round((completed / total) * 100)
+  const next = steps.find((s) => !s.done)
+  const done = steps.filter((s) => s.done)
+  const remaining = steps.filter((s) => !s.done && s !== next)
+  const routerPending = steps.some((s) => s.key === 'router' && !s.done)
 
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
@@ -1297,7 +1307,7 @@ function OnboardingCard({ auth, onNav }) {
         <div>
           <h3 className="text-base font-semibold text-on-surface">Set up your account</h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            <span className="font-semibold text-on-surface">{ob.completed} of {ob.total}</span> done · {ob.total - ob.completed} step{ob.total - ob.completed === 1 ? '' : 's'} left
+            <span className="font-semibold text-on-surface">{completed} of {total}</span> done · {total - completed} step{total - completed === 1 ? '' : 's'} left
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -1336,6 +1346,18 @@ function OnboardingCard({ auth, onNav }) {
           </button>
         ))}
       </div>
+
+      {routerPending && (
+        <p className="mt-3 text-xs text-on-surface-variant">
+          Running hotspot-only?{' '}
+          <button
+            onClick={() => { localStorage.setItem('onboardingHotspotOnly', '1'); setHotspotOnly(true) }}
+            className="text-primary font-medium hover:underline cursor-pointer"
+          >
+            Skip the router step
+          </button>
+        </p>
+      )}
     </div>
   )
 }
