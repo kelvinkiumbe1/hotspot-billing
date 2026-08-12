@@ -514,12 +514,15 @@ body {
   --color-surface-container: #f4f4f5;
   --color-surface-container-high: #ececee;
   --color-surface-container-highest: #e4e4e7;
-  /* Sharp, unmuddied yellow, with near-black text on top of it. */
+  /* Sharp, unmuddied yellow, with near-black text on top of it. The
+     container tone is the SAME sharp yellow (not a washed-out cream) so the
+     active nav pill, the avatar and status chips read as bright yellow. */
   --color-primary: #fdbf2d;
   --color-on-primary: #171100;
-  --color-primary-container: #fff0c2;
-  --color-on-primary-container: #3a2c00;
+  --color-primary-container: #fdbf2d;
+  --color-on-primary-container: #171100;
   --color-surface-tint: #fdbf2d;
+  --color-primary-fixed-dim: #fdbf2d;
   --color-secondary: #12833a;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #b6f0c4;
