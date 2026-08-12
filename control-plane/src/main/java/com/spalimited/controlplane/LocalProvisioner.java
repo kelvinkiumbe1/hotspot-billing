@@ -109,30 +109,9 @@ public class LocalProvisioner implements Provisioner {
         // we bind the port again.
         stop(tenant.getSlug());
 
-        File logFile;
         Process process;
         try {
-            Files.createDirectories(runtimeDir.toPath());
-            logFile = new File(runtimeDir, tenant.getSlug() + ".log");
-
-            ProcessBuilder pb = new ProcessBuilder(javaBin, "-jar", jar.getPath());
-            pb.directory(runtimeDir);
-            pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.to(logFile));
-            Map<String, String> env = pb.environment();
-            env.put("SERVER_PORT", String.valueOf(port));
-            env.put("DB_URL", dbHostUrlPrefix + dbName);
-            env.put("DB_USERNAME", dbUser);
-            env.put("DB_PASSWORD", dbPassword);
-            // The owner's chosen bootstrap login. Seeded on first boot.
-            env.put("ADMIN_USERNAME", tenant.getOwnerEmail());
-            env.put("ADMIN_PASSWORD", ownerPassword);
-            // Local tenants need no router or demo data.
-            env.put("MIKROTIK_ENABLED", "false");
-            env.put("DEMO_ENABLED", "false");
-
-            process = pb.start();
-            running.put(tenant.getSlug(), process);
+            process = launch(tenant.getSlug(), port, dbName, tenant.getOwnerEmail(), ownerPassword);
         } catch (Exception e) {
             return ProvisionResult.failed("Could not launch app instance: " + e.getMessage());
         }
@@ -144,12 +123,84 @@ public class LocalProvisioner implements Provisioner {
             stop(tenant.getSlug());
             return ProvisionResult.failed(
                     "The tenant app did not come up on " + base + " within 3 minutes. See "
-                            + logFile + " for details.");
+                            + new File(runtimeDir, tenant.getSlug() + ".log") + " for details.");
         }
 
         log.info("Local tenant {} is up at {} (db {}, pid {})",
                 tenant.getSlug(), base, dbName, process.pid());
         return ProvisionResult.ok("Running locally at " + base);
+    }
+
+    /**
+     * Launches one tenant's app process against its database. `ownerPassword`
+     * is set only on the first provision (to seed the owner login); on a
+     * re-launch it's null — the owner already exists and StaffSeeder is
+     * create-if-absent, so no credentials are needed or touched.
+     */
+    private Process launch(String slug, int port, String dbName, String ownerEmail, String ownerPassword)
+            throws Exception {
+        Files.createDirectories(runtimeDir.toPath());
+        File logFile = new File(runtimeDir, slug + ".log");
+
+        ProcessBuilder pb = new ProcessBuilder(javaBin, "-jar", new File(jarPath).getAbsolutePath());
+        pb.directory(runtimeDir);
+        pb.redirectErrorStream(true);
+        pb.redirectOutput(ProcessBuilder.Redirect.to(logFile));
+        Map<String, String> env = pb.environment();
+        env.put("SERVER_PORT", String.valueOf(port));
+        env.put("DB_URL", dbHostUrlPrefix + dbName);
+        env.put("DB_USERNAME", dbUser);
+        env.put("DB_PASSWORD", dbPassword);
+        if (ownerPassword != null && !ownerPassword.isBlank()) {
+            env.put("ADMIN_USERNAME", ownerEmail);
+            env.put("ADMIN_PASSWORD", ownerPassword);
+        }
+        env.put("MIKROTIK_ENABLED", "false");
+        env.put("DEMO_ENABLED", "false");
+
+        Process process = pb.start();
+        running.put(slug, process);
+        return process;
+    }
+
+    /** True when this tenant's app is answering on its port. */
+    public boolean isUp(Tenant t) {
+        return t.getLocalPort() != null && responds("http://localhost:" + t.getLocalPort() + "/api/plans");
+    }
+
+    /**
+     * Local tenants are plain processes, so a control-plane restart leaves them
+     * dead while the registry still says ACTIVE. Rather than re-launch every
+     * historical tenant at boot (a resource storm on a dev box), we wake one
+     * lazily when someone actually signs into it. Fire-and-forget: starts the
+     * process if it isn't already up or starting, and returns; readiness is
+     * polled by the caller via {@link #isUp(Tenant)}.
+     */
+    public void startIfDown(Tenant t) {
+        if (t.getLocalPort() == null) return;
+        Process existing = running.get(t.getSlug());
+        if (existing != null && existing.isAlive()) return; // already starting/running
+        if (isUp(t)) return; // survived / already answering
+        String dbName = "spa_" + t.getSlug().replace('-', '_');
+        try {
+            createDatabaseIfAbsent(dbName);
+            launch(t.getSlug(), t.getLocalPort(), dbName, t.getOwnerEmail(), null);
+            log.info("Waking local tenant {} on port {}", t.getSlug(), t.getLocalPort());
+        } catch (Exception e) {
+            log.warn("Could not wake local tenant {}: {}", t.getSlug(), e.getMessage());
+        }
+    }
+
+    /** Quick single-shot check that something is answering on a URL. */
+    private boolean responds(String url) {
+        try {
+            HttpResponse<Void> r = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).build()
+                    .send(HttpRequest.newBuilder().uri(URI.create(url)).timeout(Duration.ofSeconds(2)).GET().build(),
+                            HttpResponse.BodyHandlers.discarding());
+            return r.statusCode() == 200;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** CREATE DATABASE is autocommit-only and can't run in a transaction. */

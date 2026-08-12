@@ -112,24 +112,42 @@
     const $ = (id) => document.getElementById(id)
     const slug = $('slug')
     slug.addEventListener('input', () => { slug.value = slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+    async function lookup(s) {
+      const res = await fetch('/api/tenant/' + encodeURIComponent(s) + '/location')
+      if (res.status === 404 || res.status === 400) {
+        throw new Error('No account found at ' + s + '.zidi.co.ke — check the address, or start free.')
+      }
+      if (!res.ok) throw new Error('Something went wrong — please try again.')
+      return res.json()
+    }
+
     async function go() {
       const s = slug.value.trim()
       $('error').textContent = ''
       if (!s) { $('error').textContent = 'Enter your Zidi address to continue.'; slug.focus(); return }
       $('go').disabled = true
+      const label = $('go').textContent
+      $('go').textContent = 'Finding your dashboard…'
       try {
-        // Ask the control plane where this account actually lives. In production
-        // that's https://<slug>.zidi.co.ke; on a local dev box it's the
-        // http://localhost:PORT the account was stood up on — so sign-in works
-        // in both without guessing a domain that may not resolve.
-        const res = await fetch('/api/signup/' + encodeURIComponent(s) + '/status')
-        if (res.status === 404 || res.status === 400) throw new Error('No account found at ' + s + '.zidi.co.ke — check the address, or start free.')
-        if (!res.ok) throw new Error('Something went wrong — please try again.')
-        const data = await res.json()
+        // Ask the control plane where this account lives (localhost:PORT in
+        // dev, the subdomain in production). In dev a sleeping tenant is woken
+        // on demand, so we wait for it to answer before sending them over.
+        let data = await lookup(s)
+        if (!data.ready) {
+          $('go').textContent = 'Starting your dashboard…'
+          for (let i = 0; i < 25 && !data.ready; i++) {
+            await sleep(3000)
+            data = await lookup(s)
+          }
+        }
+        if (!data.ready) throw new Error('Your dashboard is taking longer than usual to wake — please try again in a moment.')
         window.location.href = (data.url || ('https://' + s + '.zidi.co.ke')) + '/admin'
       } catch (e) {
         $('error').textContent = e.message
         $('go').disabled = false
+        $('go').textContent = label
       }
     }
     $('go').addEventListener('click', go)
