@@ -75,6 +75,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         String ip = clientIp(request);
+
+        // Never throttle loopback. In production the reverse proxy forwards the
+        // real client IP, so this only matches genuine local traffic — dev,
+        // testing and server-local health checks — which shouldn't be limited.
+        if (isLoopback(ip)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         sweepOccasionally();
 
         boolean staff = path.startsWith("/api/admin/") || path.startsWith("/api/tech/");
@@ -180,5 +189,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private static boolean isLoopback(String ip) {
+        if (ip == null) return false;
+        return ip.equals("127.0.0.1") || ip.equals("::1")
+                || ip.equals("0:0:0:0:0:0:0:1") || ip.startsWith("127.");
     }
 }
