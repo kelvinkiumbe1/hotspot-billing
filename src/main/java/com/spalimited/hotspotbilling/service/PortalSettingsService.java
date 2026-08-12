@@ -13,17 +13,21 @@ public class PortalSettingsService {
 
     private final PortalSettingsRepository repository;
 
+    /** Neutral starter name so a new ISP doesn't inherit another brand — the
+     *  onboarding checklist nudges them to set their own. */
+    public static final String DEFAULT_BUSINESS_NAME = "My Hotspot";
+
     @Transactional
     public PortalSettings settings() {
         return repository.findById(PortalSettings.SINGLETON_ID)
                 .orElseGet(() -> repository.save(PortalSettings.builder()
                         .id(PortalSettings.SINGLETON_ID)
-                        .businessName("SPA WiFi")
+                        .businessName(DEFAULT_BUSINESS_NAME)
                         .headline("Get Connected in Seconds")
-                        .subheadline("Fast, reliable internet across the city.")
+                        .subheadline("Fast, reliable internet — buy a plan and you're online.")
                         .backgroundColor("#000000")
                         .accentColor("#FDBF2D")
-                        .supportPhone("+254 700 000 000")
+                        .supportPhone("")
                         .termsText("Access is for lawful use only. One voucher covers the devices stated on your plan.")
                         .trialEnabled(false)
                         .trialMinutes(15)

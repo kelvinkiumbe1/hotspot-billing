@@ -1270,6 +1270,76 @@ function Panel({ title, action, children, className = '' }) {
   )
 }
 
+/* First-run "Set up your account" checklist. Fetches step done-states from
+   /admin/onboarding (computed from real data), shows a progress bar, the next
+   step as a prominent CTA, and done/remaining chips. Self-hides once every
+   step is done or the operator dismisses it (remembered per browser). */
+function OnboardingCard({ auth, onNav }) {
+  const [ob, setOb] = useState(null)
+  const [hidden, setHidden] = useState(() => localStorage.getItem('onboardingDismissed') === '1')
+
+  useEffect(() => {
+    let alive = true
+    api('/admin/onboarding', { auth }).then((d) => alive && setOb(d)).catch(() => {})
+    return () => { alive = false }
+  }, [auth])
+
+  if (hidden || !ob || ob.allDone) return null
+
+  const pct = Math.round((ob.completed / ob.total) * 100)
+  const next = ob.steps.find((s) => !s.done)
+  const done = ob.steps.filter((s) => s.done)
+  const remaining = ob.steps.filter((s) => !s.done && s !== next)
+
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-on-surface">Set up your account</h3>
+          <p className="text-xs text-on-surface-variant mt-0.5">
+            <span className="font-semibold text-on-surface">{ob.completed} of {ob.total}</span> done · {ob.total - ob.completed} step{ob.total - ob.completed === 1 ? '' : 's'} left
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block w-40">
+            <div className="h-2 rounded-full bg-surface-container-high overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: pct + '%' }} />
+            </div>
+          </div>
+          <span className="text-sm font-bold tabular-nums text-on-surface">{pct}%</span>
+          <button onClick={() => { localStorage.setItem('onboardingDismissed', '1'); setHidden(true) }} className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container cursor-pointer" aria-label="Dismiss setup">
+            <Icon name="close" className="text-[18px]!" />
+          </button>
+        </div>
+      </div>
+
+      {next && (
+        <button onClick={() => onNav(next.tab)} className="mt-4 w-full flex items-center justify-between gap-3 bg-primary text-on-primary rounded-lg px-4 py-3 text-left hover:brightness-105 active:scale-[0.99] transition cursor-pointer">
+          <span>
+            <span className="block text-[10px] font-bold tracking-wider uppercase opacity-70">Next step</span>
+            <span className="block text-sm font-semibold">{next.label}</span>
+          </span>
+          <Icon name="arrow_forward" />
+        </button>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {done.length > 0 && <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant mr-1">Already done</span>}
+        {done.map((s) => (
+          <span key={s.key} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-medium">
+            <Icon name="check" className="text-[14px]!" /> {s.label}
+          </span>
+        ))}
+        {remaining.map((s) => (
+          <button key={s.key} onClick={() => onNav(s.tab)} className="inline-flex items-center px-2.5 py-1 rounded-full border border-outline-variant text-on-surface-variant text-xs font-medium hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer">
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Overview({ auth, onNav }) {
   const [data, setData] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -1316,6 +1386,7 @@ function Overview({ auth, onNav }) {
 
   return (
     <div className="space-y-3">
+      <OnboardingCard auth={auth} onNav={onNav} />
       {/* Row one: money is the largest thing on the page, faults sit beside
           it. Sized by importance rather than split into equal boxes. */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
