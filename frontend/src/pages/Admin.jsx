@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard, AreaSparkline } from '../components/ui.jsx'
 import { enrollPasskey, passkeyLogin, passkeySupported } from '../passkey.js'
+import { triggerInstall } from '../pwa.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import RoutersPage from './admin/Routers.jsx'
@@ -896,10 +897,24 @@ function InstallAppModal({ onClose }) {
   )
 }
 
+/* Resolves the theme choice (light/dark/system) to what actually renders,
+   following the OS when the choice is "system". */
+function useResolvedTheme(choice) {
+  const [sys, setSys] = useState(() =>
+    window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const on = (e) => setSys(e.matches ? 'dark' : 'light')
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return choice === 'system' ? sys : choice
+}
+
 /* The signed-in owner's account menu, hung off the top-bar avatar: who they
-   are, the account and workspace shortcuts, and sign out. "Password & security"
-   is where they manage their passkey (fingerprint / face sign-in). */
-function ProfileMenu({ me, onNav, onLogout, onInstall }) {
+   are, the theme, the account and workspace shortcuts, and sign out.
+   "Password & security" is where they manage 2FA and passkeys. */
+function ProfileMenu({ me, onNav, onLogout, onInstall, theme, onTheme }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -941,10 +956,27 @@ function ProfileMenu({ me, onNav, onLogout, onInstall }) {
             </div>
           </div>
 
+          {/* Theme */}
+          <div className="p-3 border-b border-outline-variant">
+            <div className="flex rounded-lg border border-outline-variant overflow-hidden">
+              {[['light', 'Light', 'light_mode'], ['dark', 'Dark', 'dark_mode'], ['system', 'System', 'computer']].map(([key, label, icon]) => (
+                <button
+                  key={key}
+                  onClick={() => onTheme(key)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium cursor-pointer transition-colors ${
+                    theme === key ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  <Icon name={icon} className="text-[15px]!" /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="px-1.5 py-1.5">
             <p className="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant">Account</p>
-            <Item icon="account_circle" label="Profile" onClick={() => go('settings')} />
-            <Item icon="lock" label="Password & security" onClick={() => go('settings')} />
+            <Item icon="account_circle" label="Profile" onClick={() => go('settings/profile')} />
+            <Item icon="lock" label="Password & security" onClick={() => go('settings/security')} />
             <Item icon="install_mobile" label="Install app" onClick={() => { setOpen(false); onInstall() }} />
           </div>
 
@@ -978,6 +1010,9 @@ function Shell({ auth, onLogout }) {
   const [drawer, setDrawer] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [installOpen, setInstallOpen] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('adminTheme') || 'system')
+  const resolvedTheme = useResolvedTheme(theme)
+  useEffect(() => { localStorage.setItem('adminTheme', theme) }, [theme])
   // Null until known, so nothing is hidden or shown on a guess.
   const [me, setMe] = useState(null)
 
@@ -1036,7 +1071,7 @@ function Shell({ auth, onLogout }) {
   const demo = !!me?.demo
 
   return (
-    <div className="admin-theme bg-background text-on-background min-h-screen">
+    <div className="admin-theme bg-background text-on-background min-h-screen" data-theme={resolvedTheme}>
       {/* Read-only demo strip, above everything. */}
       {demo && (
         <div className="fixed top-0 inset-x-0 h-8 z-50 bg-primary text-on-primary flex items-center justify-center gap-2 px-4 text-xs sm:text-sm font-semibold">
@@ -1073,7 +1108,8 @@ function Shell({ auth, onLogout }) {
         </div>
         <div className="flex items-center gap-2">
           <PayoutBell auth={auth} />
-          <ProfileMenu me={me} onNav={nav} onLogout={onLogout} onInstall={() => setInstallOpen(true)} />
+          <ProfileMenu me={me} onNav={nav} onLogout={onLogout} theme={theme} onTheme={setTheme}
+            onInstall={async () => { const native = await triggerInstall(); if (!native) setInstallOpen(true) }} />
         </div>
       </header>
 

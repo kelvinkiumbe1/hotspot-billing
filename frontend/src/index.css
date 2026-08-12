@@ -486,3 +486,44 @@ body {
 .admin-theme .data-table td.text-right:not(:has(button)):not(:has(a)) {
   font-family: var(--font-mono);
 }
+
+/* Light mode for the admin: the content area flips to light while the sidebar
+   stays dark (a deliberate "dark rail, light canvas" look). Only the content
+   tokens change; --color-inverse-surface and --color-primary-fixed are left on
+   their dark-theme values so the dark sidebar and its bright amber survive.
+   --color-primary is darkened so amber text/buttons read on white. */
+.admin-theme[data-theme="light"] {
+  --color-background: #f5f6f7;
+  --color-on-background: #1a1c1e;
+  --color-surface: #ffffff;
+  --color-on-surface: #1a1c1e;
+  --color-on-surface-variant: #55606e;
+  --color-surface-bright: #ffffff;
+  --color-surface-dim: #e4e6e9;
+  --color-surface-variant: #b9c0c9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f1f3f5;
+  --color-surface-container: #ebedf0;
+  --color-surface-container-high: #e4e7ea;
+  --color-surface-container-highest: #dde1e5;
+  --color-primary: #9a6800;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ffe1a3;
+  --color-on-primary-container: #4a3200;
+  --color-surface-tint: #9a6800;
+  --color-secondary: #2e7d46;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #b6f0c4;
+  --color-on-secondary-container: #05371a;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #410002;
+  --color-outline: #6d7580;
+  --color-outline-variant: #d3d8dd;
+  --color-tertiary: #55606e;
+}
+/* The data table carries hardcoded dark colours; lighten them to match. */
+.admin-theme[data-theme="light"] .data-table th { background: #f1f3f5; color: #55606e; }
+.admin-theme[data-theme="light"] .data-table td { border-bottom-color: #e4e7ea; }
+.admin-theme[data-theme="light"] .data-table tbody tr:hover { background: #f1f3f5; }

@@ -66,6 +66,9 @@ public class StaffController {
         out.put("breakGlass", member == null);
         // A read-only evaluation session, so the shell can show a demo banner.
         out.put("demo", authorities.contains("DEMO"));
+        // Personal security state, so the Security page can show what's on.
+        out.put("twoFactor", member != null && member.isTotpEnabled());
+        out.put("hasPasskeys", member != null && webAuthn.hasPasskeys(member.getId()));
         return out;
     }
 

@@ -1,0 +1,13 @@
+{
+  "name": "Zidi",
+  "short_name": "Zidi",
+  "description": "Run your ISP — hotspot vouchers, M-Pesa, MikroTik and PPPoE from one dashboard.",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}

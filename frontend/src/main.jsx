@@ -11,6 +11,7 @@ import '@fontsource/fira-code/400.css'
 import '@fontsource/fira-code/500.css'
 import '@fontsource/fira-code/600.css'
 import './index.css'
+import './pwa.js'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

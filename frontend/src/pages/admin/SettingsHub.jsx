@@ -4,10 +4,12 @@ import { api } from '../../api.js'
 import {
   Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS, Toggle,
 } from '../../components/ui.jsx'
+import QRCode from 'qrcode'
 import PaymentGatewaysPage from './PaymentGateways.jsx'
 import TaxSettingsPage from './TaxSettings.jsx'
 import BrandingPage from './Branding.jsx'
 import { PORTAL_DESIGNS, normalizeDesignKey } from '../../portalDesigns.js'
+import { enrollPasskey, passkeySupported } from '../../passkey.js'
 
 /**
  * The settings sections, grouped the way an operator thinks about them
@@ -499,6 +501,102 @@ function HotspotSection({ auth }) {
         {saved && <span className="text-sm text-secondary">Saved.</span>}
       </div>
     </form>
+  )
+}
+
+/** The signed-in owner's own protections: an authenticator app (2FA) and a
+ *  biometric passkey (fingerprint / face). Distinct from SecuritySection, which
+ *  sets the policy for everyone. */
+function PersonalSecuritySection({ auth, me }) {
+  const [twoFactor, setTwoFactor] = useState(!!me?.twoFactor)
+  const [hasPasskey, setHasPasskey] = useState(!!me?.hasPasskeys)
+  const [setup, setSetup] = useState(null) // { secret, qr }
+  const [code, setCode] = useState('')
+  const [disabling, setDisabling] = useState(false)
+  const [pw, setPw] = useState('')
+  const [dcode, setDcode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [pkMsg, setPkMsg] = useState(null)
+
+  async function start2fa() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api('/auth/2fa/start', { method: 'POST', auth })
+      const qr = await QRCode.toDataURL(r.uri, { margin: 1, width: 208 })
+      setSetup({ secret: r.secret, qr })
+    } catch (e) { setMsg({ ok: false, text: e.message }) } finally { setBusy(false) }
+  }
+  async function confirm2fa(e) {
+    e.preventDefault(); setBusy(true); setMsg(null)
+    try {
+      await api('/auth/2fa/confirm', { method: 'POST', auth, body: { code } })
+      setTwoFactor(true); setSetup(null); setCode(''); setMsg({ ok: true, text: 'Two-factor is on.' })
+    } catch (e) { setMsg({ ok: false, text: e.message }) } finally { setBusy(false) }
+  }
+  async function disable2fa(e) {
+    e.preventDefault(); setBusy(true); setMsg(null)
+    try {
+      await api('/auth/2fa/disable', { method: 'POST', auth, body: { password: pw, code: dcode } })
+      setTwoFactor(false); setDisabling(false); setPw(''); setDcode(''); setMsg({ ok: true, text: 'Two-factor is off.' })
+    } catch (e) { setMsg({ ok: false, text: e.message }) } finally { setBusy(false) }
+  }
+  async function addPasskey() {
+    setPkMsg(null)
+    try {
+      await enrollPasskey(auth, 'Passkey')
+      setHasPasskey(true); setPkMsg({ ok: true, text: 'Passkey added — sign in with fingerprint or face next time.' })
+    } catch (e) {
+      if (e.name === 'NotAllowedError' || e.name === 'AbortError') setPkMsg({ ok: false, text: 'Passkey setup was cancelled.' })
+      else setPkMsg({ ok: false, text: e.message || 'Could not add a passkey.' })
+    }
+  }
+
+  return (
+    <div className="space-y-4 mb-4">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
+        <div className="flex items-center gap-2 mb-1"><Icon name="qr_code_2" className="text-primary" /><h3 className="text-sm font-semibold text-on-surface">Two-factor (authenticator app)</h3></div>
+        <p className="text-xs text-on-surface-variant mb-3">Scan the code with Google Authenticator, Authy or similar, then enter a 6-digit code to add it on top of your password.</p>
+        {twoFactor ? (
+          disabling ? (
+            <form onSubmit={disable2fa} className="space-y-2 max-w-xs">
+              <input type="password" className={INPUT_CLS} placeholder="Your password" value={pw} onChange={(e) => setPw(e.target.value)} />
+              <input className={INPUT_CLS} placeholder="6-digit code" value={dcode} onChange={(e) => setDcode(e.target.value.replace(/\D/g, ''))} maxLength={6} />
+              <div className="flex gap-2 items-center"><PrimaryButton type="submit" disabled={busy}>Turn off</PrimaryButton><button type="button" onClick={() => setDisabling(false)} className="text-sm text-on-surface-variant cursor-pointer">Cancel</button></div>
+            </form>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-secondary flex items-center gap-1"><Icon name="check_circle" className="text-[16px]!" /> On</span>
+              <button onClick={() => setDisabling(true)} className="text-sm text-error hover:underline cursor-pointer">Turn off</button>
+            </div>
+          )
+        ) : setup ? (
+          <form onSubmit={confirm2fa} className="space-y-3">
+            <img src={setup.qr} alt="Scan in your authenticator app" className="w-44 h-44 rounded-lg bg-white p-1.5" />
+            <p className="text-xs text-on-surface-variant">Can't scan? Enter this key: <code className="text-on-surface break-all">{setup.secret}</code></p>
+            <input className={`${INPUT_CLS} max-w-[200px] font-mono tracking-[0.3em]`} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} maxLength={6} autoFocus />
+            <div><PrimaryButton type="submit" disabled={busy || code.length < 6}>Turn on two-factor</PrimaryButton></div>
+          </form>
+        ) : (
+          <PrimaryButton onClick={start2fa} disabled={busy}>Set up two-factor</PrimaryButton>
+        )}
+        {msg && <p className={`text-sm mt-2 ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant">
+        <div className="flex items-center gap-2 mb-1"><Icon name="fingerprint" className="text-primary" /><h3 className="text-sm font-semibold text-on-surface">Biometric sign-in (passkey)</h3></div>
+        <p className="text-xs text-on-surface-variant mb-3">Sign in with your fingerprint or face using a passkey on this device — no password to type.</p>
+        {passkeySupported() ? (
+          <div className="flex items-center gap-3">
+            {hasPasskey && <span className="text-sm text-secondary flex items-center gap-1"><Icon name="check_circle" className="text-[16px]!" /> Set up</span>}
+            <PrimaryButton onClick={addPasskey}>{hasPasskey ? 'Add another' : 'Add a passkey'}</PrimaryButton>
+          </div>
+        ) : (
+          <p className="text-sm text-on-surface-variant">This browser doesn't support passkeys.</p>
+        )}
+        {pkMsg && <p className={`text-sm mt-2 ${pkMsg.ok ? 'text-secondary' : 'text-error'}`}>{pkMsg.text}</p>}
+      </section>
+    </div>
   )
 }
 
@@ -1307,12 +1405,42 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
   const visible = groups.flatMap((g) => g.items).map((i) => i.key)
   const current = visible.includes(active) ? active : visible[0]
 
+  const flatItems = groups.flatMap((g) => g.items)
+
   return (
     <div>
       <PageHeader title="Settings" subtitle="How this system behaves, and who it behaves as." />
 
+      {/* Narrow screens: a horizontal, always-visible tab bar so the chosen
+          section's content shows immediately instead of below a long list. */}
+      <div className="lg:hidden mb-4">
+        <input
+          className="w-full mb-2.5 bg-surface border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Find a setting…"
+          aria-label="Find a setting"
+        />
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {flatItems.map((i) => (
+            <button
+              key={i.key}
+              onClick={() => setActive(i.key)}
+              aria-current={current === i.key ? 'page' : undefined}
+              className={`shrink-0 flex items-center gap-1.5 h-9 px-3 rounded-full text-sm font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                current === i.key
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container-lowest border border-outline-variant text-on-surface-variant hover:border-outline'
+              }`}
+            >
+              <Icon name={i.icon} className="text-[16px]!" /> {i.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
-        <aside className="bg-surface-container-lowest rounded-lg border border-outline-variant p-3 lg:sticky lg:top-4">
+        <aside className="hidden lg:block bg-surface-container-lowest rounded-lg border border-outline-variant p-3 lg:sticky lg:top-4">
           <input
             className="w-full mb-3 bg-surface border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
             value={search}
@@ -1391,7 +1519,8 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
           )}
           {current === 'security' && (
             <>
-              <PageHeader title="Security" subtitle="Passkeys, session length and sign-in lockout." />
+              <PageHeader title="Password & security" subtitle="Your two-factor and biometric sign-in, and the security policy for everyone." />
+              <PersonalSecuritySection auth={auth} me={me} />
               <SecuritySection auth={auth} />
             </>
           )}
