@@ -67,6 +67,13 @@ public class PaymentGateway {
 
     private String passkey;
 
+    /** Initiator username for the Transaction Status API (verifying M-Pesa codes). */
+    private String initiatorName;
+
+    /** Initiator password encrypted with Safaricom's public cert; long base64. */
+    @Column(length = 2048)
+    private String securityCredential;
+
     // --- Manual gateways ---
 
     /** Paybill number, or the till number for Buy Goods. */

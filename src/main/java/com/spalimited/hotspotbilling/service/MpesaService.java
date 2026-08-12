@@ -95,6 +95,110 @@ public class MpesaService {
     }
 
     /**
+     * Asks Daraja for the final outcome of an STK push, to reconcile a payment
+     * whose callback never arrived. Returns the transaction ResultCode: 0 =
+     * paid, any other value = failed/cancelled. Returns null when Daraja won't
+     * say yet — the customer still has the prompt open, or a transient error —
+     * so the caller leaves the payment PENDING and tries again later.
+     */
+    public Integer queryStkStatus(String checkoutRequestId) {
+        PaymentGatewayService.DarajaConfig cfg = gatewayService.daraja();
+        if (!cfg.usable() || checkoutRequestId == null || checkoutRequestId.isBlank()) {
+            return null;
+        }
+        String timestamp = LocalDateTime.now().format(TIMESTAMP);
+        String password = Base64.getEncoder().encodeToString(
+                (cfg.shortCode() + cfg.passkey() + timestamp).getBytes(StandardCharsets.UTF_8));
+        Map<String, Object> body = Map.of(
+                "BusinessShortCode", cfg.shortCode(),
+                "Password", password,
+                "Timestamp", timestamp,
+                "CheckoutRequestID", checkoutRequestId);
+        JsonNode response;
+        try {
+            response = clientFor(cfg.baseUrl()).post()
+                    .uri("/mpesa/stkpushquery/v1/query")
+                    .header("Authorization", "Bearer " + fetchAccessToken(cfg))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            // While the customer still has the STK prompt open, Daraja answers
+            // this query with an error ("The transaction is being processed"),
+            // not a result. Treat any error as "not decided yet".
+            log.debug("STK query for {} not decided yet: {}", checkoutRequestId, e.getMessage());
+            return null;
+        }
+        if (response == null || response.path("ResultCode").isMissingNode()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(response.path("ResultCode").asText());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Asks Daraja to confirm a real M-Pesa transaction by its confirmation
+     * code, so a customer who paid by hand (Paybill/Till) can claim access
+     * without us trusting a pasted, forgeable SMS. Like B2C this is async: the
+     * call is only accepted here, and the actual details arrive later on the
+     * ResultURL. Returns the ConversationID to correlate that result, or null
+     * when verification isn't available or Daraja rejected the request.
+     */
+    public String queryTransactionStatus(String receipt) {
+        PaymentGatewayService.DarajaConfig cfg = gatewayService.daraja();
+        String resultUrl = deriveCallbackUrl("transaction-result");
+        if (!cfg.canVerifyTransactions() || receipt == null || receipt.isBlank() || resultUrl == null) {
+            return null;
+        }
+        Map<String, Object> body = Map.ofEntries(
+                Map.entry("Initiator", cfg.initiatorName()),
+                Map.entry("SecurityCredential", cfg.securityCredential()),
+                Map.entry("CommandID", "TransactionStatusQuery"),
+                Map.entry("TransactionID", receipt),
+                Map.entry("PartyA", cfg.shortCode()),
+                Map.entry("IdentifierType", "4"), // 4 = organisation shortcode
+                Map.entry("ResultURL", resultUrl),
+                Map.entry("QueueTimeOutURL", deriveCallbackUrl("transaction-timeout")),
+                Map.entry("Remarks", "Customer voucher claim"),
+                Map.entry("Occasion", "voucher-claim"));
+        JsonNode response;
+        try {
+            response = clientFor(cfg.baseUrl()).post()
+                    .uri("/mpesa/transactionstatus/v1/query")
+                    .header("Authorization", "Bearer " + fetchAccessToken(cfg))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            log.warn("Transaction status query for {} rejected: {}", receipt, e.getMessage());
+            return null;
+        }
+        if (response == null || response.path("ResponseCode").asInt(-1) != 0) {
+            log.warn("Transaction status query for {} not accepted: {}", receipt, response);
+            return null;
+        }
+        return response.path("ConversationID").asText();
+    }
+
+    /**
+     * Builds a Daraja result/timeout URL from the configured callback URL by
+     * swapping its final segment, so all the async endpoints share one public
+     * base without a second setting to keep in sync.
+     */
+    private String deriveCallbackUrl(String lastSegment) {
+        String base = props.callbackUrl();
+        if (base == null || base.isBlank() || !base.contains("/")) {
+            return null;
+        }
+        return base.substring(0, base.lastIndexOf('/') + 1) + lastSegment;
+    }
+
+    /**
      * Checks credentials against Daraja without moving any money, so an
      * operator finds out they are wrong while setting up rather than when a
      * customer tries to pay.

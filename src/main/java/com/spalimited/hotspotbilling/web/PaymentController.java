@@ -6,6 +6,7 @@ import com.spalimited.hotspotbilling.domain.Payment;
 import com.spalimited.hotspotbilling.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -72,5 +73,75 @@ public class PaymentController {
         log.debug("Daraja callback: {}", body);
         paymentService.handleStkCallback(body);
         return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
+    }
+
+    public record RecoverRequest(
+            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            String phoneNumber) {
+    }
+
+    public record VerifyCodeRequest(
+            @NotBlank
+            @Pattern(regexp = "[A-Za-z0-9]{6,20}", message = "Enter the M-Pesa confirmation code")
+            String code) {
+    }
+
+    /**
+     * "Here's my M-Pesa code (or the whole confirmation SMS)." Verifies it
+     * against Safaricom (Transaction Status). A new code is checked and the
+     * voucher texted to the number that paid; a code already claimed reconnects
+     * the customer to whatever time is left, or says the pass is used up.
+     */
+    @PostMapping("/verify-code")
+    public Map<String, Object> verifyCode(@Valid @RequestBody VerifyCodeRequest request) {
+        PaymentService.ClaimOutcome outcome = paymentService.verifyByCode(request.code());
+        Integer left = outcome.remainingMinutes();
+        String message = switch (outcome.result()) {
+            case CHECKING -> "We're verifying your payment — you'll get an SMS with your access code shortly.";
+            case ALREADY_ACTIVE -> "Your pass is still active" + (left != null ? " — about " + left + " min left" : "")
+                    + ". We've resent your code by SMS.";
+            case EXPIRED -> "That pass has been used up — buy another to get back online.";
+            case UNAVAILABLE -> "Code verification isn't available right now — please contact support.";
+        };
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("result", outcome.result().name());
+        out.put("message", message);
+        out.put("remainingMinutes", left);
+        return out;
+    }
+
+    /** Async Transaction Status result posted by Safaricom Daraja. */
+    @PostMapping("/mpesa/transaction-result")
+    public Map<String, Object> transactionResult(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
+        log.debug("Daraja transaction-status result: {}", body);
+        paymentService.handleTransactionResult(body);
+        return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
+    }
+
+    /** Timeout notice for a status query Safaricom couldn't answer in time. */
+    @PostMapping("/mpesa/transaction-timeout")
+    public Map<String, Object> transactionTimeout(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
+        log.warn("Daraja transaction-status timed out: {}", body);
+        return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
+    }
+
+    /**
+     * "I paid but wasn't connected." Settles a pending payment on demand and
+     * re-sends the voucher — always by SMS to the number that paid, so the code
+     * is never returned here and can't be recovered by anyone else.
+     */
+    @PostMapping("/recover")
+    public Map<String, Object> recover(@Valid @RequestBody RecoverRequest request) {
+        PaymentService.RecoveryResult result = paymentService.recoverByPhone(request.phoneNumber());
+        String message = switch (result) {
+            case SENT -> "We've sent your access code by SMS to that number.";
+            case STILL_PENDING -> "Your payment is still being confirmed. Please wait a moment and try again.";
+            case NO_SMS -> "Your payment is confirmed, but we can't text the code from here — please contact support.";
+            case FAILED -> "That payment didn't go through. If you were charged, contact support.";
+            case NONE -> "We couldn't find a payment from that number.";
+        };
+        return Map.of("result", result.name(), "message", message);
     }
 }

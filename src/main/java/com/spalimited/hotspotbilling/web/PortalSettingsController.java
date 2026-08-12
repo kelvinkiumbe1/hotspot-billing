@@ -36,6 +36,7 @@ public class PortalSettingsController {
     private final PortalSettingsService portalSettings;
     private final HotspotSettingsService hotspotSettings;
     private final LoyaltyService loyaltyService;
+    private final PaymentGatewayService paymentGatewayService;
     private final NotificationService notifications;
     private final CustomPlanService customPlanService;
     private final VoucherService voucherService;
@@ -63,6 +64,7 @@ public class PortalSettingsController {
         out.put("portalTemplate", hotspotSettings.portalTemplate());
         out.put("defaultLanguage", hotspotSettings.defaultLanguage());
         out.put("loyaltyEnabled", loyaltyService.settings().isEnabled());
+        out.put("codeVerifyEnabled", paymentGatewayService.transactionStatusAvailable());
         return out;
     }
 

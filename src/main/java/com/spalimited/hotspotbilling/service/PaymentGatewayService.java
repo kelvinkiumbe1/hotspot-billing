@@ -28,11 +28,17 @@ public class PaymentGatewayService {
 
     /** Everything Daraja needs for one call, from whichever source won. */
     public record DarajaConfig(String baseUrl, String consumerKey, String consumerSecret,
-                               String shortCode, String passkey, boolean live) {
+                               String shortCode, String passkey, boolean live,
+                               String initiatorName, String securityCredential) {
 
         public boolean usable() {
             return notBlank(consumerKey) && notBlank(consumerSecret)
                     && notBlank(shortCode) && notBlank(passkey);
+        }
+
+        /** True when we can verify a pasted M-Pesa code via Transaction Status. */
+        public boolean canVerifyTransactions() {
+            return usable() && notBlank(initiatorName) && notBlank(securityCredential);
         }
 
         private static boolean notBlank(String v) {
@@ -61,17 +67,30 @@ public class PaymentGatewayService {
                     db.getEnvironment() == PaymentGateway.Environment.PRODUCTION ? PRODUCTION : SANDBOX,
                     db.getConsumerKey(), db.getConsumerSecret(),
                     db.getShortCode(), db.getPasskey(),
-                    db.getEnvironment() == PaymentGateway.Environment.PRODUCTION);
+                    db.getEnvironment() == PaymentGateway.Environment.PRODUCTION,
+                    db.getInitiatorName(), db.getSecurityCredential());
         }
         return new DarajaConfig(props.baseUrl(), props.consumerKey(), props.consumerSecret(),
                 props.shortCode(), props.passkey(),
-                props.baseUrl() != null && props.baseUrl().contains("api.safaricom"));
+                props.baseUrl() != null && props.baseUrl().contains("api.safaricom"),
+                null, null);
     }
 
     /** True when an STK push can actually be sent right now. */
     @Transactional(readOnly = true)
     public boolean stkAvailable() {
         return daraja().usable();
+    }
+
+    /** True when a pasted M-Pesa code can be verified via Transaction Status. */
+    @Transactional(readOnly = true)
+    public boolean transactionStatusAvailable() {
+        return daraja().canVerifyTransactions();
+    }
+
+    private static boolean filledForVerify(PaymentGateway g) {
+        return g.getInitiatorName() != null && !g.getInitiatorName().isBlank()
+                && g.getSecurityCredential() != null && !g.getSecurityCredential().isBlank();
     }
 
     /**
@@ -130,6 +149,10 @@ public class PaymentGatewayService {
             row.put("consumerKey", mask(g == null ? null : g.getConsumerKey()));
             row.put("consumerSecret", mask(g == null ? null : g.getConsumerSecret()));
             row.put("passkey", mask(g == null ? null : g.getPasskey()));
+            // Initiator name isn't a secret; the credential is.
+            row.put("initiatorName", g == null ? null : g.getInitiatorName());
+            row.put("securityCredential", mask(g == null ? null : g.getSecurityCredential()));
+            row.put("canVerifyCodes", g != null && filledForVerify(g));
 
             row.put("shortCode", g == null ? null : g.getShortCode());
             row.put("paybillNumber", g == null ? null : g.getPaybillNumber());
@@ -169,6 +192,8 @@ public class PaymentGatewayService {
             keepIfBlank(incoming.getConsumerKey(), gateway::getConsumerKey, gateway::setConsumerKey);
             keepIfBlank(incoming.getConsumerSecret(), gateway::getConsumerSecret, gateway::setConsumerSecret);
             keepIfBlank(incoming.getPasskey(), gateway::getPasskey, gateway::setPasskey);
+            keepIfBlank(incoming.getInitiatorName(), gateway::getInitiatorName, gateway::setInitiatorName);
+            keepIfBlank(incoming.getSecurityCredential(), gateway::getSecurityCredential, gateway::setSecurityCredential);
         } else {
             gateway.setPaybillNumber(trim(incoming.getPaybillNumber()));
             gateway.setTillNumber(trim(incoming.getTillNumber()));

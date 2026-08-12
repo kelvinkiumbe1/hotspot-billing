@@ -49,6 +49,8 @@ public class PaymentSettingsController {
             String consumerSecret,
             String shortCode,
             String passkey,
+            String initiatorName,
+            String securityCredential,
             String paybillNumber,
             String tillNumber,
             String bankName,
@@ -68,6 +70,8 @@ public class PaymentSettingsController {
                 .consumerSecret(request.consumerSecret())
                 .shortCode(request.shortCode())
                 .passkey(request.passkey())
+                .initiatorName(request.initiatorName())
+                .securityCredential(request.securityCredential())
                 .paybillNumber(request.paybillNumber())
                 .tillNumber(request.tillNumber())
                 .bankName(request.bankName())

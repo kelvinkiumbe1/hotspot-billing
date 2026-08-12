@@ -13,6 +13,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByCheckoutRequestId(String checkoutRequestId);
 
+    /** Still-pending payments — the reconciliation sweep queries these. */
+    List<Payment> findByStatus(Payment.Status status);
+
+    /** A customer's payments, newest first — for phone-number self-recovery. */
+    List<Payment> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+
     @Query("select coalesce(sum(p.amount), 0) from Payment p where p.status = :status")
     BigDecimal totalAmountByStatus(@Param("status") Payment.Status status);
 
