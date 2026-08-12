@@ -29,7 +29,10 @@ public class RouterController {
 
     @GetMapping
     public List<Router> all() {
-        mikrotikService.defaultRouter(); // seeds the first router on a fresh install
+        // Don't auto-create a placeholder router just because someone opened
+        // the page — a new account should show an empty list until the ISP
+        // adds their own. defaultRouter() still lazily creates one if a
+        // subscriber actually needs it.
         return routers.findAllByOrderByNameAsc();
     }
 

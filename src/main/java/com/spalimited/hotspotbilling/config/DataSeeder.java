@@ -15,8 +15,10 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Seeds a few starter plans and a first technician account on first run so
- * the API is usable immediately.
+ * Optionally seeds a few starter plans and a first technician account, for
+ * local development convenience. OFF by default so a real (self-service)
+ * account starts empty — the ISP creates their own plans, staff and routers.
+ * Enable for a dev box with {@code app.seed-starter-data=true} (SEED_STARTER_DATA).
  */
 @Component
 @RequiredArgsConstructor
@@ -33,8 +35,14 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${tech.password}")
     private String techPassword;
 
+    @Value("${app.seed-starter-data:false}")
+    private boolean seedStarterData;
+
     @Override
     public void run(String... args) {
+        if (!seedStarterData) {
+            return; // real accounts start clean
+        }
         if (technicianRepository.count() == 0) {
             technicianRepository.save(Technician.builder()
                     .username(techUsername)
