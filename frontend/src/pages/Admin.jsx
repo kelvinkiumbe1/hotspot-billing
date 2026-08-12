@@ -7,6 +7,7 @@ import { triggerInstall } from '../pwa.js'
 import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import zidiLogo from '../assets/zidi-logo.png'
+import zidiLogoDark from '../assets/zidi-logo-dark.png'
 import RoutersPage from './admin/Routers.jsx'
 import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
@@ -272,10 +273,7 @@ function Login({ onLogin }) {
       <div className="absolute inset-0 bg-black/70"></div>
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center shadow-[0_8px_16px_rgba(15,23,42,0.3)] mb-4">
-            <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]!" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Zidi</h1>
+          <img src={zidiLogo} alt="Zidi" className="h-16 w-auto object-contain mb-3 drop-shadow-[0_8px_16px_rgba(0,0,0,0.4)]" />
           <p className="text-sm text-white/70">Network Manager</p>
         </div>
 
@@ -1123,7 +1121,11 @@ function Shell({ auth, onLogout }) {
           <button className="md:hidden p-2 -ml-2 text-on-surface cursor-pointer" onClick={() => setDrawer(true)} aria-label="Open menu">
             <Icon name="menu" />
           </button>
-          <span className="text-lg font-semibold text-on-surface hidden sm:inline">Zidi</span>
+          <img
+            src={resolvedTheme === 'light' ? zidiLogoDark : zidiLogo}
+            alt="Zidi"
+            className="h-6 w-auto object-contain hidden sm:block"
+          />
           <span className="text-on-surface-variant hidden sm:inline">/</span>
           <span className="text-lg font-bold text-primary">{TAB_TITLES[tab]}</span>
         </div>
