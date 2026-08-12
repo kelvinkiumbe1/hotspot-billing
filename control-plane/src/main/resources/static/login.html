@@ -112,11 +112,25 @@
     const $ = (id) => document.getElementById(id)
     const slug = $('slug')
     slug.addEventListener('input', () => { slug.value = slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
-    function go() {
+    async function go() {
       const s = slug.value.trim()
+      $('error').textContent = ''
       if (!s) { $('error').textContent = 'Enter your Zidi address to continue.'; slug.focus(); return }
-      // Each ISP signs in on their own subdomain.
-      window.location.href = 'https://' + s + '.zidi.co.ke/admin'
+      $('go').disabled = true
+      try {
+        // Ask the control plane where this account actually lives. In production
+        // that's https://<slug>.zidi.co.ke; on a local dev box it's the
+        // http://localhost:PORT the account was stood up on — so sign-in works
+        // in both without guessing a domain that may not resolve.
+        const res = await fetch('/api/signup/' + encodeURIComponent(s) + '/status')
+        if (res.status === 404 || res.status === 400) throw new Error('No account found at ' + s + '.zidi.co.ke — check the address, or start free.')
+        if (!res.ok) throw new Error('Something went wrong — please try again.')
+        const data = await res.json()
+        window.location.href = (data.url || ('https://' + s + '.zidi.co.ke')) + '/admin'
+      } catch (e) {
+        $('error').textContent = e.message
+        $('go').disabled = false
+      }
     }
     $('go').addEventListener('click', go)
     slug.addEventListener('keydown', (e) => { if (e.key === 'Enter') go() })
