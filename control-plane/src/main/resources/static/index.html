@@ -4,101 +4,244 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Start your ISP on Zidi</title>
+  <meta name="theme-color" content="#0a0a0c" />
+  <!-- Signup is internet-facing (unlike the offline captive portal), so a web
+       font here is fine. Sora = premium geometric display; Inter = clean UI. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    :root { --bg:#0a0a0c; --fg:#f5f5f4; --muted:#a1a1aa; --line:#26262b;
-      --surface:#141418; --yellow:#fdbf2d; --yellow-deep:#e0a413; --err:#f87171; --ok:#4ade80; }
-    * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg);
-      font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-      display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:100%; max-width:440px; background:var(--surface);
-      border:1px solid var(--line); border-radius:16px; padding:28px; }
-    .brand { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-    .mark { width:30px; height:30px; border-radius:8px;
+    :root {
+      --bg:#08080a; --panel:#0b0b0e; --fg:#f6f6f5; --muted:#9b9ba3; --faint:#6c6c74;
+      --line:#232329; --line-strong:#33333b; --surface:#131318;
+      --yellow:#fdbf2d; --yellow-deep:#e0a413; --yellow-soft:rgba(253,191,45,.16);
+      --err:#f87171; --ok:#4ade80;
+      --display:'Sora',system-ui,sans-serif; --ui:'Inter',system-ui,-apple-system,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html,body { height:100%; }
+    body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--ui);
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+
+    .wrap { display:flex; min-height:100vh; }
+
+    /* ---------- Left: cinematic media ---------- */
+    .media { position:relative; flex:1.15; overflow:hidden;
+      background:#160b05 url('/media/hero-poster.jpg') center/cover no-repeat; }
+    .media video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+      opacity:0; transition:opacity 1.1s ease; }
+    .media video.playing { opacity:1; }
+    /* Scrims: darken the bottom for text, add a warm brand tint + a left vignette. */
+    .media .scrim { position:absolute; inset:0; pointer-events:none;
+      background:
+        radial-gradient(120% 90% at 20% 15%, rgba(253,191,45,.10), transparent 55%),
+        linear-gradient(180deg, rgba(8,8,10,.35) 0%, rgba(8,8,10,0) 30%, rgba(8,8,10,.55) 70%, rgba(8,8,10,.92) 100%),
+        linear-gradient(90deg, rgba(8,8,10,.35), transparent 40%); }
+    .media .glow { position:absolute; width:520px; height:520px; left:-120px; bottom:-160px;
+      background:radial-gradient(circle, rgba(253,191,45,.22), transparent 65%);
+      filter:blur(20px); pointer-events:none; animation:float 12s ease-in-out infinite; }
+    .media .content { position:absolute; inset:0; display:flex; flex-direction:column;
+      justify-content:space-between; padding:44px 52px; z-index:2; }
+
+    .brand { display:inline-flex; align-items:center; gap:11px; }
+    .mark { width:34px; height:34px; border-radius:9px; font-family:var(--display); font-weight:800;
       background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
-      display:grid; place-items:center; color:#161200; font-weight:800; }
-    h1 { font-size:22px; margin:14px 0 4px; letter-spacing:-.02em; }
-    p.sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
-    label { display:block; font-size:12px; font-weight:600; letter-spacing:.04em;
-      text-transform:uppercase; color:var(--muted); margin:14px 0 6px; }
-    input { width:100%; height:44px; background:var(--bg); color:var(--fg);
-      border:1px solid var(--line); border-radius:10px; padding:0 12px; font-size:15px; }
-    input:focus { outline:none; border-color:var(--yellow); }
-    .addr { display:flex; align-items:center; gap:0; }
+      display:grid; place-items:center; color:#161200; font-size:18px;
+      box-shadow:0 6px 20px rgba(253,191,45,.35); }
+    .brand strong { font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:-.01em; }
+
+    .lede { max-width:520px; }
+    .eyebrow { font-size:12px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+      color:var(--yellow); margin:0 0 16px; }
+    .lede h2 { font-family:var(--display); font-weight:800; font-size:clamp(30px,3.4vw,46px);
+      line-height:1.06; letter-spacing:-.025em; margin:0 0 18px;
+      text-shadow:0 2px 30px rgba(0,0,0,.5); }
+    .lede h2 .hl { color:var(--yellow); }
+    .points { list-style:none; margin:22px 0 0; padding:0; display:grid; gap:12px; }
+    .points li { display:flex; align-items:center; gap:11px; font-size:15px; color:#e7e7ea; }
+    .points svg { flex:none; width:20px; height:20px; color:var(--yellow); }
+
+    /* ---------- Right: form ---------- */
+    .panel { flex:.85; display:flex; align-items:center; justify-content:center;
+      padding:40px 28px; background:
+        radial-gradient(90% 60% at 50% 0%, rgba(253,191,45,.05), transparent 60%), var(--panel);
+      overflow-y:auto; }
+    .card { width:100%; max-width:400px; }
+    .card .brand { display:none; margin-bottom:22px; } /* shown only on narrow screens */
+
+    h1 { font-family:var(--display); font-weight:700; font-size:26px; letter-spacing:-.02em; margin:0 0 6px; }
+    p.sub { color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 22px; }
+
+    label { display:block; font-size:11.5px; font-weight:600; letter-spacing:.05em;
+      text-transform:uppercase; color:var(--faint); margin:16px 0 7px; }
+    input { width:100%; height:46px; background:var(--surface); color:var(--fg); font-family:var(--ui);
+      border:1px solid var(--line); border-radius:11px; padding:0 13px; font-size:15px;
+      transition:border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+    input::placeholder { color:#565660; }
+    input:hover { border-color:var(--line-strong); }
+    input:focus { outline:none; border-color:var(--yellow); background:#17130a;
+      box-shadow:0 0 0 4px var(--yellow-soft); }
+
+    .addr { display:flex; align-items:stretch; }
     .addr input { border-top-right-radius:0; border-bottom-right-radius:0; }
-    .addr .suffix { height:44px; display:flex; align-items:center; padding:0 12px;
-      background:#1c1c22; border:1px solid var(--line); border-left:0;
-      border-top-right-radius:10px; border-bottom-right-radius:10px; color:var(--muted); font-size:14px; }
-    button { width:100%; height:46px; margin-top:22px; border:0; border-radius:10px;
-      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep)); color:#161200;
-      font-size:16px; font-weight:700; cursor:pointer; }
-    button:disabled { opacity:.6; cursor:default; }
-    .msg { margin-top:14px; font-size:14px; }
+    .addr .suffix { display:flex; align-items:center; padding:0 13px; font-size:14px; color:var(--muted);
+      background:#101015; border:1px solid var(--line); border-left:0;
+      border-top-right-radius:11px; border-bottom-right-radius:11px; white-space:nowrap; }
+
+    .hint { color:var(--faint); font-size:12px; line-height:1.5; margin:7px 0 0; }
+
+    button { width:100%; height:50px; margin-top:26px; border:0; border-radius:11px; cursor:pointer;
+      font-family:var(--display); font-size:15.5px; font-weight:700; color:#161200; letter-spacing:.005em;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
+      box-shadow:0 8px 24px rgba(253,191,45,.28); position:relative; overflow:hidden;
+      transition:transform .15s ease, box-shadow .2s ease, filter .2s ease; }
+    button:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 12px 30px rgba(253,191,45,.4); filter:brightness(1.04); }
+    button:active:not(:disabled) { transform:translateY(0); }
+    button:disabled { opacity:.55; cursor:default; box-shadow:none; }
+
+    .msg { margin-top:14px; font-size:14px; line-height:1.5; }
     .msg.err { color:var(--err); }
+
+    /* ---------- Status / ready ---------- */
     .status { text-align:center; }
-    .spinner { width:38px; height:38px; margin:8px auto 16px; border-radius:50%;
+    .spinner { width:40px; height:40px; margin:6px auto 18px; border-radius:50%;
       border:3px solid var(--line); border-top-color:var(--yellow); animation:spin 1s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    a.btn { display:inline-block; margin-top:16px; text-decoration:none; padding:12px 20px;
-      border-radius:10px; background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
-      color:#161200; font-weight:700; }
+    a.btn { display:inline-block; margin-top:18px; text-decoration:none; padding:13px 22px;
+      font-family:var(--display); font-weight:700; border-radius:11px; color:#161200;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
+      box-shadow:0 8px 24px rgba(253,191,45,.28); transition:transform .15s ease; }
+    a.btn:hover { transform:translateY(-1px); }
     code { color:var(--yellow); }
+
+    /* ---------- Motion ---------- */
+    @keyframes float { 0%,100% { transform:translate(0,0); } 50% { transform:translate(30px,-24px); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+    @media (prefers-reduced-motion: no-preference) {
+      .anim { opacity:0; animation:fadeUp .7s cubic-bezier(.16,1,.3,1) forwards; }
+      .d1 { animation-delay:.05s; } .d2 { animation-delay:.15s; } .d3 { animation-delay:.25s; }
+      .d4 { animation-delay:.35s; } .d5 { animation-delay:.45s; } .d6 { animation-delay:.55s; }
+    }
+
+    /* ---------- Responsive: stack, media becomes a short hero ---------- */
+    @media (max-width: 900px) {
+      .wrap { flex-direction:column; }
+      .media { flex:none; height:230px; }
+      .media .content { padding:22px 24px; justify-content:flex-end; }
+      .media .lede h2 { font-size:24px; margin-bottom:0; }
+      .media .points, .media .eyebrow { display:none; }
+      .panel { flex:1; padding:30px 22px 44px; }
+      .card .brand { display:inline-flex; }
+    }
+    @media (max-width: 900px) and (min-width:0) { .media .content .brand { display:none; } }
   </style>
 </head>
 <body>
-  <div class="card">
-    <!-- Signup form -->
-    <div id="form-view">
-      <div class="brand"><span class="mark">Z</span><strong>Zidi</strong></div>
-      <h1>Start your ISP</h1>
-      <p class="sub">Create your account and get a dashboard in a couple of minutes. Set up billing whenever you're ready.</p>
-
-      <label for="business">Business name</label>
-      <input id="business" placeholder="Acme Networks" />
-
-      <label for="slug">Your address</label>
-      <div class="addr">
-        <input id="slug" placeholder="acme" autocomplete="off" />
-        <span class="suffix" id="suffix">.zidi.co.ke</span>
+  <div class="wrap">
+    <!-- Left: cinematic hero -->
+    <aside class="media">
+      <video id="hero" muted loop playsinline preload="none" poster="/media/hero-poster.jpg">
+        <source src="/media/hero.mp4" type="video/mp4" />
+      </video>
+      <div class="scrim"></div>
+      <div class="glow"></div>
+      <div class="content">
+        <div class="brand anim d1"><span class="mark">Z</span><strong>Zidi</strong></div>
+        <div class="lede">
+          <p class="eyebrow anim d2">Zidi for ISPs</p>
+          <h2 class="anim d3">Bill your whole network from <span class="hl">one screen.</span></h2>
+          <ul class="points">
+            <li class="anim d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> M-Pesa STK payments, out of the box</li>
+            <li class="anim d5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> MikroTik hotspot &amp; PPPoE, vouchers, analytics</li>
+            <li class="anim d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Live in minutes — free for your first 14 days</li>
+          </ul>
+        </div>
       </div>
+    </aside>
 
-      <label for="name">Your name</label>
-      <input id="name" placeholder="Jane Owner" />
+    <!-- Right: form -->
+    <main class="panel">
+      <div class="card">
+        <div class="brand anim d1"><span class="mark">Z</span><strong>Zidi</strong></div>
 
-      <label for="email">Email</label>
-      <input id="email" type="email" placeholder="you@acme.co.ke" />
+        <!-- Signup form -->
+        <div id="form-view">
+          <h1 class="anim d2">Start your ISP</h1>
+          <p class="sub anim d2">Create your account and get a dashboard in a couple of minutes. Set up billing whenever you're ready.</p>
 
-      <label for="password">Password</label>
-      <input id="password" type="password" placeholder="At least 8 characters" />
-      <p class="sub" style="margin:6px 0 0;font-size:12px">You can turn on fingerprint / face sign-in later from Password &amp; security.</p>
+          <div class="anim d3">
+            <label for="business">Business name</label>
+            <input id="business" placeholder="Acme Networks" />
+          </div>
 
-      <button id="submit">Create my account</button>
-      <div class="msg err" id="error"></div>
-    </div>
+          <div class="anim d3">
+            <label for="slug">Your address</label>
+            <div class="addr">
+              <input id="slug" placeholder="acme" autocomplete="off" />
+              <span class="suffix" id="suffix">.zidi.co.ke</span>
+            </div>
+          </div>
 
-    <!-- Provisioning / ready -->
-    <div id="status-view" style="display:none" class="status">
-      <div id="working">
-        <div class="spinner"></div>
-        <h1>Setting up your account…</h1>
-        <p class="sub" id="status-detail">This takes a minute or two. You can keep this page open.</p>
+          <div class="anim d4">
+            <label for="name">Your name</label>
+            <input id="name" placeholder="Jane Owner" />
+          </div>
+
+          <div class="anim d4">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="you@acme.co.ke" />
+          </div>
+
+          <div class="anim d5">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="At least 8 characters" />
+            <p class="hint">You can turn on fingerprint / face sign-in later from Password &amp; security.</p>
+          </div>
+
+          <button id="submit" class="anim d6">Create my account</button>
+          <div class="msg err" id="error"></div>
+        </div>
+
+        <!-- Provisioning / ready -->
+        <div id="status-view" style="display:none" class="status">
+          <div id="working">
+            <div class="spinner"></div>
+            <h1>Setting up your account…</h1>
+            <p class="sub" id="status-detail">This takes a minute or two. You can keep this page open.</p>
+          </div>
+          <div id="ready" style="display:none">
+            <h1>🎉 Your account is ready</h1>
+            <p class="sub">Sign in with your email and password. You can turn on fingerprint / face unlock any time from Password &amp; security.</p>
+            <a class="btn" id="go" href="#">Open my dashboard</a>
+          </div>
+          <div id="failed" style="display:none">
+            <h1>Something went wrong</h1>
+            <p class="sub err" id="fail-detail"></p>
+            <p class="sub">We've been notified. Please try again or contact support.</p>
+          </div>
+        </div>
       </div>
-      <div id="ready" style="display:none">
-        <h1>🎉 Your account is ready</h1>
-        <p class="sub">Sign in with your email and password. You can turn on fingerprint / face unlock any time from Password &amp; security.</p>
-        <a class="btn" id="go" href="#">Open my dashboard</a>
-      </div>
-      <div id="failed" style="display:none">
-        <h1>Something went wrong</h1>
-        <p class="sub err" id="fail-detail"></p>
-        <p class="sub">We've been notified. Please try again or contact support.</p>
-      </div>
-    </div>
+    </main>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id)
     let pollTimer = null
+
+    // Play the hero video only on wide screens with motion allowed — keeps
+    // mobile data down and respects reduced-motion (the poster shows instead).
+    (function () {
+      const v = $('hero')
+      const wide = window.matchMedia('(min-width: 901px)').matches
+      const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (v && wide && motion) {
+        v.setAttribute('autoplay', '')
+        v.addEventListener('playing', () => v.classList.add('playing'), { once: true })
+        v.load()
+        const p = v.play()
+        if (p && p.catch) p.catch(() => {}) // autoplay blocked → poster stays
+      }
+    })()
 
     // Live subdomain preview from the slug field.
     $('slug').addEventListener('input', () => {
