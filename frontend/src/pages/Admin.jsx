@@ -736,9 +736,38 @@ function SubscriptionPage({ auth }) {
   const [b, setB] = useState(null)
   const [failed, setFailed] = useState(false)
 
+  const [pay, setPay] = useState(null) // this month's platform invoice, from the control plane
+  const [phone, setPhone] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payErr, setPayErr] = useState(null)
+  const payPoll = useRef(null)
+
   useEffect(() => {
     api('/admin/platform-billing', { auth }).then(setB).catch(() => setFailed(true))
+    api('/admin/platform-billing/payment-status', { auth }).then(setPay).catch(() => {})
+    return () => clearInterval(payPoll.current)
   }, [auth])
+
+  async function startPay() {
+    setPayErr(null)
+    const p = phone.replace(/\D/g, '')
+    if (!/^254\d{9}$/.test(p)) { setPayErr('Enter your M-Pesa number as 2547XXXXXXXX.'); return }
+    setPaying(true)
+    try {
+      const r = await api('/admin/platform-billing/pay', { method: 'POST', auth, body: { phone: p } })
+      setPay(r)
+      clearInterval(payPoll.current)
+      payPoll.current = setInterval(async () => {
+        const s = await api('/admin/platform-billing/payment-status', { auth }).catch(() => null)
+        if (s) setPay(s)
+        if (s && (s.status === 'PAID' || s.status === 'FAILED')) clearInterval(payPoll.current)
+      }, 3000)
+    } catch (e) {
+      setPayErr(e.message)
+    } finally {
+      setPaying(false)
+    }
+  }
 
   if (failed) return <PageHeader title="Plan & billing" subtitle="Couldn't load your bill right now." />
   if (!b) {
@@ -818,6 +847,47 @@ function SubscriptionPage({ auth }) {
           fixed-line is a flat KES 25 per active customer, and any month you earn under KES {Number(b.freeThreshold).toLocaleString()} is free.
         </p>
       </div>
+
+      {!b.free && Number(b.amountDue) > 0 && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 max-w-2xl mt-4">
+          <CardLabelLine>Pay this month</CardLabelLine>
+          {pay?.status === 'PAID' ? (
+            <p className="text-sm text-secondary mt-3 flex items-center gap-2">
+              <Icon name="check_circle" filled className="text-[18px]!" />
+              Paid for {b.month}{pay.mpesaReceipt ? ` — receipt ${pay.mpesaReceipt}` : ''}.
+            </p>
+          ) : pay?.status === 'UNCONFIGURED' ? (
+            <p className="text-sm text-on-surface-variant mt-3">
+              Online payment isn't set up on this server yet — pay <strong className="text-on-surface">{fmtKES(b.amountDue)}</strong> to Zidi directly, or contact support.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-on-surface-variant mt-3">
+                Pay <strong className="text-on-surface">{fmtKES(b.amountDue)}</strong> for {b.month} by M-Pesa — we'll send an STK prompt to your phone.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3 max-w-md">
+                <input
+                  className={INPUT_CLS + ' flex-1'}
+                  placeholder="M-Pesa number (2547XXXXXXXX)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={pay?.status === 'PENDING'}
+                />
+                <button
+                  onClick={startPay}
+                  disabled={paying || pay?.status === 'PENDING'}
+                  className="bg-primary text-on-primary text-sm font-semibold px-4 h-11 rounded-md whitespace-nowrap disabled:opacity-60 cursor-pointer hover:brightness-105 transition"
+                >
+                  {pay?.status === 'PENDING' ? 'Awaiting your PIN…' : paying ? 'Sending…' : `Pay ${fmtKES(b.amountDue)}`}
+                </button>
+              </div>
+              {pay?.status === 'PENDING' && <p className="text-xs text-on-surface-variant mt-2">Check your phone and enter your M-Pesa PIN to complete the payment…</p>}
+              {pay?.status === 'FAILED' && <p className="text-xs text-error mt-2">{pay.detail || 'Payment not completed.'} Please try again.</p>}
+              {payErr && <p className="text-xs text-error mt-2">{payErr}</p>}
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

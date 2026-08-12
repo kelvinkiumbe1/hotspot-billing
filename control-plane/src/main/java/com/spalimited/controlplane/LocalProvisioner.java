@@ -54,6 +54,8 @@ public class LocalProvisioner implements Provisioner {
     private final String dbUser;
     private final String dbPassword;
     private final File runtimeDir;
+    private final String controlUrl;
+    private final String platformToken;
 
     /** slug -> the running app process, so we can stop it and not orphan JVMs. */
     private final Map<String, Process> running = new ConcurrentHashMap<>();
@@ -67,7 +69,9 @@ public class LocalProvisioner implements Provisioner {
             @Value("${zidi.local.db-host-url:jdbc:postgresql://localhost:5432/}") String dbHostUrlPrefix,
             @Value("${zidi.local.db-username:postgres}") String dbUser,
             @Value("${zidi.local.db-password:postgres}") String dbPassword,
-            @Value("${zidi.local.runtime-dir:./local-tenants}") String runtimeDir) {
+            @Value("${zidi.local.runtime-dir:./local-tenants}") String runtimeDir,
+            @Value("${zidi.local.control-url:http://localhost:8090}") String controlUrl,
+            @Value("${zidi.platform.token:}") String platformToken) {
         this.tenants = tenants;
         this.jarPath = jarPath;
         this.javaBin = javaBin;
@@ -77,6 +81,8 @@ public class LocalProvisioner implements Provisioner {
         this.dbUser = dbUser;
         this.dbPassword = dbPassword;
         this.runtimeDir = new File(runtimeDir).getAbsoluteFile();
+        this.controlUrl = controlUrl;
+        this.platformToken = platformToken;
     }
 
     @Override
@@ -157,6 +163,13 @@ public class LocalProvisioner implements Provisioner {
         }
         env.put("MIKROTIK_ENABLED", "false");
         env.put("DEMO_ENABLED", "false");
+        // Platform-billing link: lets the tenant collect its Zidi fee via the
+        // control plane. Token/URL are shared; the slug identifies the invoice.
+        env.put("ZIDI_TENANT_SLUG", slug);
+        env.put("ZIDI_CONTROL_URL", controlUrl);
+        if (platformToken != null && !platformToken.isBlank()) {
+            env.put("ZIDI_PLATFORM_TOKEN", platformToken);
+        }
 
         Process process = pb.start();
         running.put(slug, process);

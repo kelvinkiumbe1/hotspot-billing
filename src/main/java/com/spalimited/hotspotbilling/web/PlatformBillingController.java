@@ -8,9 +8,12 @@ import com.spalimited.hotspotbilling.repository.PaymentRepository;
 import com.spalimited.hotspotbilling.repository.StaffUserRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
+import com.spalimited.hotspotbilling.service.PlatformBillingClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +39,7 @@ public class PlatformBillingController {
     private final SubscriptionPaymentRepository subscriptionPayments;
     private final SubscriberRepository subscribers;
     private final StaffUserRepository staff;
+    private final PlatformBillingClient platformClient;
 
     /** 2.5% of hotspot revenue. */
     private static final BigDecimal HOTSPOT_RATE = new BigDecimal("0.025");
@@ -112,6 +116,52 @@ public class PlatformBillingController {
         out.put("pppoeFee", pppoeFee);
         out.put("amountDue", amountDue);
         return out;
+    }
+
+    public record PayRequest(String phone) {
+    }
+
+    /**
+     * Collect this month's platform fee by M-Pesa. The tenant computes the
+     * amount (from its own revenue) and hands it, with the owner's M-Pesa
+     * number, to the control plane which owns Zidi's gateway and the invoice.
+     */
+    @PostMapping("/pay")
+    public Map<String, Object> pay(@RequestBody PayRequest request) {
+        Map<String, Object> b = bill();
+        if (Boolean.TRUE.equals(b.get("free"))) {
+            return Map.of("status", "NOTHING_DUE", "message", "Nothing to pay this month.");
+        }
+        BigDecimal amount = (BigDecimal) b.get("amountDue");
+        if (amount == null || amount.signum() <= 0) {
+            return Map.of("status", "NOTHING_DUE", "message", "Nothing to pay this month.");
+        }
+        if (!platformClient.configured()) {
+            return Map.of("status", "UNCONFIGURED",
+                    "message", "Platform billing isn't set up on this server yet.");
+        }
+        String phone = request.phone() == null ? "" : request.phone().replaceAll("\\D", "");
+        if (!phone.matches("254\\d{9}")) {
+            throw new IllegalArgumentException("Enter a valid M-Pesa number in 2547XXXXXXXX format.");
+        }
+        try {
+            return platformClient.charge((String) b.get("month"), amount, phone);
+        } catch (Exception e) {
+            throw new IllegalStateException(e.getMessage());
+        }
+    }
+
+    /** The state of this month's platform invoice (paid / pending / none). */
+    @GetMapping("/payment-status")
+    public Map<String, Object> paymentStatus() {
+        if (!platformClient.configured()) {
+            return Map.of("status", "UNCONFIGURED");
+        }
+        try {
+            return platformClient.status((String) bill().get("month"));
+        } catch (Exception e) {
+            return Map.of("status", "UNKNOWN", "message", e.getMessage());
+        }
     }
 
     private static Instant paidAt(Instant completedAt, Instant createdAt) {
