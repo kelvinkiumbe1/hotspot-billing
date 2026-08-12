@@ -533,17 +533,20 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
   }, [])
 
   // When collapsible, the rail sits at icon width and only the icons show;
-  // hovering the whole nav (the `group`) reveals every label. `hideOnRail`
-  // is applied to anything that is text, so it fades/collapses away until
-  // the pointer is over the rail. The mobile drawer passes collapsible=false
-  // and always shows labels.
-  const hideOnRail = collapsible ? 'md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity' : ''
+  // hovering the whole nav (the `group`) reveals every label. Labels must be
+  // *display:none* on the rail (not just transparent) — a hidden-but-present
+  // label still takes width, and `justify-center` would then centre the whole
+  // row and push the icon off the left edge. The mobile drawer passes
+  // collapsible=false and always shows labels.
+  const railText = collapsible ? 'md:hidden md:group-hover:inline' : ''
+  const railBlock = collapsible ? 'md:hidden md:group-hover:block' : ''
+  const railFlex = collapsible ? 'md:hidden md:group-hover:flex' : ''
 
   return (
     <div className="flex flex-col h-full py-5 px-3">
       <div className={`mb-5 px-4 flex items-center gap-3 shrink-0 ${collapsible ? 'md:px-0 md:justify-center md:group-hover:px-4 md:group-hover:justify-start' : ''}`}>
         <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]! shrink-0" />
-        <div className={`overflow-hidden ${hideOnRail}`}>
+        <div className={railBlock}>
           <p className="text-xl font-bold text-primary-fixed leading-tight whitespace-nowrap">Zidi</p>
           <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70 whitespace-nowrap">NETWORK MANAGER</p>
         </div>
@@ -552,12 +555,12 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
       <nav
         ref={railRef}
         onScroll={measure}
-        className="flex flex-col gap-3 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:thin]"
+        className="flex flex-col gap-3 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {allowedGroups(permissions).map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
-              <p className={`px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 whitespace-nowrap ${collapsible ? 'md:h-0 md:mb-0 md:overflow-hidden md:group-hover:h-auto md:group-hover:mb-1' : ''}`}>
+              <p className={`px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 whitespace-nowrap ${railBlock}`}>
                 {group.label}
               </p>
             )}
@@ -584,9 +587,9 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
                         <span className="md:group-hover:hidden absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full" />
                       )}
                     </span>
-                    <span className={`text-[15px] whitespace-nowrap ${hideOnRail}`}>{item.label}</span>
+                    <span className={`text-[15px] whitespace-nowrap ${railText}`}>{item.label}</span>
                     {badges[item.key] > 0 && (
-                      <span className={`ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center ${hideOnRail}`}>
+                      <span className={`ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center ${railFlex}`}>
                         {badges[item.key]}
                       </span>
                     )}
@@ -606,7 +609,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
       </div>
       <div className="mt-4 pt-3 border-t border-outline-variant/20 shrink-0">
         {me && (
-          <div className={`px-4 pb-2 overflow-hidden ${hideOnRail}`}>
+          <div className={`px-4 pb-2 overflow-hidden ${railBlock}`}>
             <p className="text-sm text-surface-bright font-medium truncate">{me.fullName || me.username}</p>
             <p className="text-[10px] font-semibold tracking-wider uppercase text-surface-variant/60 whitespace-nowrap">
               {me.role === 'OWNER' ? 'Owner' : me.role === 'MANAGER' ? 'Manager'
@@ -623,7 +626,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
           }`}
         >
           <Icon name="logout" className="text-[20px]! shrink-0" />
-          <span className={`text-base whitespace-nowrap ${hideOnRail}`}>Logout</span>
+          <span className={`text-base whitespace-nowrap ${railText}`}>Logout</span>
         </button>
       </div>
     </div>
