@@ -44,9 +44,7 @@ public class OnboardingController {
     @GetMapping
     public Onboarding get() {
         PortalSettings portal = portalSettings.settings();
-        boolean branded = (portal.getBusinessName() != null
-                && !portal.getBusinessName().isBlank()
-                && !portal.getBusinessName().equals(PortalSettingsService.DEFAULT_BUSINESS_NAME))
+        boolean branded = (portal.getBusinessName() != null && !portal.getBusinessName().isBlank())
                 || (portal.getLogoFilename() != null && !portal.getLogoFilename().isBlank());
 
         boolean paymentReady = paymentGateways.active()

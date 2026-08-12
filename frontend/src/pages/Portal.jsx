@@ -97,8 +97,8 @@ const STRINGS = {
     'ok.continue': 'Continue',
     'ok.return': 'Return to Home',
     'ok.closingRedirect': 'Taking you on in {n}s — connect with your code first.',
-    'ok.closing': 'This page will close in {n}s — connect to SPA WiFi with your code.',
-    'ok.closed': 'You can now connect to SPA WiFi with your code.',
+    'ok.closing': 'This page will close in {n}s — connect to the WiFi with your code.',
+    'ok.closed': 'You can now connect to the WiFi with your code.',
     'err.title': 'Payment Failed',
     'err.badge': 'Error',
     'err.retry': 'Retry Payment',
@@ -208,8 +208,8 @@ const STRINGS = {
     'ok.continue': 'Endelea',
     'ok.return': 'Rudi Mwanzo',
     'ok.closingRedirect': 'Tunakupeleka baada ya sekunde {n} — unganisha na nambari yako kwanza.',
-    'ok.closing': 'Ukurasa huu utafunga baada ya sekunde {n} — unganisha na SPA WiFi kwa nambari yako.',
-    'ok.closed': 'Sasa unaweza kuunganisha na SPA WiFi kwa nambari yako.',
+    'ok.closing': 'Ukurasa huu utafunga baada ya sekunde {n} — unganisha na WiFi kwa nambari yako.',
+    'ok.closed': 'Sasa unaweza kuunganisha na WiFi kwa nambari yako.',
     'err.title': 'Malipo Yameshindikana',
     'err.badge': 'Hitilafu',
     'err.retry': 'Jaribu Malipo Tena',
@@ -233,10 +233,10 @@ const STRINGS = {
   },
 }
 
-const LangContext = createContext({ lang: 'EN', setLang: () => {}, design: 'CLASSIC' })
+const LangContext = createContext({ lang: 'EN', setLang: () => {}, design: 'CLASSIC', brand: { name: '', logoUrl: null, headline: '', subheadline: '' } })
 
 function useT() {
-  const { lang, setLang, design: designKey } = useContext(LangContext)
+  const { lang, setLang, design: designKey, brand } = useContext(LangContext)
   const t = (key, vars) => {
     let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.EN[key] || key
     if (vars) {
@@ -246,7 +246,7 @@ function useT() {
   }
   // Everything a screen needs to paint itself in the chosen design.
   const design = designByKey(designKey)
-  return { t, lang, setLang, design, designVars: design.vars }
+  return { t, lang, setLang, design, designVars: design.vars, brand: brand || {} }
 }
 
 function LangToggle() {
@@ -305,12 +305,34 @@ function normalizePhone(raw) {
 import { Icon } from '../components/icons.jsx'
 
 function Brand() {
+  const { brand } = useT()
+  if (brand?.logoUrl) {
+    return <img src={brand.logoUrl} alt={brand.name || 'WiFi'} className="h-8 w-auto object-contain" />
+  }
   return (
     <div className="flex items-center gap-2">
       <Icon name="wifi" className="text-primary" />
-      <span className="text-lg font-semibold text-primary tracking-tight uppercase">SPA WiFi</span>
+      <span className="text-lg font-semibold text-primary tracking-tight uppercase">{brand?.name || 'WiFi'}</span>
     </div>
   )
+}
+
+/* The ISP's name as plain text, for the design variants that print a wordmark
+   in their own typography. Falls back to a generic label before it's set. */
+function BrandName() {
+  const { brand } = useT()
+  return <>{brand?.name || 'WiFi'}</>
+}
+
+/* Hero copy: the ISP's own headline/subheadline when they've set them,
+   otherwise the translated default. */
+function HeroTitle() {
+  const { t, brand } = useT()
+  return <>{brand?.headline || t('hero.title')}</>
+}
+function HeroSub() {
+  const { t, brand } = useT()
+  return <>{brand?.subheadline || t('hero.sub')}</>
 }
 
 /* Paints the chosen design's tokens over the shared .portal-theme scaffold.
@@ -353,6 +375,8 @@ export default function Portal() {
   const [promo, setPromo] = useState(null)
   const [design, setDesign] = useState('CLASSIC')
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
+  // The ISP's own brand for this captive portal (each tenant sets their own).
+  const [brand, setBrand] = useState({ name: '', logoUrl: null, headline: '', subheadline: '' })
   const [lang, setLang] = useState('EN')
   const langChosen = useRef(false)
   const pollRef = useRef(null)
@@ -368,6 +392,12 @@ export default function Portal() {
     api('/portal-settings').then((s) => {
       setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
+      setBrand({
+        name: s.businessName || '',
+        logoUrl: s.logoUrl || null,
+        headline: s.headline || '',
+        subheadline: s.subheadline || '',
+      })
       // Honour the operator's default only until the customer picks for themselves.
       if (!langChosen.current && s.defaultLanguage) setLang(s.defaultLanguage)
     }).catch(() => {})
@@ -484,7 +514,7 @@ export default function Portal() {
   }
 
   return (
-    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design }}>
+    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design, brand }}>
       {/* key on the screen name so every step of the flow animates in */}
       <div key={screen} className="screen-enter">
         {screen_}
@@ -984,12 +1014,12 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
               <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
                 <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{t('hero.title')}</h1>
-              <p className="text-base text-white/80 mt-2 max-w-sm">{t('hero.sub')}</p>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white"><HeroTitle /></h1>
+              <p className="text-base text-white/80 mt-2 max-w-sm"><HeroSub /></p>
             </div>
             <img
               src={customerPhoto}
-              alt="Customer browsing on SPA WiFi"
+              alt="Customer browsing online"
               className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
             />
           </div>
@@ -1134,16 +1164,16 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
   return (
     <DesignShell className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between px-5 h-16 w-full max-w-lg mx-auto">
-        <span className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--portal-heading-font)' }}>SPA WiFi</span>
+        <span className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--portal-heading-font)' }}><BrandName /></span>
         <LangToggle />
       </header>
 
       <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 flex flex-col gap-6">
         <section className="fade-up text-center border-y-4 border-double border-on-background/70 py-6">
           <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
-            <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" />SPA WiFi
+            <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
           </p>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">{t('hero.title')}</h1>
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight"><HeroTitle /></h1>
           <p className="text-xs text-on-surface-variant mt-3 uppercase tracking-[0.2em]">{t('poster.tag')}</p>
         </section>
 
@@ -1331,7 +1361,7 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
           <span className="w-2.5 h-2.5 rounded-full bg-error/80"></span>
           <span className="w-2.5 h-2.5 rounded-full bg-primary/40"></span>
           <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-          <span className="flex-1 text-center text-xs tracking-[0.25em] uppercase text-on-surface-variant">SPA WiFi</span>
+          <span className="flex-1 text-center text-xs tracking-[0.25em] uppercase text-on-surface-variant"><BrandName /></span>
           <LangToggle />
         </div>
       </header>
@@ -1502,7 +1532,7 @@ function ClassicWaiting({ onCancel }) {
   return (
     <DesignShell className="min-h-screen flex flex-col items-center justify-center">
       <main className="w-full max-w-md px-6 py-10 flex flex-col items-center text-center">
-        <p className="text-[11px] font-semibold tracking-[0.35em] uppercase text-on-surface-variant mb-12">SPA WiFi</p>
+        <p className="text-[11px] font-semibold tracking-[0.35em] uppercase text-on-surface-variant mb-12"><BrandName /></p>
 
         <div className="relative w-48 h-48 mb-12">
           <div className="halo-pulse absolute inset-0 rounded-full border border-primary/25"></div>
@@ -1591,7 +1621,7 @@ function PosterWaiting({ onCancel }) {
   return (
     <DesignShell className="min-h-screen flex flex-col items-center justify-center">
       <main className="w-full max-w-sm px-6 py-10 flex flex-col items-center text-center">
-        <span className="text-xl font-bold mb-10" style={{ fontFamily: 'var(--portal-heading-font)' }}>SPA WiFi</span>
+        <span className="text-xl font-bold mb-10" style={{ fontFamily: 'var(--portal-heading-font)' }}><BrandName /></span>
 
         <div className="relative z-10 w-60 h-3.5 rounded-full bg-on-background shadow-md"></div>
         <div className="ticket-out w-52">

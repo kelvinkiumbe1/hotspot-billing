@@ -13,22 +13,24 @@ public class PortalSettingsService {
 
     private final PortalSettingsRepository repository;
 
-    /** Neutral starter name so a new ISP doesn't inherit another brand — the
-     *  onboarding checklist nudges them to set their own. */
-    public static final String DEFAULT_BUSINESS_NAME = "My Hotspot";
-
     @Transactional
     public PortalSettings settings() {
         return repository.findById(PortalSettings.SINGLETON_ID)
                 .orElseGet(() -> repository.save(PortalSettings.builder()
                         .id(PortalSettings.SINGLETON_ID)
-                        .businessName(DEFAULT_BUSINESS_NAME)
-                        .headline("Get Connected in Seconds")
-                        .subheadline("Fast, reliable internet — buy a plan and you're online.")
+                        // Identity starts blank — a new ISP fills in their own
+                        // name, copy, support line and terms (the onboarding
+                        // checklist nudges them). The portal falls back to
+                        // generic copy until then, so it still renders.
+                        .businessName("")
+                        .headline("")
+                        .subheadline("")
+                        .supportPhone("")
+                        .termsText("")
+                        // Colours keep sensible brand defaults so the portal
+                        // looks intentional out of the box; the ISP can change them.
                         .backgroundColor("#000000")
                         .accentColor("#FDBF2D")
-                        .supportPhone("")
-                        .termsText("Access is for lawful use only. One voucher covers the devices stated on your plan.")
                         .trialEnabled(false)
                         .trialMinutes(15)
                         .build()));
