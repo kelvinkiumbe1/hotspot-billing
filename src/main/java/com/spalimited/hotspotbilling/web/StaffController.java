@@ -48,6 +48,7 @@ public class StaffController {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("username", authentication.getName());
         out.put("fullName", member != null ? member.getFullName() : authentication.getName());
+        out.put("email", member != null ? member.getEmail() : null);
         out.put("role", member != null ? member.getRole().name() : roleFrom(authorities));
         // Match against the permissions we define rather than "anything without
         // a ROLE_ prefix" — Spring Security adds its own authorities (such as

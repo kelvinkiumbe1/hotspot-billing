@@ -69,6 +69,7 @@ public class DemoSeeder implements ApplicationRunner {
                 .username("demo")
                 .passwordHash(encoder.encode(UUID.randomUUID().toString())) // no usable password
                 .fullName("Demo Operator")
+                .email("demo@zidi.co.ke")
                 .role(StaffUser.Role.OWNER)
                 .active(true).seeded(true).demo(true)
                 .build());

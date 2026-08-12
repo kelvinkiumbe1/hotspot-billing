@@ -70,6 +70,10 @@ function fmtKES(n) {
   return `KES ${Number(n || 0).toLocaleString()}`
 }
 
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString()
+}
+
 function fmtDate(d) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -700,6 +704,267 @@ const TAB_TITLES = {
   promos: 'Promotions & Branding',
   audit: 'Audit Log',
   settings: 'Settings',
+  subscription: 'Plan & billing',
+  refer: 'Refer & Earn',
+}
+
+/* Plan & billing — what this ISP owes Zidi this month. Usage-based: a cut of
+   hotspot takings + a flat fee per fixed-line customer, free on a quiet month. */
+function SubscriptionPage({ auth }) {
+  const [b, setB] = useState(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    api('/admin/platform-billing', { auth }).then(setB).catch(() => setFailed(true))
+  }, [auth])
+
+  if (failed) return <PageHeader title="Plan & billing" subtitle="Couldn't load your bill right now." />
+  if (!b) {
+    return (
+      <div>
+        <PageHeader title="Plan & billing" subtitle="Your Zidi platform bill." />
+        <div className="animate-pulse bg-surface-container-high rounded-xl h-40" />
+      </div>
+    )
+  }
+
+  const Card = ({ label, value, sub, tone }) => (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
+      <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums mt-1 ${tone || 'text-on-surface'}`}>{value}</p>
+      {sub && <p className="text-xs text-on-surface-variant mt-1">{sub}</p>}
+    </div>
+  )
+
+  return (
+    <div>
+      <PageHeader
+        title="Plan & billing"
+        subtitle="Your Zidi platform bill — a small cut of hotspot takings plus a flat fee per fixed-line customer. Free on a quiet month."
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card label="This month's earnings" value={fmtKES(b.totalEarnings)} sub={`Hotspot ${fmtKES(b.hotspotRevenue)} · PPPoE ${fmtKES(b.pppoeRevenue)}`} />
+        <Card label="Fixed-line customers" value={fmtNum(b.activePppoeUsers)} sub={`Billed KES ${b.pppoePerUser} each`} />
+        <Card
+          label="Amount due"
+          value={b.free ? 'Free' : fmtKES(b.amountDue)}
+          tone={b.free ? 'text-secondary' : 'text-primary'}
+          sub={
+            b.free
+              ? (b.inTrial
+                  ? `${b.trialDaysLeft} day${b.trialDaysLeft === 1 ? '' : 's'} left in your free trial`
+                  : `Under KES ${Number(b.freeThreshold).toLocaleString()} this month`)
+              : `${b.daysLeftInMonth} days left in the month`
+          }
+        />
+      </div>
+
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 max-w-2xl">
+        <CardLabelLine>How this month is billed</CardLabelLine>
+        {b.free ? (
+          b.inTrial ? (
+            <p className="text-sm text-on-surface-variant mt-2">
+              You're in your first <strong className="text-on-surface">{b.trialDays} days</strong> — the platform is{' '}
+              <strong className="text-secondary">free for {b.trialDaysLeft} more day{b.trialDaysLeft === 1 ? '' : 's'}</strong>,
+              whatever you earn. After that, only months where you earn KES {Number(b.freeThreshold).toLocaleString()} or more are charged.
+            </p>
+          ) : (
+            <p className="text-sm text-on-surface-variant mt-2">
+              You earned less than <strong className="text-on-surface">KES {Number(b.freeThreshold).toLocaleString()}</strong> this
+              month, so the platform is <strong className="text-secondary">free</strong>. Zidi only charges once you're earning.
+            </p>
+          )
+        ) : (
+          <dl className="mt-3 space-y-2.5">
+            <div className="flex justify-between items-baseline gap-3">
+              <dt className="text-sm text-on-surface-variant">Hotspot — {b.hotspotRatePercent}% of {fmtKES(b.hotspotRevenue)}</dt>
+              <dd className="text-sm font-semibold tabular-nums">{fmtKES(b.hotspotFee)}</dd>
+            </div>
+            <div className="flex justify-between items-baseline gap-3">
+              <dt className="text-sm text-on-surface-variant">Fixed-line — KES {b.pppoePerUser} × {fmtNum(b.activePppoeUsers)} customers</dt>
+              <dd className="text-sm font-semibold tabular-nums">{fmtKES(b.pppoeFee)}</dd>
+            </div>
+            <div className="flex justify-between items-baseline gap-3 pt-2.5 border-t border-outline-variant">
+              <dt className="text-sm font-semibold">Total due for {b.month}</dt>
+              <dd className="text-lg font-bold tabular-nums text-primary">{fmtKES(b.amountDue)}</dd>
+            </div>
+          </dl>
+        )}
+        <p className="text-xs text-on-surface-variant mt-4">
+          Your first {b.trialDays} days are free. After that, billing runs monthly: hotspot is 2.5% of what you collect,
+          fixed-line is a flat KES 25 per active customer, and any month you earn under KES {Number(b.freeThreshold).toLocaleString()} is free.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* Refer & Earn — invite another ISP; when they sign up and pay, you get a
+   discount. Referral tracking is a follow-up, so the counters read zero. */
+function ReferEarnPage({ auth }) { // eslint-disable-line no-unused-vars
+  const [copied, setCopied] = useState(false)
+  const signupUrl = 'https://zidi.co.ke'
+
+  function invite() {
+    const subject = encodeURIComponent('Try Zidi for your ISP')
+    const body = encodeURIComponent(`I'm using Zidi to run my ISP billing — hotspot vouchers, M-Pesa, MikroTik and PPPoE from one dashboard. Start yours here: ${signupUrl}`)
+    window.location.href = `mailto:?subject=${subject}&body=${body}`
+  }
+  function copyLink() {
+    navigator.clipboard.writeText(signupUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const Card = ({ label, value, sub }) => (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
+      <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{label}</p>
+      <p className="text-2xl font-bold tabular-nums mt-1">{value}</p>
+      <p className="text-xs text-on-surface-variant mt-1">{sub}</p>
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+        <PageHeader
+          title="Refer an ISP, earn a discount"
+          subtitle="Invite another ISP to Zidi. When they sign up and pay their first month, you get 10% off your next bill — up to 100% off."
+        />
+        <div className="flex gap-2">
+          <button onClick={copyLink} className="h-11 px-4 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
+            {copied ? 'Link copied' : 'Copy link'}
+          </button>
+          <button onClick={invite} className="h-11 px-5 rounded-lg bg-primary text-on-primary text-sm font-semibold flex items-center gap-2 hover:brightness-110 transition cursor-pointer">
+            <Icon name="person_add" className="text-[18px]!" /> Invite an ISP
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card label="Invites sent" value="0" sub="all time" />
+        <Card label="Pending" value="0" sub="not yet signed up" />
+        <Card label="Converted" value="0" sub="referred ISP paid" />
+        <Card label="Pending discount" value="0%" sub="on your next bill" />
+      </div>
+
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 text-center">
+        <Icon name="redeem" className="text-[40px]! text-on-surface-variant/40" />
+        <p className="mt-2 text-on-surface-variant">No referrals yet — invite an ISP to get started.</p>
+      </div>
+    </div>
+  )
+}
+
+/* Small caps label used on the billing card. */
+function CardLabelLine({ children }) {
+  return <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{children}</p>
+}
+
+/* "Install app" — the admin is a normal web app, so installing it is the
+   browser's add-to-home-screen. A short how-to per platform is the honest,
+   dependency-free version until we ship a full PWA manifest. */
+function InstallAppModal({ onClose }) {
+  const Step = ({ icon, children }) => (
+    <div className="flex items-start gap-3">
+      <Icon name={icon} className="text-primary text-[20px]! mt-0.5" />
+      <p className="text-sm text-on-surface-variant">{children}</p>
+    </div>
+  )
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-5" onClick={onClose}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-4">
+          <Icon name="install_mobile" className="text-primary" />
+          <h2 className="text-lg font-semibold text-on-surface">Install the app</h2>
+        </div>
+        <p className="text-sm text-on-surface-variant mb-4">
+          Add Zidi to your home screen or desktop for a full-screen, app-like experience.
+        </p>
+        <div className="space-y-3">
+          <Step icon="phone_iphone">On iPhone/iPad: tap <strong className="text-on-surface">Share</strong>, then <strong className="text-on-surface">Add to Home Screen</strong>.</Step>
+          <Step icon="android">On Android/Chrome: menu <strong className="text-on-surface">⋮</strong>, then <strong className="text-on-surface">Install app</strong>.</Step>
+          <Step icon="computer">On desktop: the <strong className="text-on-surface">install icon</strong> in the address bar.</Step>
+        </div>
+        <button onClick={onClose} className="mt-6 w-full h-11 rounded-lg bg-primary text-on-primary font-semibold cursor-pointer hover:brightness-110 transition">
+          Got it
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* The signed-in owner's account menu, hung off the top-bar avatar: who they
+   are, the account and workspace shortcuts, and sign out. "Password & security"
+   is where they manage their passkey (fingerprint / face sign-in). */
+function ProfileMenu({ me, onNav, onLogout, onInstall }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const name = me?.fullName || me?.username || 'Account'
+  const email = me?.email || (me?.username?.includes('@') ? me.username : '')
+  const initial = (name || 'A').trim().charAt(0).toUpperCase()
+  const perms = me?.permissions || []
+  const go = (key) => { setOpen(false); onNav(key) }
+
+  const Item = ({ icon, label, onClick }) => (
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer text-left">
+      <Icon name={icon} className="text-[18px]! text-on-surface-variant" /> {label}
+    </button>
+  )
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Account menu"
+        className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-semibold border border-outline-variant cursor-pointer hover:brightness-110 transition"
+      >
+        {initial}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-72 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="flex items-center gap-3 p-4 border-b border-outline-variant">
+            <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-semibold shrink-0">{initial}</div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-on-surface truncate">{name}</p>
+              {email && <p className="text-xs text-on-surface-variant truncate">{email}</p>}
+            </div>
+          </div>
+
+          <div className="px-1.5 py-1.5">
+            <p className="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant">Account</p>
+            <Item icon="account_circle" label="Profile" onClick={() => go('settings')} />
+            <Item icon="lock" label="Password & security" onClick={() => go('settings')} />
+            <Item icon="install_mobile" label="Install app" onClick={() => { setOpen(false); onInstall() }} />
+          </div>
+
+          <div className="border-t border-outline-variant px-1.5 py-1.5">
+            <p className="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant">Workspace</p>
+            {perms.includes('SETTINGS') && <Item icon="settings" label="Settings" onClick={() => go('settings')} />}
+            {perms.includes('STAFF') && <Item icon="group" label="Staff" onClick={() => go('staff')} />}
+            {perms.includes('SETTINGS') && <Item icon="credit_card" label="Plan & billing" onClick={() => go('subscription')} />}
+            <Item icon="volunteer_activism" label="Refer & Earn" onClick={() => go('refer')} />
+            {perms.includes('SETTINGS') && <Item icon="history" label="Audit log" onClick={() => go('audit')} />}
+            <Item icon="feedback" label="Feedback" onClick={() => { setOpen(false); window.location.href = 'mailto:feedback@zidi.co.ke?subject=' + encodeURIComponent('Zidi feedback') }} />
+          </div>
+
+          <div className="border-t border-outline-variant px-1.5 py-1.5">
+            <Item icon="logout" label="Sign out" onClick={() => { setOpen(false); onLogout() }} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Shell({ auth, onLogout }) {
@@ -712,6 +977,7 @@ function Shell({ auth, onLogout }) {
   const setTab = (key) => navigate(key === 'overview' ? '/admin' : `/admin/${key}`)
   const [drawer, setDrawer] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [installOpen, setInstallOpen] = useState(false)
   // Null until known, so nothing is hidden or shown on a guess.
   const [me, setMe] = useState(null)
 
@@ -807,11 +1073,11 @@ function Shell({ auth, onLogout }) {
         </div>
         <div className="flex items-center gap-2">
           <PayoutBell auth={auth} />
-          <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-semibold border border-outline-variant">
-            A
-          </div>
+          <ProfileMenu me={me} onNav={nav} onLogout={onLogout} onInstall={() => setInstallOpen(true)} />
         </div>
       </header>
+
+      {installOpen && <InstallAppModal onClose={() => setInstallOpen(false)} />}
 
       {/* Content */}
       {/* Matches the fluid top bar above, which is calc(100%-16rem). A cap
@@ -846,6 +1112,8 @@ function Shell({ auth, onLogout }) {
         {tab === 'settings' && (
           <SettingsHub auth={auth} me={me} mikrotikSection={<Settings auth={auth} />} />
         )}
+        {tab === 'subscription' && <SubscriptionPage auth={auth} />}
+        {tab === 'refer' && <ReferEarnPage auth={auth} />}
       </main>
     </div>
   )
