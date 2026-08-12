@@ -326,8 +326,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.message || 'Signup failed')
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(
+            data.message
+            || (res.status === 429
+                ? 'Too many signups from your network just now — please wait a minute and try again.'
+                : 'Signup failed — please try again.'))
+        }
         showStatus(data)
         poll(data.slug)
       } catch (e) {
