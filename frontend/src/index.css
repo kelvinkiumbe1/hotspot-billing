@@ -67,6 +67,77 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
+/* Brand-styled radios & checkboxes for the staff apps — the native    */
+/* controls look cheap next to the rest of the UI.                     */
+/* ------------------------------------------------------------------ */
+.admin-theme input[type="radio"],
+.tech-theme input[type="radio"],
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer),
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer) {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  border: 2px solid var(--color-outline);
+  background: var(--color-surface-container-lowest);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-theme input[type="radio"],
+.tech-theme input[type="radio"] { border-radius: 50%; }
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer),
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer) { border-radius: 5px; }
+
+.admin-theme input[type="radio"]::before,
+.tech-theme input[type="radio"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  transform: scale(0);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.admin-theme input[type="radio"]:checked,
+.tech-theme input[type="radio"]:checked { border-color: var(--color-primary); }
+.admin-theme input[type="radio"]:checked::before,
+.tech-theme input[type="radio"]:checked::before { transform: scale(1); }
+
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer)::before,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer)::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background: var(--color-on-primary);
+  transform: scale(0);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  clip-path: polygon(14% 44%, 0 65%, 40% 100%, 100% 16%, 84% 0, 38% 68%);
+}
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer):checked,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer):checked::before,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):checked::before { transform: scale(1); }
+
+.admin-theme input[type="radio"]:hover,
+.tech-theme input[type="radio"]:hover,
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer):hover,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):hover { border-color: var(--color-primary); }
+.admin-theme input[type="radio"]:focus-visible,
+.tech-theme input[type="radio"]:focus-visible,
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer):focus-visible,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* ------------------------------------------------------------------ */
 /* Customer portal theme: black canvas with an amber accent.           */
 /* Re-points the same design tokens, so every existing utility class   */
 /* inside .portal-theme picks up the new palette automatically.        */
