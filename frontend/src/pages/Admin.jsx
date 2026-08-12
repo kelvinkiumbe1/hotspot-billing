@@ -1435,6 +1435,70 @@ function OnboardingCard({ auth, onNav }) {
   )
 }
 
+/* AI ops copilot: grounded, actionable insights (customers about to lapse,
+   recent drop-offs, today's take) with one-tap next steps. Deterministic — the
+   numbers are real, not generated. Shows only when something's worth acting on. */
+function AiCopilotCard({ auth, onNav }) {
+  const [data, setData] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+
+  const load = () => api('/admin/ai/insights', { auth }).then(setData).catch(() => {})
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!data || !data.insights) return null
+  const actionable = data.insights.filter((i) => i.severity !== 'info')
+  if (actionable.length === 0) return null
+
+  const dot = (sev) => sev === 'high' ? 'bg-error' : sev === 'medium' ? 'bg-primary' : 'bg-on-surface-variant'
+
+  async function runAction(insight) {
+    if (insight.action === 'remind-lapsing') {
+      setBusy(true); setNote(null)
+      try {
+        const r = await api('/admin/ai/act/remind-lapsing', { method: 'POST', auth })
+        setNote(`Reminded ${r.sent} customer${r.sent === 1 ? '' : 's'}.`)
+        load()
+      } catch (e) {
+        setNote(e.message)
+      } finally { setBusy(false) }
+    } else if (insight.tab) {
+      onNav(insight.tab)
+    }
+  }
+
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon name="smart_toy" filled className="text-primary text-[20px]!" />
+        <h3 className="text-base font-semibold text-on-surface">Copilot</h3>
+        <span className="text-xs text-on-surface-variant">· {data.headline}</span>
+      </div>
+      <div className="space-y-2.5">
+        {data.insights.map((i) => (
+          <div key={i.key} className="flex items-center gap-3">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${dot(i.severity)}`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-on-surface">{i.title}</p>
+              <p className="text-xs text-on-surface-variant">{i.detail}</p>
+            </div>
+            {i.actionLabel && (
+              <button
+                onClick={() => runAction(i)}
+                disabled={busy && i.action === 'remind-lapsing'}
+                className="text-xs font-semibold px-3 h-8 rounded-md border border-outline-variant text-on-surface hover:bg-surface-container disabled:opacity-60 cursor-pointer whitespace-nowrap transition-colors"
+              >
+                {busy && i.action === 'remind-lapsing' ? 'Sending…' : i.actionLabel}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {note && <p className="text-xs text-secondary mt-3">{note}</p>}
+    </div>
+  )
+}
+
 function Overview({ auth, onNav }) {
   const [data, setData] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -1482,6 +1546,7 @@ function Overview({ auth, onNav }) {
   return (
     <div className="space-y-3">
       <OnboardingCard auth={auth} onNav={onNav} />
+      <AiCopilotCard auth={auth} onNav={onNav} />
       {/* Row one: money is the largest thing on the page, faults sit beside
           it. Sized by importance rather than split into equal boxes. */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
