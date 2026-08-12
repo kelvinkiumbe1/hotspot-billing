@@ -2,13 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import loginFiber from '../assets/login-fiber.jpg'
 
-function Icon({ name, filled = false, className = '' }) {
-  return (
-    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  )
-}
+import { Icon } from '../components/icons.jsx'
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })

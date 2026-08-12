@@ -302,13 +302,7 @@ function normalizePhone(raw) {
   return '254' + d
 }
 
-function Icon({ name, filled = false, className = '' }) {
-  return (
-    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  )
-}
+import { Icon } from '../components/icons.jsx'
 
 function Brand() {
   return (
@@ -1406,9 +1400,9 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         <button
           aria-label="Close payment"
           onClick={onClose}
-          className="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors active:scale-95 duration-100 cursor-pointer"
+          className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors active:scale-95 duration-100 cursor-pointer"
         >
-          close
+          <Icon name="close" className="text-[24px]!" />
         </button>
       </header>
 

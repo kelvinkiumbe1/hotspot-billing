@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 
-function Icon({ name, filled = false, className = '' }) {
-  return (
-    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  )
-}
+import { Icon } from './icons.jsx'
 
 function noteTime(d) {
   const t = new Date(d)

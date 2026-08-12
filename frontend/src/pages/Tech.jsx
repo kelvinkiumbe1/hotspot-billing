@@ -10,13 +10,7 @@ import loginValley from '../assets/login-valley.jpg'
 /* Helpers (Field Connect — technician app)                            */
 /* ------------------------------------------------------------------ */
 
-function Icon({ name, filled = false, className = '' }) {
-  return (
-    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  )
-}
+import { Icon } from '../components/icons.jsx'
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })

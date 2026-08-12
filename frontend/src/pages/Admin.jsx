@@ -31,13 +31,7 @@ import loginFiber from '../assets/login-fiber.jpg'
 /* Shared helpers                                                      */
 /* ------------------------------------------------------------------ */
 
-function Icon({ name, filled = false, className = '' }) {
-  return (
-    <span className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  )
-}
+import { Icon } from '../components/icons.jsx'
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes} min`

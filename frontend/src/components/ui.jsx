@@ -4,17 +4,9 @@
  */
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 
-export function Icon({ name, filled = false, className = '', style }) {
-  return (
-    <span
-      className={`material-symbols-outlined select-none ${filled ? 'filled' : ''} ${className}`}
-      style={style}
-      aria-hidden="true"
-    >
-      {name}
-    </span>
-  )
-}
+// Icon now lives in its own module (Lucide-backed); re-export so the many
+// `import { Icon } from '../components/ui.jsx'` call sites keep working.
+export { Icon } from './icons.jsx'
 
 export function Skeleton({ className = '' }) {
   return <div className={`animate-pulse bg-surface-container-high rounded-xl ${className}`}></div>
