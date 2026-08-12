@@ -110,6 +110,36 @@
     .spinner { width:40px; height:40px; margin:6px auto 18px; border-radius:50%;
       border:3px solid var(--line); border-top-color:var(--yellow); animation:spin 1s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Provisioning: a broadcasting-tower pulse (rings radiating out) over a
+       checklist whose steps tick through as the account is stood up. */
+    .pulse { position:relative; width:120px; height:120px; margin:4px auto 24px; }
+    .pulse span { position:absolute; inset:0; margin:auto; width:120px; height:120px; border-radius:50%;
+      border:2px solid var(--yellow); opacity:0; animation:ring 2.6s cubic-bezier(.2,.6,.3,1) infinite; }
+    .pulse span:nth-child(2){ animation-delay:.85s; }
+    .pulse span:nth-child(3){ animation-delay:1.7s; }
+    @keyframes ring { 0%{ transform:scale(.36); opacity:.65; } 75%{ opacity:0; } 100%{ transform:scale(1); opacity:0; } }
+    .pulse .core { position:absolute; inset:0; margin:auto; width:60px; height:60px; border-radius:50%;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep)); display:grid; place-items:center;
+      box-shadow:0 8px 26px rgba(253,191,45,.45); animation:corebeat 2.6s ease-in-out infinite; }
+    @keyframes corebeat { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.09); } }
+    .pulse .core svg { width:30px; height:30px; }
+
+    .steps { list-style:none; margin:24px auto 0; padding:0; max-width:290px; text-align:left; display:grid; gap:13px; }
+    .steps li { display:flex; align-items:center; gap:12px; font-size:14px; color:var(--faint);
+      opacity:.45; transition:opacity .45s ease, color .45s ease; }
+    .steps li .tick { position:relative; flex:none; width:20px; height:20px; border-radius:50%;
+      border:2px solid var(--line-strong); box-sizing:border-box; transition:border-color .3s ease, background .3s ease; }
+    .steps li[data-state="active"], .steps li[data-state="done"] { opacity:1; color:var(--fg); }
+    .steps li[data-state="active"] .tick { border-color:var(--yellow); border-top-color:transparent;
+      animation:spin .8s linear infinite; }
+    .steps li[data-state="done"] .tick { border-color:var(--yellow); background:var(--yellow); }
+    .steps li[data-state="done"] .tick::after { content:""; position:absolute; left:5px; top:1px; width:5px; height:10px;
+      border:solid #161200; border-width:0 2px 2px 0; transform:rotate(45deg); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pulse span, .pulse .core, .steps li[data-state="active"] .tick { animation:none; }
+    }
     a.btn { display:inline-block; margin-top:18px; text-decoration:none; padding:13px 22px;
       font-family:var(--display); font-weight:700; border-radius:11px; color:#161200;
       background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
@@ -198,6 +228,11 @@
           <div class="anim d5">
             <label for="password">Password</label>
             <input id="password" type="password" placeholder="At least 8 characters" />
+          </div>
+
+          <div class="anim d5">
+            <label for="password2">Confirm password</label>
+            <input id="password2" type="password" placeholder="Re-enter your password" />
             <p class="hint">You can turn on fingerprint / face sign-in later from Password &amp; security.</p>
           </div>
 
@@ -208,9 +243,20 @@
         <!-- Provisioning / ready -->
         <div id="status-view" style="display:none" class="status">
           <div id="working">
-            <div class="spinner"></div>
+            <div class="pulse">
+              <span></span><span></span><span></span>
+              <div class="core">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#161200" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.4" fill="#161200" stroke="none"/></svg>
+              </div>
+            </div>
             <h1>Setting up your account…</h1>
-            <p class="sub" id="status-detail">This takes a minute or two. You can keep this page open.</p>
+            <p class="sub" id="status-detail">This only takes a minute — keep this page open.</p>
+            <ul class="steps" id="steps">
+              <li><span class="tick"></span><span>Reserving your address</span></li>
+              <li><span class="tick"></span><span>Creating your private database</span></li>
+              <li><span class="tick"></span><span>Installing your dashboard</span></li>
+              <li><span class="tick"></span><span>Bringing your network online</span></li>
+            </ul>
           </div>
           <div id="ready" style="display:none">
             <h1>🎉 Your account is ready</h1>
@@ -256,12 +302,21 @@
 
     $('submit').addEventListener('click', async () => {
       $('error').textContent = ''
+      const password = $('password').value
+      if (password.length < 8) {
+        $('error').textContent = 'Password must be at least 8 characters.'
+        return
+      }
+      if (password !== $('password2').value) {
+        $('error').textContent = 'Passwords do not match.'
+        return
+      }
       const body = {
         businessName: $('business').value.trim(),
         slug: $('slug').value.trim(),
         ownerName: $('name').value.trim(),
         ownerEmail: $('email').value.trim(),
-        password: $('password').value,
+        password: password,
       }
       $('submit').disabled = true
       try {
@@ -291,10 +346,40 @@
       $('working').style.display = s === 'PROVISIONING' ? 'block' : 'none'
       $('ready').style.display = s === 'ACTIVE' ? 'block' : 'none'
       $('failed').style.display = s === 'FAILED' ? 'block' : 'none'
-      if (data.statusDetail) $('status-detail').textContent = data.statusDetail
-      if (s === 'ACTIVE') $('go').href = data.url + '/admin'
-      if (s === 'FAILED') $('fail-detail').textContent = data.statusDetail || ''
+      // Keep the reassuring static sub-line during provisioning (the backend's
+      // statusDetail just repeats the heading). Errors show via #fail-detail.
+      if (s === 'PROVISIONING') startSteps()
+      if (s === 'ACTIVE') { completeSteps(); $('go').href = data.url + '/admin' }
+      if (s === 'FAILED') { stopSteps(); $('fail-detail').textContent = data.statusDetail || '' }
     }
+
+    // The backend only reports PROVISIONING -> ACTIVE, so the checklist is a
+    // choreographed illusion: it advances on a timer but never ticks the final
+    // step until the real status flips, so it can't claim "done" too early.
+    let stepTimer = null
+    function stepItems() { return [...document.querySelectorAll('#steps li')] }
+    function setStates(items, activeIdx) {
+      items.forEach((li, i) => {
+        li.dataset.state = i < activeIdx ? 'done' : i === activeIdx ? 'active' : ''
+      })
+    }
+    function startSteps() {
+      if (stepTimer) return // already running (poll calls render repeatedly)
+      const items = stepItems()
+      let idx = 0
+      setStates(items, 0)
+      stepTimer = setInterval(() => {
+        if (idx < items.length - 1) { // hold the last step until ACTIVE
+          idx++
+          setStates(items, idx)
+        }
+      }, 3200)
+    }
+    function completeSteps() {
+      clearInterval(stepTimer); stepTimer = null
+      stepItems().forEach((li) => (li.dataset.state = 'done'))
+    }
+    function stopSteps() { clearInterval(stepTimer); stepTimer = null }
 
     function poll(slug) {
       clearInterval(pollTimer)
