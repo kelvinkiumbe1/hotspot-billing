@@ -60,6 +60,9 @@
     button:hover { transform:translateY(-1px); box-shadow:0 12px 30px rgba(253,191,45,.4); filter:brightness(1.04); }
     .hint { color:var(--faint); font-size:12px; line-height:1.5; margin:9px 0 0; }
     .msg.err { color:#f87171; font-size:14px; margin-top:12px; }
+    #remembered #continue { margin-top:8px; }
+    #useOther { display:inline-block; margin-top:14px; color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+    #useOther:hover { color:var(--fg); }
     .foot { margin-top:26px; font-size:13px; color:var(--muted); }
     .foot a { color:var(--yellow); text-decoration:none; font-weight:600; }
     .foot a:hover { text-decoration:underline; }
@@ -91,16 +94,21 @@
       <div class="card">
         <div class="brand"><img class="logo" src="/media/zidi-logo.png" alt="Zidi" /></div>
         <h1>Sign in</h1>
-        <p class="sub">Go to your ISP's dashboard. Enter the address you chose when you signed up.</p>
+        <p class="sub">Reach your ISP's dashboard with your email or workspace address.</p>
 
-        <label for="slug">Your Zidi address</label>
-        <div class="addr">
-          <input id="slug" placeholder="acme" autocomplete="off" autofocus />
-          <span class="suffix">.zidi.co.ke</span>
+        <!-- Remembered on this device: skip straight to the last workspace used. -->
+        <div id="remembered" style="display:none">
+          <button id="continue"></button>
+          <a id="useOther">Use a different account</a>
         </div>
-        <p class="hint">You'll sign in with your email &amp; password (or fingerprint/face) on your own dashboard.</p>
 
-        <button id="go">Go to my dashboard</button>
+        <div id="entry">
+          <label for="q">Email or workspace address</label>
+          <input id="q" placeholder="you@example.com  or  acme" autocomplete="username" autofocus />
+          <p class="hint">You'll enter your password (or fingerprint/face) on your own dashboard.</p>
+          <button id="go">Continue</button>
+        </div>
+
         <div class="msg err" id="error"></div>
 
         <p class="foot">New to Zidi? <a href="/start">Start free →</a></p>
@@ -110,48 +118,65 @@
 
   <script>
     const $ = (id) => document.getElementById(id)
-    const slug = $('slug')
-    slug.addEventListener('input', () => { slug.value = slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+    const STORE = 'zidiLastWorkspace'
 
-    async function lookup(s) {
-      const res = await fetch('/api/tenant/' + encodeURIComponent(s) + '/location')
-      if (res.status === 404 || res.status === 400) {
-        throw new Error('No account found at ' + s + '.zidi.co.ke — check the address, or start free.')
+    async function resolve(q) {
+      const res = await fetch('/api/tenant/resolve?q=' + encodeURIComponent(q))
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.message || 'No account found — check and try again, or start free.')
       }
-      if (!res.ok) throw new Error('Something went wrong — please try again.')
       return res.json()
     }
 
-    async function go() {
-      const s = slug.value.trim()
+    // Resolve an email/address to a workspace, wake it if it's asleep (dev),
+    // remember it on this device, then hand off to that dashboard — pre-filling
+    // the email when they signed in by email so they only type a password.
+    async function go(q, btn) {
+      q = (q || '').trim()
       $('error').textContent = ''
-      if (!s) { $('error').textContent = 'Enter your Zidi address to continue.'; slug.focus(); return }
-      $('go').disabled = true
-      const label = $('go').textContent
-      $('go').textContent = 'Finding your dashboard…'
+      if (!q) { $('error').textContent = 'Enter your email or workspace address.'; $('q').focus(); return }
+      const b = btn || $('go')
+      const label = b.textContent
+      b.disabled = true
+      b.textContent = 'Finding your dashboard…'
       try {
-        // Ask the control plane where this account lives (localhost:PORT in
-        // dev, the subdomain in production). In dev a sleeping tenant is woken
-        // on demand, so we wait for it to answer before sending them over.
-        let data = await lookup(s)
+        let data = await resolve(q)
         if (!data.ready) {
-          $('go').textContent = 'Starting your dashboard…'
-          for (let i = 0; i < 25 && !data.ready; i++) {
-            await sleep(3000)
-            data = await lookup(s)
-          }
+          b.textContent = 'Starting your dashboard…'
+          for (let i = 0; i < 25 && !data.ready; i++) { await sleep(3000); data = await resolve(q) }
         }
         if (!data.ready) throw new Error('Your dashboard is taking longer than usual to wake — please try again in a moment.')
-        window.location.href = (data.url || ('https://' + s + '.zidi.co.ke')) + '/admin'
+        localStorage.setItem(STORE, JSON.stringify({ q, slug: data.slug }))
+        const email = data.email || (q.includes('@') ? q : '')
+        window.location.href = data.url + '/admin' + (email ? '?email=' + encodeURIComponent(email) : '')
       } catch (e) {
         $('error').textContent = e.message
-        $('go').disabled = false
-        $('go').textContent = label
+        b.disabled = false
+        b.textContent = label
       }
     }
-    $('go').addEventListener('click', go)
-    slug.addEventListener('keydown', (e) => { if (e.key === 'Enter') go() })
+
+    // Show the remembered-workspace shortcut if we have one on this device.
+    ;(function () {
+      let saved = null
+      try { saved = JSON.parse(localStorage.getItem(STORE) || 'null') } catch { saved = null }
+      if (saved && saved.slug && saved.q) {
+        $('continue').textContent = 'Continue to ' + saved.slug
+        $('remembered').style.display = 'block'
+        $('entry').style.display = 'none'
+        $('continue').addEventListener('click', () => go(saved.q, $('continue')))
+      }
+    })()
+
+    $('useOther').addEventListener('click', () => {
+      $('remembered').style.display = 'none'
+      $('entry').style.display = 'block'
+      $('q').focus()
+    })
+    $('go').addEventListener('click', () => go($('q').value))
+    $('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') go($('q').value) })
 
     // Play the hero only on wide screens with motion allowed (poster otherwise).
     ;(function () {

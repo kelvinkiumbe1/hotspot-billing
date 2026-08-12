@@ -15,5 +15,7 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     boolean existsByOwnerEmail(String ownerEmail);
 
+    java.util.Optional<Tenant> findByOwnerEmail(String ownerEmail);
+
     List<Tenant> findAllByOrderByCreatedAtDesc();
 }

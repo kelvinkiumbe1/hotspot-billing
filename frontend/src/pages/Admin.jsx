@@ -192,7 +192,10 @@ export default function Admin() {
 /* ------------------------------------------------------------------ */
 
 function Login({ onLogin }) {
-  const [username, setUsername] = useState('')
+  // Pre-fill the email when arriving from the central email-first sign-in
+  // (…/admin?email=you@isp.co.ke), so the owner only types their password.
+  const [username, setUsername] = useState(
+    () => new URLSearchParams(window.location.search).get('email') || '')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [needCode, setNeedCode] = useState(false)
