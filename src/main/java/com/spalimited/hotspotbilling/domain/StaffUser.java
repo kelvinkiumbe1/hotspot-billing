@@ -58,6 +58,11 @@ public class StaffUser {
     @Column(nullable = false)
     private boolean seeded = false;
 
+    /** A read-only evaluation login: every session it holds is blocked from writing. */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean demo = false;
+
     private String createdBy;
 
     private Instant lastLoginAt;

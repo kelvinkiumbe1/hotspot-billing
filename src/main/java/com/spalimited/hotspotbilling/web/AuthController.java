@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +33,38 @@ public class AuthController {
     private final PortalSettingsService portalSettings;
     private final WebAuthnService webAuthn;
 
+    @Value("${demo.enabled:false}")
+    private boolean demoEnabled;
+
     public record LoginRequest(@NotBlank String username, @NotBlank String password, String code) {
+    }
+
+    /**
+     * Signs in to the read-only demo without a password. Only works on a
+     * deployment where the demo is switched on and seeded. Every session it
+     * hands out is blocked from writing by DemoReadOnlyFilter.
+     */
+    @PostMapping("/demo")
+    public ResponseEntity<Map<String, Object>> demo(HttpServletRequest http) {
+        StaffUser user = demoEnabled
+                ? staff.findByUsername("demo").filter(StaffUser::isDemo).filter(StaffUser::isActive).orElse(null)
+                : null;
+        if (user == null) {
+            return ResponseEntity.status(404).body(Map.of("message", "The demo is not available here"));
+        }
+        AuthService.Session session = authService.startSession(user, http.getHeader("User-Agent"), clientIp(http));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("token", session.token());
+        out.put("expiresAt", session.expiresAt());
+        out.put("username", user.getUsername());
+        out.put("fullName", user.getFullName());
+        out.put("role", user.getRole());
+        out.put("permissions", user.getPermissions().stream().sorted().toList());
+        out.put("twoFactor", false);
+        out.put("hasPasskeys", false);
+        out.put("passkeyEnrollmentRequired", false);
+        out.put("demo", true);
+        return ResponseEntity.ok(out);
     }
 
     /**

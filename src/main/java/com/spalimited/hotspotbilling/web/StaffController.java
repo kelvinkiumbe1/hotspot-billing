@@ -63,6 +63,8 @@ public class StaffController {
         // True while signed in through application.properties rather than a
         // real staff row, so the UI can nudge toward creating one.
         out.put("breakGlass", member == null);
+        // A read-only evaluation session, so the shell can show a demo banner.
+        out.put("demo", authorities.contains("DEMO"));
         return out;
     }
 

@@ -147,12 +147,40 @@ function Skeleton({ className = '' }) {
 
 export default function Admin() {
   const [auth, setAuth] = useState(sessionStorage.getItem('adminAuth'))
+  const [demoLoading, setDemoLoading] = useState(false)
+
+  // The landing page's "Live demo" button opens /admin?demo=1; sign into the
+  // read-only demo automatically so a prospect never sees a login wall.
+  useEffect(() => {
+    if (auth) return
+    if (new URLSearchParams(window.location.search).get('demo') !== '1') return
+    setDemoLoading(true)
+    api('/auth/demo', { method: 'POST' })
+      .then((res) => {
+        const a = 'Bearer ' + res.token
+        sessionStorage.setItem('adminAuth', a)
+        setAuth(a)
+      })
+      .catch(() => {})
+      .finally(() => setDemoLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   function logout() {
     // Best-effort server-side revocation; the session ends locally regardless.
     api('/auth/logout', { method: 'POST', auth }).catch(() => {})
     sessionStorage.removeItem('adminAuth')
     setAuth(null)
   }
+
+  if (demoLoading) {
+    return (
+      <div className="admin-theme bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center gap-3">
+        <Icon name="progress_activity" className="animate-spin text-primary text-[32px]!" />
+        <p className="text-sm text-on-surface-variant">Loading the live demo…</p>
+      </div>
+    )
+  }
+
   return auth
     ? <Shell auth={auth} onLogout={logout} />
     : <Login onLogin={(a) => { sessionStorage.setItem('adminAuth', a); setAuth(a) }} />
@@ -739,10 +767,21 @@ function Shell({ auth, onLogout }) {
   const badges = { messages: unreadMessages }
   const permissions = me?.permissions
 
+  const demo = !!me?.demo
+
   return (
     <div className="admin-theme bg-background text-on-background min-h-screen">
+      {/* Read-only demo strip, above everything. */}
+      {demo && (
+        <div className="fixed top-0 inset-x-0 h-8 z-50 bg-primary text-on-primary flex items-center justify-center gap-2 px-4 text-xs sm:text-sm font-semibold">
+          <Icon name="visibility" className="text-[16px]!" />
+          <span>Demo — read only. Changes are disabled.</span>
+          <a href="/#demo" className="underline underline-offset-2 hidden sm:inline hover:opacity-80">Create your own account →</a>
+        </div>
+      )}
+
       {/* Desktop sidebar */}
-      <nav className="h-screen w-64 fixed left-0 top-0 bg-inverse-surface shadow-md hidden md:flex flex-col z-40">
+      <nav className={`w-64 fixed left-0 ${demo ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'} bg-inverse-surface shadow-md hidden md:flex flex-col z-40`}>
         <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />
       </nav>
 
@@ -757,7 +796,7 @@ function Shell({ auth, onLogout }) {
       )}
 
       {/* Top bar */}
-      <header className="fixed top-0 right-0 w-full md:w-[calc(100%-16rem)] h-16 bg-surface shadow-sm z-30 flex justify-between items-center px-5 md:px-6">
+      <header className={`fixed ${demo ? 'top-8' : 'top-0'} right-0 w-full md:w-[calc(100%-16rem)] h-16 bg-surface shadow-sm z-30 flex justify-between items-center px-5 md:px-6`}>
         <div className="flex items-center gap-3">
           <button className="md:hidden p-2 -ml-2 text-on-surface cursor-pointer" onClick={() => setDrawer(true)} aria-label="Open menu">
             <Icon name="menu" />
@@ -779,7 +818,7 @@ function Shell({ auth, onLogout }) {
           below that left the header running wider than the content under it.
           2400px only bites on an ultrawide, where full-bleed table rows
           would be a worse problem than a margin. */}
-      <main className="md:ml-64 pt-24 px-5 md:px-8 pb-8 max-w-[2400px]">
+      <main className={`md:ml-64 ${demo ? 'pt-32' : 'pt-24'} px-5 md:px-8 pb-8 max-w-[2400px]`}>
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'leads' && <LeadsPage auth={auth} />}

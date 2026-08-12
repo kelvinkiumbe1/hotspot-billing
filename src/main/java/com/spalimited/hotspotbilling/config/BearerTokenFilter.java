@@ -54,6 +54,10 @@ public class BearerTokenFilter extends OncePerRequestFilter {
         authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
         user.getPermissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+        // Marks a read-only evaluation session; DemoReadOnlyFilter blocks its writes.
+        if (user.isDemo()) {
+            authorities.add(new SimpleGrantedAuthority("DEMO"));
+        }
 
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);

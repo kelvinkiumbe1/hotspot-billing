@@ -52,12 +52,16 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, BearerTokenFilter bearerTokenFilter)
+    SecurityFilterChain filterChain(HttpSecurity http, BearerTokenFilter bearerTokenFilter,
+                                    DemoReadOnlyFilter demoReadOnlyFilter)
             throws Exception {
         http
                 // A session token is checked before Basic auth, so a browser
                 // that has signed in never falls back to replaying a password.
                 .addFilterBefore(bearerTokenFilter, BasicAuthenticationFilter.class)
+                // After authentication is established, block writes from a demo
+                // session so the read-only evaluation login cannot change data.
+                .addFilterAfter(demoReadOnlyFilter, BasicAuthenticationFilter.class)
                 .cors(withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
