@@ -63,6 +63,13 @@ public class Tenant {
 
     private Instant readyAt;
 
+    /**
+     * Set only by the local (no-Docker) provisioner: the port the tenant's app
+     * instance listens on, so getUrl() can point at http://localhost:PORT
+     * instead of the production https://subdomain. Null for dry-run/SCRIPT.
+     */
+    private Integer localPort;
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
@@ -70,6 +77,9 @@ public class Tenant {
 
     @Transient
     public String getUrl() {
+        if (localPort != null) {
+            return "http://localhost:" + localPort;
+        }
         return "https://" + subdomain;
     }
 }
