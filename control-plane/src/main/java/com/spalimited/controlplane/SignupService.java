@@ -53,13 +53,20 @@ public class SignupService {
         if (tenants.existsBySubdomain(subdomain)) {
             throw new IllegalArgumentException("That address is taken — pick another.");
         }
+        // One account per email — a repeat signup should sign in instead. Keeps
+        // the platform-admin list clean and stops the 14-day trial being reset
+        // over and over from the same address.
+        String email = req.ownerEmail() == null ? "" : req.ownerEmail().trim().toLowerCase();
+        if (tenants.existsByOwnerEmail(email)) {
+            throw new IllegalArgumentException("An account with this email already exists — sign in instead.");
+        }
 
         Tenant tenant = tenants.save(Tenant.builder()
                 .slug(slug)
                 .subdomain(subdomain)
                 .businessName(req.businessName() == null ? slug : req.businessName().trim())
                 .ownerName(req.ownerName() == null ? null : req.ownerName().trim())
-                .ownerEmail(req.ownerEmail().trim().toLowerCase())
+                .ownerEmail(email)
                 .status(Tenant.Status.PROVISIONING)
                 .statusDetail("Setting up your account…")
                 .build());

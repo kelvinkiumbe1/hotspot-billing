@@ -13,5 +13,7 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     boolean existsBySubdomain(String subdomain);
 
+    boolean existsByOwnerEmail(String ownerEmail);
+
     List<Tenant> findAllByOrderByCreatedAtDesc();
 }
