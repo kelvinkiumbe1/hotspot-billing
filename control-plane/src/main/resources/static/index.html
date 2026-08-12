@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Start your ISP on Zidi</title>
+  <style>
+    :root { --bg:#0a0a0c; --fg:#f5f5f4; --muted:#a1a1aa; --line:#26262b;
+      --surface:#141418; --yellow:#fdbf2d; --yellow-deep:#e0a413; --err:#f87171; --ok:#4ade80; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg);
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { width:100%; max-width:440px; background:var(--surface);
+      border:1px solid var(--line); border-radius:16px; padding:28px; }
+    .brand { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .mark { width:30px; height:30px; border-radius:8px;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
+      display:grid; place-items:center; color:#161200; font-weight:800; }
+    h1 { font-size:22px; margin:14px 0 4px; letter-spacing:-.02em; }
+    p.sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+    label { display:block; font-size:12px; font-weight:600; letter-spacing:.04em;
+      text-transform:uppercase; color:var(--muted); margin:14px 0 6px; }
+    input { width:100%; height:44px; background:var(--bg); color:var(--fg);
+      border:1px solid var(--line); border-radius:10px; padding:0 12px; font-size:15px; }
+    input:focus { outline:none; border-color:var(--yellow); }
+    .addr { display:flex; align-items:center; gap:0; }
+    .addr input { border-top-right-radius:0; border-bottom-right-radius:0; }
+    .addr .suffix { height:44px; display:flex; align-items:center; padding:0 12px;
+      background:#1c1c22; border:1px solid var(--line); border-left:0;
+      border-top-right-radius:10px; border-bottom-right-radius:10px; color:var(--muted); font-size:14px; }
+    button { width:100%; height:46px; margin-top:22px; border:0; border-radius:10px;
+      background:linear-gradient(135deg,var(--yellow),var(--yellow-deep)); color:#161200;
+      font-size:16px; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:default; }
+    .msg { margin-top:14px; font-size:14px; }
+    .msg.err { color:var(--err); }
+    .status { text-align:center; }
+    .spinner { width:38px; height:38px; margin:8px auto 16px; border-radius:50%;
+      border:3px solid var(--line); border-top-color:var(--yellow); animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    a.btn { display:inline-block; margin-top:16px; text-decoration:none; padding:12px 20px;
+      border-radius:10px; background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
+      color:#161200; font-weight:700; }
+    code { color:var(--yellow); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Signup form -->
+    <div id="form-view">
+      <div class="brand"><span class="mark">Z</span><strong>Zidi</strong></div>
+      <h1>Start your ISP</h1>
+      <p class="sub">Create your account and get a dashboard in a couple of minutes. Set up billing whenever you're ready.</p>
+
+      <label for="business">Business name</label>
+      <input id="business" placeholder="Acme Networks" />
+
+      <label for="slug">Your address</label>
+      <div class="addr">
+        <input id="slug" placeholder="acme" autocomplete="off" />
+        <span class="suffix" id="suffix">.zidi.co.ke</span>
+      </div>
+
+      <label for="name">Your name</label>
+      <input id="name" placeholder="Jane Owner" />
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@acme.co.ke" />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="At least 8 characters" />
+      <p class="sub" style="margin:6px 0 0;font-size:12px">You can turn on fingerprint / face sign-in later from Password &amp; security.</p>
+
+      <button id="submit">Create my account</button>
+      <div class="msg err" id="error"></div>
+    </div>
+
+    <!-- Provisioning / ready -->
+    <div id="status-view" style="display:none" class="status">
+      <div id="working">
+        <div class="spinner"></div>
+        <h1>Setting up your account…</h1>
+        <p class="sub" id="status-detail">This takes a minute or two. You can keep this page open.</p>
+      </div>
+      <div id="ready" style="display:none">
+        <h1>🎉 Your account is ready</h1>
+        <p class="sub">Sign in with your email and password. You can turn on fingerprint / face unlock any time from Password &amp; security.</p>
+        <a class="btn" id="go" href="#">Open my dashboard</a>
+      </div>
+      <div id="failed" style="display:none">
+        <h1>Something went wrong</h1>
+        <p class="sub err" id="fail-detail"></p>
+        <p class="sub">We've been notified. Please try again or contact support.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id)
+    let pollTimer = null
+
+    // Live subdomain preview from the slug field.
+    $('slug').addEventListener('input', () => {
+      $('slug').value = $('slug').value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+    })
+
+    $('submit').addEventListener('click', async () => {
+      $('error').textContent = ''
+      const body = {
+        businessName: $('business').value.trim(),
+        slug: $('slug').value.trim(),
+        ownerName: $('name').value.trim(),
+        ownerEmail: $('email').value.trim(),
+        password: $('password').value,
+      }
+      $('submit').disabled = true
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || 'Signup failed')
+        showStatus(data)
+        poll(data.slug)
+      } catch (e) {
+        $('error').textContent = e.message
+        $('submit').disabled = false
+      }
+    })
+
+    function showStatus(data) {
+      $('form-view').style.display = 'none'
+      $('status-view').style.display = 'block'
+      render(data)
+    }
+
+    function render(data) {
+      const s = data.status
+      $('working').style.display = s === 'PROVISIONING' ? 'block' : 'none'
+      $('ready').style.display = s === 'ACTIVE' ? 'block' : 'none'
+      $('failed').style.display = s === 'FAILED' ? 'block' : 'none'
+      if (data.statusDetail) $('status-detail').textContent = data.statusDetail
+      if (s === 'ACTIVE') $('go').href = data.url + '/admin'
+      if (s === 'FAILED') $('fail-detail').textContent = data.statusDetail || ''
+    }
+
+    function poll(slug) {
+      clearInterval(pollTimer)
+      pollTimer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/signup/' + slug + '/status')
+          const data = await res.json()
+          render(data)
+          if (data.status === 'ACTIVE' || data.status === 'FAILED') clearInterval(pollTimer)
+        } catch { /* keep polling */ }
+      }, 2500)
+    }
+  </script>
+</body>
+</html>

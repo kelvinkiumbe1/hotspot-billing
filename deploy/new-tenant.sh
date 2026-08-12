@@ -47,6 +47,20 @@ DB_PASSWORD="$(generate)"
 ADMIN_PASSWORD="$(generate)"
 TECH_PASSWORD="$(generate)"
 
+# Self-service signups (the control plane) pass OWNER_EMAIL + OWNER_PASSWORD in
+# the environment: the owner chose their own bootstrap login. Passkeys stay
+# optional — the owner can turn on fingerprint/face sign-in later from
+# Password & security if they want it. Run by hand with neither set and the old
+# behaviour stands: a generated password, printed once.
+OWNER_USERNAME="admin"
+WEBAUTHN_REQUIRED="false"
+SELF_SERVICE="no"
+if [ -n "${OWNER_PASSWORD:-}" ]; then
+  ADMIN_PASSWORD="$OWNER_PASSWORD"
+  OWNER_USERNAME="${OWNER_EMAIL:-admin}"
+  SELF_SERVICE="yes"
+fi
+
 umask 077   # credentials must not be world-readable
 cat > "$ENV_FILE" <<EOF
 # $SLUG — generated $(date -u +%Y-%m-%dT%H:%M:%SZ). Contains secrets; keep it off git.
@@ -58,7 +72,7 @@ DB_NAME=spa_$(printf '%s' "$SLUG" | tr '-' '_')
 DB_USERNAME=spa_$(printf '%s' "$SLUG" | tr '-' '_')
 DB_PASSWORD=$DB_PASSWORD
 
-ADMIN_USERNAME=admin
+ADMIN_USERNAME=$OWNER_USERNAME
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 TECH_USERNAME=technician
 TECH_PASSWORD=$TECH_PASSWORD
@@ -85,10 +99,10 @@ WHATSAPP_ACCESS_TOKEN=
 ALERT_PHONE=
 
 # --- Passkeys. rp-id/origins are derived from the domain in the compose
-# --- file. Flip this to true to force every staff member to enrol a
-# --- passkey on first sign-in (safe once the domain is on HTTPS, which it
-# --- is the moment Caddy issues a certificate for it).
-WEBAUTHN_ENROLLMENT_REQUIRED=false
+# --- file. When true, every staff member must enrol a passkey (biometric) on
+# --- first sign-in (safe once the domain is on HTTPS, which it is the moment
+# --- Caddy issues a certificate). Self-service signups set this true.
+WEBAUTHN_ENROLLMENT_REQUIRED=$WEBAUTHN_REQUIRED
 
 # --- M-Pesa callback source allowlist. The app already defaults to
 # --- Safaricom's published ranges; set this only if told otherwise.
@@ -132,12 +146,19 @@ else
   echo "  docker compose -f deploy/edge/docker-compose.yml up -d"
 fi
 
+if [ "$SELF_SERVICE" = "yes" ]; then
+  OWNER_LINE="  Owner login     $OWNER_USERNAME (the password they chose at signup)
+  Biometrics      optional — they can turn on fingerprint/face from Password & security"
+else
+  OWNER_LINE="  Owner login     $OWNER_USERNAME / $ADMIN_PASSWORD"
+fi
+
 cat <<EOF
 
 --------------------------------------------------------------------
 $SLUG is up at https://$DOMAIN
 
-  Owner login     admin / $ADMIN_PASSWORD
+$OWNER_LINE
   Technician      technician / $TECH_PASSWORD
 
 Write these down now — they are not stored anywhere else in readable
