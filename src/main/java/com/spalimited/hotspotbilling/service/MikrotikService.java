@@ -62,8 +62,11 @@ public class MikrotikService {
     }
 
     /**
-     * Ensures at least one router row exists, migrating the legacy
-     * single-router settings into it, and returns the default router.
+     * Returns the default router, or {@code null} if none exists. It only
+     * migrates the legacy single-router settings into a first "Main Router"
+     * row once MikroTik is actually enabled — a fresh account with MikroTik
+     * off stays empty instead of showing a phantom router the ISP never added.
+     * Every caller already null-guards via {@link #live(Router)}.
      */
     @Transactional
     public Router defaultRouter() {
@@ -71,6 +74,9 @@ public class MikrotikService {
                 .or(() -> routers.findAllByOrderByNameAsc().stream().findFirst())
                 .orElseGet(() -> {
                     MikrotikSettings s = settings();
+                    if (!s.isEnabled()) {
+                        return null; // don't fabricate a placeholder while MikroTik is off
+                    }
                     return routers.save(Router.builder()
                             .name("Main Router")
                             .host(s.getHost() != null ? s.getHost() : "192.168.88.1")
