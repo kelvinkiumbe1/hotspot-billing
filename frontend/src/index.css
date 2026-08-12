@@ -47,6 +47,14 @@ body {
   background: var(--color-background);
   color: var(--color-on-background);
   -webkit-tap-highlight-color: transparent;
+  /* Crisper text: grayscale antialiasing (no muddy sub-pixel colour fringes),
+     kerning + ligatures on, and full-pixel geometry so glyph edges land clean. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-kerning: normal;
 }
 
 /* ------------------------------------------------------------------ */
@@ -493,37 +501,38 @@ body {
    their dark-theme values so the dark sidebar and its bright amber survive.
    --color-primary is darkened so amber text/buttons read on white. */
 .admin-theme[data-theme="light"] {
-  --color-background: #f5f6f7;
-  --color-on-background: #1a1c1e;
+  --color-background: #f4f4f5;
+  --color-on-background: #000000;
   --color-surface: #ffffff;
-  --color-on-surface: #1a1c1e;
-  --color-on-surface-variant: #55606e;
+  --color-on-surface: #000000;
+  --color-on-surface-variant: #3f3f46;
   --color-surface-bright: #ffffff;
-  --color-surface-dim: #e4e6e9;
-  --color-surface-variant: #b9c0c9;
+  --color-surface-dim: #e4e4e7;
+  --color-surface-variant: #c4c4cc;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f3f5;
-  --color-surface-container: #ebedf0;
-  --color-surface-container-high: #e4e7ea;
-  --color-surface-container-highest: #dde1e5;
-  --color-primary: #9a6800;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #ffe1a3;
-  --color-on-primary-container: #4a3200;
-  --color-surface-tint: #9a6800;
-  --color-secondary: #2e7d46;
+  --color-surface-container-low: #fafafa;
+  --color-surface-container: #f4f4f5;
+  --color-surface-container-high: #ececee;
+  --color-surface-container-highest: #e4e4e7;
+  /* Sharp, unmuddied yellow, with near-black text on top of it. */
+  --color-primary: #fdbf2d;
+  --color-on-primary: #171100;
+  --color-primary-container: #fff0c2;
+  --color-on-primary-container: #3a2c00;
+  --color-surface-tint: #fdbf2d;
+  --color-secondary: #12833a;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #b6f0c4;
   --color-on-secondary-container: #05371a;
-  --color-error: #ba1a1a;
+  --color-error: #c00000;
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
   --color-on-error-container: #410002;
-  --color-outline: #6d7580;
-  --color-outline-variant: #d3d8dd;
-  --color-tertiary: #55606e;
+  --color-outline: #52525b;
+  --color-outline-variant: #d4d4d8;
+  --color-tertiary: #3f3f46;
 }
 /* The data table carries hardcoded dark colours; lighten them to match. */
-.admin-theme[data-theme="light"] .data-table th { background: #f1f3f5; color: #55606e; }
-.admin-theme[data-theme="light"] .data-table td { border-bottom-color: #e4e7ea; }
-.admin-theme[data-theme="light"] .data-table tbody tr:hover { background: #f1f3f5; }
+.admin-theme[data-theme="light"] .data-table th { background: #f4f4f5; color: #3f3f46; }
+.admin-theme[data-theme="light"] .data-table td { border-bottom-color: #e4e4e7; }
+.admin-theme[data-theme="light"] .data-table tbody tr:hover { background: #f4f4f5; }

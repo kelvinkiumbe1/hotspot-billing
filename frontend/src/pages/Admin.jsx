@@ -514,7 +514,7 @@ function allowedGroups(permissions) {
     .filter((g) => g.items.length > 0)
 }
 
-function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) {
+function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, collapsible = false }) {
   // The rail is taller than a laptop screen. A fade on the bottom edge shows
   // there is more below, but it must clear once you reach the end, otherwise
   // the last item looks disabled.
@@ -532,25 +532,32 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
     return () => window.removeEventListener('resize', measure)
   }, [])
 
+  // When collapsible, the rail sits at icon width and only the icons show;
+  // hovering the whole nav (the `group`) reveals every label. `hideOnRail`
+  // is applied to anything that is text, so it fades/collapses away until
+  // the pointer is over the rail. The mobile drawer passes collapsible=false
+  // and always shows labels.
+  const hideOnRail = collapsible ? 'md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity' : ''
+
   return (
     <div className="flex flex-col h-full py-5 px-3">
-      <div className="mb-5 px-4 flex items-center gap-3 shrink-0">
-        <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]!" />
-        <div>
-          <p className="text-xl font-bold text-primary-fixed leading-tight">Zidi</p>
-          <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70">NETWORK MANAGER</p>
+      <div className={`mb-5 px-4 flex items-center gap-3 shrink-0 ${collapsible ? 'md:px-0 md:justify-center md:group-hover:px-4 md:group-hover:justify-start' : ''}`}>
+        <Icon name="wifi_tethering" filled className="text-primary-fixed text-[32px]! shrink-0" />
+        <div className={`overflow-hidden ${hideOnRail}`}>
+          <p className="text-xl font-bold text-primary-fixed leading-tight whitespace-nowrap">Zidi</p>
+          <p className="text-[10px] font-semibold tracking-wider text-surface-variant/70 whitespace-nowrap">NETWORK MANAGER</p>
         </div>
       </div>
       <div className="relative flex-1 min-h-0 flex">
       <nav
         ref={railRef}
         onScroll={measure}
-        className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]"
+        className="flex flex-col gap-3 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:thin]"
       >
         {allowedGroups(permissions).map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
-              <p className="px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50">
+              <p className={`px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 whitespace-nowrap ${collapsible ? 'md:h-0 md:mb-0 md:overflow-hidden md:group-hover:h-auto md:group-hover:mb-1' : ''}`}>
                 {group.label}
               </p>
             )}
@@ -560,16 +567,26 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
                   <button
                     onClick={() => onNav(item.key)}
                     aria-current={tab === item.key ? 'page' : undefined}
+                    title={collapsible ? item.label : undefined}
                     className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                      collapsible ? 'md:px-0 md:justify-center md:group-hover:px-4 md:group-hover:justify-start' : ''
+                    } ${
                       tab === item.key
                         ? 'bg-primary-container text-on-primary-container font-semibold'
                         : 'text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10'
                     }`}
                   >
-                    <Icon name={item.icon} filled={tab === item.key} className="text-[20px]!" />
-                    <span className="text-[15px] whitespace-nowrap">{item.label}</span>
+                    <span className="relative shrink-0">
+                      <Icon name={item.icon} filled={tab === item.key} className="text-[20px]!" />
+                      {/* On the collapsed rail a label-less badge would vanish,
+                          so show a small dot on the icon instead. */}
+                      {collapsible && badges[item.key] > 0 && (
+                        <span className="md:group-hover:hidden absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full" />
+                      )}
+                    </span>
+                    <span className={`text-[15px] whitespace-nowrap ${hideOnRail}`}>{item.label}</span>
                     {badges[item.key] > 0 && (
-                      <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center">
+                      <span className={`ml-auto min-w-[20px] h-5 px-1.5 bg-error text-on-error text-xs font-bold rounded-full flex items-center justify-center ${hideOnRail}`}>
                         {badges[item.key]}
                       </span>
                     )}
@@ -589,9 +606,9 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
       </div>
       <div className="mt-4 pt-3 border-t border-outline-variant/20 shrink-0">
         {me && (
-          <div className="px-4 pb-2">
+          <div className={`px-4 pb-2 overflow-hidden ${hideOnRail}`}>
             <p className="text-sm text-surface-bright font-medium truncate">{me.fullName || me.username}</p>
-            <p className="text-[10px] font-semibold tracking-wider uppercase text-surface-variant/60">
+            <p className="text-[10px] font-semibold tracking-wider uppercase text-surface-variant/60 whitespace-nowrap">
               {me.role === 'OWNER' ? 'Owner' : me.role === 'MANAGER' ? 'Manager'
                 : me.role === 'ACCOUNTANT' ? 'Accountant' : me.role === 'SUPPORT' ? 'Support' : me.role}
               {me.breakGlass ? ' · fallback login' : ''}
@@ -600,10 +617,13 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me }) 
         )}
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10 rounded-lg cursor-pointer transition-colors"
+          title={collapsible ? 'Logout' : undefined}
+          className={`w-full flex items-center gap-3 px-4 py-2.5 text-surface-variant hover:text-surface-bright hover:bg-surface-container-highest/10 rounded-lg cursor-pointer transition-colors ${
+            collapsible ? 'md:px-0 md:justify-center md:group-hover:px-4 md:group-hover:justify-start' : ''
+          }`}
         >
-          <Icon name="logout" className="text-[20px]!" />
-          <span className="text-base">Logout</span>
+          <Icon name="logout" className="text-[20px]! shrink-0" />
+          <span className={`text-base whitespace-nowrap ${hideOnRail}`}>Logout</span>
         </button>
       </div>
     </div>
@@ -1081,9 +1101,11 @@ function Shell({ auth, onLogout }) {
         </div>
       )}
 
-      {/* Desktop sidebar */}
-      <nav className={`w-64 fixed left-0 ${demo ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'} bg-inverse-surface shadow-md hidden md:flex flex-col z-40`}>
-        <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />
+      {/* Desktop sidebar — a slim icon rail that expands to reveal labels
+          while hovered. It's fixed, so the expansion overlays the content
+          rather than reflowing it; the main margin stays at the rail width. */}
+      <nav className={`group w-16 hover:w-64 fixed left-0 ${demo ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'} bg-inverse-surface shadow-md hidden md:flex flex-col z-40 overflow-hidden transition-[width] duration-200 ease-out`}>
+        <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} collapsible />
       </nav>
 
       {/* Mobile drawer */}
@@ -1097,7 +1119,7 @@ function Shell({ auth, onLogout }) {
       )}
 
       {/* Top bar */}
-      <header className={`fixed ${demo ? 'top-8' : 'top-0'} right-0 w-full md:w-[calc(100%-16rem)] h-16 bg-surface shadow-sm z-30 flex justify-between items-center px-5 md:px-6`}>
+      <header className={`fixed ${demo ? 'top-8' : 'top-0'} right-0 w-full md:w-[calc(100%-4rem)] h-16 bg-surface shadow-sm z-30 flex justify-between items-center px-5 md:px-6`}>
         <div className="flex items-center gap-3">
           <button className="md:hidden p-2 -ml-2 text-on-surface cursor-pointer" onClick={() => setDrawer(true)} aria-label="Open menu">
             <Icon name="menu" />
@@ -1120,7 +1142,7 @@ function Shell({ auth, onLogout }) {
           below that left the header running wider than the content under it.
           2400px only bites on an ultrawide, where full-bleed table rows
           would be a worse problem than a margin. */}
-      <main className={`md:ml-64 ${demo ? 'pt-32' : 'pt-24'} px-5 md:px-8 pb-8 max-w-[2400px]`}>
+      <main className={`md:ml-16 ${demo ? 'pt-32' : 'pt-24'} px-5 md:px-8 pb-8 max-w-[2400px]`}>
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'leads' && <LeadsPage auth={auth} />}
