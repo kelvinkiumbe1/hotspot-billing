@@ -4924,7 +4924,7 @@ function Settings({ auth }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelCls} htmlFor="mk-host">IP Address / Host</label>
-              <input id="mk-host" className={inputCls} placeholder="192.168.88.1" type="text" value={form.host} onChange={(e) => set('host', e.target.value)} />
+              <input id="mk-host" className={inputCls} placeholder="e.g. 192.168.88.1" type="text" value={form.host} onChange={(e) => set('host', e.target.value)} />
             </div>
             <div>
               <label className={labelCls} htmlFor="mk-port">API Port</label>
@@ -4933,12 +4933,12 @@ function Settings({ auth }) {
             </div>
             <div>
               <label className={labelCls} htmlFor="mk-user">Username</label>
-              <input id="mk-user" className={inputCls} placeholder="admin" type="text" value={form.username} onChange={(e) => set('username', e.target.value)} />
+              <input id="mk-user" className={inputCls} placeholder="e.g. admin" type="text" value={form.username} onChange={(e) => set('username', e.target.value)} />
             </div>
             <div>
               <label className={labelCls} htmlFor="mk-pass">Password</label>
               <div className="relative">
-                <input id="mk-pass" className={`${inputCls} pr-12`} placeholder="••••••••" type={showPass ? 'text' : 'password'} value={form.password} onChange={(e) => set('password', e.target.value)} />
+                <input id="mk-pass" className={`${inputCls} pr-12`} placeholder="Router API password" type={showPass ? 'text' : 'password'} value={form.password} onChange={(e) => set('password', e.target.value)} />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
