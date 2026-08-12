@@ -233,7 +233,10 @@
 
     // Play the hero video only on wide screens with motion allowed — keeps
     // mobile data down and respects reduced-motion (the poster shows instead).
-    (function () {
+    // NB: leading semicolon is required — without it JS reads the previous
+    // line as `null(...)` (ASI won't split `null\n(`), throwing on load and
+    // stopping every listener below from attaching.
+    ;(function () {
       const v = $('hero')
       const wide = window.matchMedia('(min-width: 901px)').matches
       const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
