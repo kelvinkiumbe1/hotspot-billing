@@ -168,6 +168,18 @@ body {
 }
 
 /* Each screen of the payment flow slides in as one unit. */
+/* Floating ghost on the 404 page */
+@keyframes ghost-float {
+  0%, 100% { transform: translateY(-6px); }
+  50% { transform: translateY(6px); }
+}
+.ghost-float {
+  animation: ghost-float 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-float { animation: none; }
+}
+
 @keyframes screen-enter {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }

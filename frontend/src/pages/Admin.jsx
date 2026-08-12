@@ -2341,9 +2341,222 @@ function subscriberState(s) {
   return { label: 'Active', cls: 'bg-secondary-container text-on-secondary-container' }
 }
 
+/* Minimal RFC-4180-ish CSV parser: handles quoted fields, embedded commas and
+   newlines, and doubled "" escapes. Returns an array of string arrays. */
+function parseCsv(text) {
+  const rows = []
+  let row = []
+  let field = ''
+  let inQuotes = false
+  const s = String(text).replace(/\r\n?/g, '\n')
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++ } else inQuotes = false
+      } else field += c
+    } else if (c === '"') inQuotes = true
+    else if (c === ',') { row.push(field); field = '' }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
+    else field += c
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row) }
+  return rows
+}
+
+const SAMPLE_CSV = `fullName,phoneNumber,pppoeUsername,pppoePassword,bandwidth,monthlyFee,expiry
+Mary Kamau,254712345678,mkamau,secret12,10M/10M,2500,2026-09-30
+John Otieno,254720000000,jotieno,,5,1500,30/09/2026`
+
+/* Bulk-import subscribers from a CSV exported by a previous system. Parses on
+   the client, previews, then posts the rows to /admin/subscribers/import. No
+   M-Pesa prompt and no payment record is created — an optional expiry column
+   preserves the time each customer already has. */
+function ImportSubscribersModal({ auth, onClose, onDone }) {
+  const [rows, setRows] = useState([])
+  const [parseErr, setParseErr] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState(null)
+
+  function parse(raw) {
+    setParseErr(null)
+    setResult(null)
+    try {
+      const recs = parseCsv(raw).filter((r) => r.some((c) => c && c.trim()))
+      if (recs.length < 2) { setRows([]); setParseErr('Need a header row plus at least one data row.'); return }
+      const header = recs[0].map((h) => h.trim().toLowerCase())
+      const find = (...names) => header.findIndex((h) => names.includes(h))
+      const col = {
+        fullName: find('fullname', 'name', 'full name', 'customer', 'customer name'),
+        phoneNumber: find('phonenumber', 'phone', 'phone number', 'msisdn', 'mobile'),
+        pppoeUsername: find('pppoeusername', 'username', 'user', 'pppoe', 'account'),
+        pppoePassword: find('pppoepassword', 'password', 'pass', 'pppoe password'),
+        bandwidth: find('bandwidth', 'speed', 'plan', 'mbps'),
+        monthlyFee: find('monthlyfee', 'fee', 'amount', 'monthly', 'price'),
+        expiry: find('expiry', 'expires', 'expiry date', 'paiduntil', 'due', 'due date', 'next due'),
+      }
+      if (col.fullName < 0 || col.pppoeUsername < 0) {
+        setRows([]); setParseErr('CSV must include at least "fullName" and "pppoeUsername" columns.'); return
+      }
+      const get = (r, i) => (i >= 0 && r[i] != null ? r[i].trim() : '')
+      const parsed = recs.slice(1).map((r) => ({
+        fullName: get(r, col.fullName),
+        phoneNumber: get(r, col.phoneNumber),
+        pppoeUsername: get(r, col.pppoeUsername),
+        pppoePassword: get(r, col.pppoePassword),
+        bandwidth: get(r, col.bandwidth),
+        monthlyFee: get(r, col.monthlyFee) ? Number(get(r, col.monthlyFee).replace(/[^0-9.]/g, '')) : null,
+        expiry: get(r, col.expiry),
+      }))
+      setRows(parsed)
+    } catch (e) {
+      setRows([]); setParseErr('Could not read the CSV: ' + e.message)
+    }
+  }
+
+  function onFile(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = () => parse(String(reader.result))
+    reader.readAsText(f)
+  }
+
+  async function doImport() {
+    setBusy(true)
+    setResult(null)
+    try {
+      const res = await api('/admin/subscribers/import', { method: 'POST', auth, body: rows })
+      setResult(res)
+      if (res.created > 0) onDone()
+    } catch (e) {
+      setResult({ error: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const invalid = rows.filter((r) => !r.fullName || !r.pppoeUsername).length
+
+  return (
+    <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)] max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-center shrink-0">
+          <div>
+            <h3 className="text-lg font-semibold text-on-surface">Import subscribers</h3>
+            <p className="text-xs text-on-surface-variant">Bring customers over from another system via CSV.</p>
+          </div>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-error p-1 rounded-full hover:bg-error/10 cursor-pointer" aria-label="Close"><Icon name="close" /></button>
+        </div>
+
+        <div className="p-6 overflow-y-auto">
+          {!result && (
+            <>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <label className="border border-outline-variant text-on-surface text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:bg-surface-container cursor-pointer">
+                  <Icon name="attach_file" /> Choose CSV file
+                  <input type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
+                </label>
+                <button onClick={() => parse(SAMPLE_CSV)} className="text-sm text-primary hover:underline cursor-pointer">Load a sample</button>
+                <span className="text-xs text-on-surface-variant">or paste below</span>
+              </div>
+
+              <textarea
+                rows={6}
+                placeholder={'fullName,phoneNumber,pppoeUsername,pppoePassword,bandwidth,monthlyFee,expiry\nMary Kamau,254712345678,mkamau,secret12,10M/10M,2500,2026-09-30'}
+                onChange={(e) => parse(e.target.value)}
+                className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+
+              <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                Required columns: <code className="text-primary">fullName</code>, <code className="text-primary">pppoeUsername</code>.
+                Optional: phoneNumber, pppoePassword (auto-generated if blank), bandwidth (e.g. <code>10M/10M</code> or just <code>5</code>),
+                monthlyFee, expiry (<code>YYYY-MM-DD</code>). No M-Pesa prompt is sent and no payment is recorded — the expiry just preserves remaining time.
+              </p>
+
+              {parseErr && <p className="text-sm text-error mt-3">{parseErr}</p>}
+
+              {rows.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-on-surface mb-2">
+                    <span className="font-semibold">{rows.length}</span> row{rows.length === 1 ? '' : 's'} ready
+                    {invalid > 0 && <span className="text-error"> · {invalid} missing name/username (will fail)</span>}
+                  </p>
+                  <div className="border border-outline-variant rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-container text-on-surface-variant sticky top-0">
+                        <tr><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">PPPoE user</th><th className="text-left px-3 py-2">Phone</th><th className="text-left px-3 py-2">Fee</th><th className="text-left px-3 py-2">Expiry</th></tr>
+                      </thead>
+                      <tbody>
+                        {rows.slice(0, 50).map((r, i) => (
+                          <tr key={i} className="border-t border-outline-variant/50">
+                            <td className={`px-3 py-1.5 ${!r.fullName ? 'text-error' : 'text-on-surface'}`}>{r.fullName || '— missing —'}</td>
+                            <td className={`px-3 py-1.5 font-mono ${!r.pppoeUsername ? 'text-error' : 'text-on-surface-variant'}`}>{r.pppoeUsername || '— missing —'}</td>
+                            <td className="px-3 py-1.5 text-on-surface-variant">{r.phoneNumber || '—'}</td>
+                            <td className="px-3 py-1.5 text-on-surface-variant tabular-nums">{r.monthlyFee || '—'}</td>
+                            <td className="px-3 py-1.5 text-on-surface-variant">{r.expiry || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {rows.length > 50 && <p className="text-[11px] text-on-surface-variant mt-1">Showing first 50 of {rows.length}.</p>}
+                </div>
+              )}
+            </>
+          )}
+
+          {result && !result.error && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="check_circle" filled className="text-secondary text-[22px]!" />
+                <p className="text-base font-semibold text-on-surface">Imported {result.created} subscriber{result.created === 1 ? '' : 's'}</p>
+              </div>
+              <ul className="text-sm text-on-surface-variant space-y-1">
+                {result.generatedPasswords > 0 && <li>· {result.generatedPasswords} password{result.generatedPasswords === 1 ? '' : 's'} were auto-generated (edit each subscriber to view/set them).</li>}
+                {result.failed > 0 && <li className="text-error">· {result.failed} row{result.failed === 1 ? '' : 's'} failed:</li>}
+              </ul>
+              {result.failed > 0 && (
+                <div className="mt-2 border border-outline-variant rounded-lg max-h-40 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {result.errors.map((e, i) => (
+                        <tr key={i} className="border-t border-outline-variant/50 first:border-t-0">
+                          <td className="px-3 py-1.5 text-on-surface-variant">Row {e.row}</td>
+                          <td className="px-3 py-1.5 font-mono text-on-surface-variant">{e.pppoeUsername || '—'}</td>
+                          <td className="px-3 py-1.5 text-error">{e.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+          {result && result.error && <p className="text-sm text-error">{result.error}</p>}
+        </div>
+
+        <div className="p-6 border-t border-outline-variant/50 flex justify-end gap-2 shrink-0">
+          {!result ? (
+            <>
+              <button onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold border border-outline-variant text-on-surface hover:bg-surface-container cursor-pointer">Cancel</button>
+              <button onClick={doImport} disabled={busy || rows.length === 0} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:opacity-90 disabled:opacity-50 cursor-pointer">
+                {busy ? 'Importing…' : `Import ${rows.length || ''} subscriber${rows.length === 1 ? '' : 's'}`}
+              </button>
+            </>
+          ) : (
+            <button onClick={onClose} className="px-4 h-10 rounded-md text-sm font-semibold bg-primary text-on-primary hover:opacity-90 cursor-pointer">Done</button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Subscribers({ auth }) {
   const [subs, setSubs] = useState(null)
   const [modal, setModal] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [actionId, setActionId] = useState(null) // row with the payment form open
   const [months, setMonths] = useState(1)
   const [msg, setMsg] = useState(null)
@@ -2377,13 +2590,22 @@ function Subscribers({ auth }) {
           <h2 className="text-xl font-semibold tracking-tight text-on-surface">Subscribers</h2>
           <p className="text-xs text-on-surface-variant">Monthly PPPoE home &amp; office customers.</p>
         </div>
-        <button
-          onClick={() => setModal(true)}
-          className="bg-primary text-on-primary text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap cursor-pointer"
-        >
-          <Icon name="add" />
-          Add Subscriber
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="border border-outline-variant text-on-surface text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:bg-surface-container transition-colors active:scale-[0.98] whitespace-nowrap cursor-pointer"
+          >
+            <Icon name="download" />
+            Import CSV
+          </button>
+          <button
+            onClick={() => setModal(true)}
+            className="bg-primary text-on-primary text-sm font-semibold px-4 h-10 rounded-md flex items-center gap-1.5 hover:opacity-90 transition-opacity active:scale-[0.98] whitespace-nowrap cursor-pointer"
+          >
+            <Icon name="add" />
+            Add Subscriber
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
@@ -2541,6 +2763,7 @@ function Subscribers({ auth }) {
       </div>
 
       {modal && <SubscriberModal auth={auth} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
+      {importOpen && <ImportSubscribersModal auth={auth} onClose={() => setImportOpen(false)} onDone={() => load()} />}
       {detailId && subs.find((s) => s.id === detailId) && (
         <SubscriberDetail
           auth={auth}
