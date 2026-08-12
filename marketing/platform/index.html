@@ -345,5 +345,25 @@
       }
     })();
   </script>
+  <script>
+    // Local-dev link shim. In production the marketing page, the app and the
+    // signup service sit behind one domain, so the root-relative /admin and
+    // /start links resolve same-origin. In local dev they're on separate
+    // ports (marketing is served statically, e.g. :5500), so those links would
+    // 404 on the static server. Only on localhost, repoint them at the right
+    // ports. On any real hostname this does nothing.
+    (function () {
+      var h = location.hostname;
+      if (h !== 'localhost' && h !== '127.0.0.1') return;
+      var APP = 'http://localhost:5173';     // Vite app: customer portal + /admin
+      var SIGNUP = 'http://localhost:8090';  // control-plane: /start signup
+      document.querySelectorAll('a[href^="/admin"]').forEach(function (a) {
+        a.href = APP + a.getAttribute('href');
+      });
+      document.querySelectorAll('a[href^="/start"]').forEach(function (a) {
+        a.href = SIGNUP + a.getAttribute('href');
+      });
+    })();
+  </script>
 </body>
 </html>
