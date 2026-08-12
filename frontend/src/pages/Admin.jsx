@@ -192,7 +192,7 @@ export default function Admin() {
 /* ------------------------------------------------------------------ */
 
 function Login({ onLogin }) {
-  const [username, setUsername] = useState('admin')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [needCode, setNeedCode] = useState(false)
@@ -284,7 +284,7 @@ function Login({ onLogin }) {
           <h2 className="text-lg font-semibold text-on-surface">Sign in to Zidi</h2>
           <div>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="admin-user">
-              Username
+              Email or username
             </label>
             <input
               id="admin-user"
@@ -292,7 +292,8 @@ function Login({ onLogin }) {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              placeholder="you@example.com"
+              className="w-full h-12 bg-surface border border-outline-variant rounded-lg px-4 text-base text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
           <div>

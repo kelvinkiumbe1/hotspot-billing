@@ -41,6 +41,15 @@
   --color-tertiary: #495167;
 }
 
+/* Leaflet's map panes and controls carry z-index up to ~1000, which would
+   render the fibre map on top of the fixed sidebar/top bar (e.g. when the
+   sidebar expands on hover). Giving the map container an explicit z-index
+   contains all of that inside its own stacking context, so the chrome
+   (sidebar z-40, top bar z-30) always sits above the map. */
+.leaflet-container {
+  z-index: 0;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
