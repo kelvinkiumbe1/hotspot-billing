@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api.js'
 import {
@@ -660,6 +660,89 @@ function SecuritySection({ auth }) {
         {saved && <span className="text-sm text-secondary">Saved.</span>}
       </div>
     </form>
+  )
+}
+
+/* WhatsApp self-service assistant: how to connect Meta's webhook, plus a live
+   preview so the operator can chat as a customer and see the bot reply. */
+function WhatsappAssistantPanel({ auth }) {
+  const [cfg, setCfg] = useState(null)
+  const [msgs, setMsgs] = useState([])
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const scroller = useRef(null)
+  // A stable "customer" number for this preview session.
+  const phone = useRef('2547' + Math.floor(10000000 + Math.random() * 89999999))
+
+  useEffect(() => { api('/admin/whatsapp/config', { auth }).then(setCfg).catch(() => {}) }, [auth])
+  useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [msgs])
+
+  const webhookUrl = cfg ? window.location.origin + cfg.webhookPath : ''
+  const copy = (v) => { try { navigator.clipboard.writeText(v) } catch { /* ignore */ } }
+
+  async function send() {
+    const q = text.trim()
+    if (!q || busy) return
+    setText('')
+    setMsgs((m) => [...m, { who: 'you', text: q }])
+    setBusy(true)
+    try {
+      const r = await api('/admin/whatsapp/simulate', { method: 'POST', auth, body: { phone: phone.current, text: q } })
+      setMsgs((m) => [...m, { who: 'bot', text: r.reply }])
+    } catch (e) {
+      setMsgs((m) => [...m, { who: 'bot', text: '(error: ' + e.message + ')' }])
+    } finally { setBusy(false) }
+  }
+
+  const Field = ({ label, value }) => (
+    <div>
+      <p className="text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant mb-1">{label}</p>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 min-w-0 truncate bg-surface border border-outline-variant rounded-md px-3 py-2 text-xs text-on-surface font-mono">{value || '—'}</code>
+        <button onClick={() => copy(value)} className="text-xs font-semibold px-3 h-9 rounded-md border border-outline-variant text-on-surface hover:bg-surface-container cursor-pointer">Copy</button>
+      </div>
+    </div>
+  )
+
+  return (
+    <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant mt-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon name="chat" filled className="text-primary text-[18px]!" />
+        <span className="text-base font-semibold">WhatsApp self-service assistant</span>
+      </div>
+      <p className="text-xs text-on-surface-variant mb-4">
+        Customers buy, check status, renew, resend their code or reach support in a WhatsApp chat — in English or Kiswahili, paying by M-Pesa.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2 mb-4">
+        <Field label="Webhook URL (paste in Meta)" value={webhookUrl} />
+        <Field label="Verify token" value={cfg?.verifyToken} />
+      </div>
+      <ol className="text-xs text-on-surface-variant list-decimal ml-4 space-y-1 mb-5">
+        <li>In Meta → WhatsApp → Configuration, set the <b>Callback URL</b> and <b>Verify token</b> above, then subscribe to the <b>messages</b> field.</li>
+        <li>Make sure your WhatsApp number credentials are filled in above (they power both sending and the bot).</li>
+      </ol>
+
+      <p className="text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Try it — chat as a customer</p>
+      <div ref={scroller} className="h-56 overflow-y-auto rounded-lg border border-outline-variant bg-surface p-3 space-y-2">
+        {msgs.length === 0 && <p className="text-xs text-on-surface-variant">Type <b>hi</b> to start. Try <b>1</b> to buy, <b>2</b> for status, <b>sw</b> for Kiswahili.</p>}
+        {msgs.map((m, i) => (
+          <div key={i} className={`flex ${m.who === 'you' ? 'justify-end' : 'justify-start'}`}>
+            <span className={`max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 text-sm ${m.who === 'you' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'}`}>{m.text}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input
+          className={`${INPUT_CLS} flex-1`}
+          placeholder="Type a message…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') send() }}
+        />
+        <button onClick={send} disabled={busy} className="bg-primary text-on-primary text-sm font-semibold px-4 h-11 rounded-md disabled:opacity-60 cursor-pointer">Send</button>
+      </div>
+    </section>
   )
 }
 
@@ -1497,6 +1580,7 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="SMS & WhatsApp" subtitle="Your own gateway accounts, so message costs land on you." />
               <MessagingSection auth={auth} />
+              <WhatsappAssistantPanel auth={auth} />
             </>
           )}
           {current === 'email' && (

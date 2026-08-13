@@ -73,6 +73,16 @@ public class WhatsappWebhookController {
         return Map.of("reply", bot.replyWithPhone(phone, sim.text()));
     }
 
+    /** What the operator needs to connect Meta's webhook to this account. */
+    @GetMapping("/api/admin/whatsapp/config")
+    public Map<String, Object> config() {
+        boolean set = verifyToken != null && !verifyToken.isBlank();
+        return Map.of(
+                "webhookPath", "/api/whatsapp/webhook",
+                "verifyToken", set ? verifyToken : "",
+                "configured", set);
+    }
+
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> asList(Object o) {
         return o instanceof List ? (List<Map<String, Object>>) o : List.of();

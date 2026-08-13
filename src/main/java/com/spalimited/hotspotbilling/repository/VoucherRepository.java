@@ -24,4 +24,6 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     long countByStatus(Voucher.Status status);
 
     List<Voucher> findTop100ByOrderByCreatedAtDesc();
+
+    List<Voucher> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
 }

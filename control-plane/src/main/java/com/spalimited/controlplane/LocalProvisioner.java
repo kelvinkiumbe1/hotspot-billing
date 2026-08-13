@@ -170,6 +170,9 @@ public class LocalProvisioner implements Provisioner {
         if (platformToken != null && !platformToken.isBlank()) {
             env.put("ZIDI_PLATFORM_TOKEN", platformToken);
         }
+        // A per-tenant WhatsApp webhook verify token, shown in Settings so the
+        // operator can paste it into Meta's webhook config.
+        env.put("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "zidi-" + slug);
 
         Process process = pb.start();
         running.put(slug, process);
