@@ -40,8 +40,9 @@ public class WhatsappBotService {
     private final SupportTicketRepository tickets;
     private final VoucherRepository vouchers;
     private final PortalSettingsService portalSettings;
+    private final ReferralService referralService;
 
-    private enum Step { MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG }
+    private enum Step { MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE }
 
     private static final class Session {
         Step step = Step.MENU;
@@ -59,8 +60,20 @@ public class WhatsappBotService {
     // EN / SW message pairs. %s / %d are filled per call.
     private static final Map<String, String[]> M = Map.ofEntries(
             Map.entry("menu", new String[]{
-                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — My status\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n\n_Reply *sw* for Kiswahili._",
-                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Hali yangu\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n\n_Reply *en* for English._"}),
+                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — My status\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n\n_Reply *sw* for Kiswahili._",
+                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Hali yangu\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n\n_Reply *en* for English._"}),
+            Map.entry("refShare", new String[]{
+                    "🎁 *Refer a friend & earn!*\nYour code: *%s*\nShare it — when a friend joins with it and makes their first purchase, you get *%d* free WiFi minutes and they get *%d*.\n\nHave a code from a friend? Reply with it now to claim, or *menu*.",
+                    "🎁 *Mpe rafiki upate bonasi!*\nNambari yako: *%s*\nMtumie — rafiki akijiunga na kununua kwa mara ya kwanza, wewe utapata dakika *%d* za WiFi bure na yeye dakika *%d*.\n\nUna nambari kutoka kwa rafiki? Ijibu sasa, au *menu*."}),
+            Map.entry("refOff", new String[]{
+                    "The referral programme isn't available right now. Reply *menu*.",
+                    "Programu ya rufaa haipatikani sasa. Jibu *menu*."}),
+            Map.entry("refClaimOk", new String[]{
+                    "✅ Referral code applied! You'll *both* get free WiFi minutes when you make your first purchase. Reply *1* to buy now, or *menu*.",
+                    "✅ Nambari ya rufaa imewekwa! *Nyote* mtapata dakika za WiFi bure ukinunua kwa mara ya kwanza. Jibu *1* kununua, au *menu*."}),
+            Map.entry("refClaimFail", new String[]{
+                    "Sorry, that code couldn't be applied: %s\nReply *menu*.",
+                    "Samahani, nambari hiyo haikubaliki: %s\nJibu *menu*."}),
             Map.entry("choose", new String[]{"*Choose a plan* — reply with its number:\n", "*Chagua kifurushi* — jibu na nambari yake:\n"}),
             Map.entry("back", new String[]{"\nReply *menu* to go back.", "\nJibu *menu* kurudi."}),
             Map.entry("payPrompt", new String[]{
@@ -136,6 +149,7 @@ public class WhatsappBotService {
                     return t(s, "renewMonths");
                 }
                 case "5" -> { return resend(s, fromPhone); }
+                case "6" -> { return referralEntry(s, fromPhone); }
                 default -> { /* fall through to reply() */ }
             }
         }
@@ -149,6 +163,7 @@ public class WhatsappBotService {
             case PAY_PHONE -> handleBuyPhone(s, fromPhone, text);
             case RENEW_MONTHS -> handleRenewMonths(s, text);
             case SUPPORT_MSG -> handleSupport(s, fromPhone, text);
+            case REFERRAL_CODE -> handleReferralCode(s, fromPhone, text);
         };
     }
 
@@ -222,6 +237,29 @@ public class WhatsappBotService {
                 .build());
         reset(s);
         return t(s, "supportDone", ticket.getId());
+    }
+
+    /** Shows the customer's referral code + reward terms, and opens the code-entry step. */
+    private String referralEntry(Session s, String fromPhone) {
+        var rs = referralService.settings();
+        if (!rs.isEnabled()) {
+            s.step = Step.MENU;
+            return t(s, "refOff");
+        }
+        var r = referralService.codeFor(loose(fromPhone));
+        s.step = Step.REFERRAL_CODE;
+        return t(s, "refShare", r.getCode(), rs.getReferrerMinutes(), rs.getRefereeMinutes());
+    }
+
+    /** A new customer replies with a friend's code to claim the referral bonus. */
+    private String handleReferralCode(Session s, String fromPhone, String text) {
+        reset(s);
+        try {
+            referralService.submitClaim(loose(fromPhone), text);
+            return t(s, "refClaimOk");
+        } catch (Exception e) {
+            return t(s, "refClaimFail", e.getMessage());
+        }
     }
 
     private String statusFor(Session s, String fromPhone) {
