@@ -33,6 +33,7 @@ public class SubscriptionService {
     private final PortalSettingsService portalSettingsService;
     private final InvoiceService invoiceService;
     private final EtimsService etimsService;
+    private final ReferralService referralService;
 
     @org.springframework.beans.factory.annotation.Value("${app.portal-url}")
     private String portalUrl;
@@ -204,6 +205,12 @@ public class SubscriptionService {
                     sub.getMonthlyFee().multiply(BigDecimal.valueOf(months)));
         } catch (Exception e) {
             log.warn("eTIMS record failed for subscriber {}: {}", sub.getPppoeUsername(), e.getMessage());
+        }
+        // Settle a pending referral if this is the referred customer's first buy.
+        try {
+            referralService.settleIfPending(sub.getPhoneNumber());
+        } catch (Exception e) {
+            log.warn("Referral settle failed for subscriber {}: {}", sub.getPppoeUsername(), e.getMessage());
         }
         log.info("Extended subscriber {} by {} month(s) to {}", sub.getPppoeUsername(), months, sub.getPaidUntil());
     }

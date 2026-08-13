@@ -35,6 +35,7 @@ public class PaymentService {
     private final MpesaService mpesaService;
     private final VoucherService voucherService;
     private final EtimsService etimsService;
+    private final ReferralService referralService;
     private final CustomPlanService customPlanService;
     private final PromotionService promotionService;
     private final NotificationService notificationService;
@@ -208,6 +209,12 @@ public class PaymentService {
                     payment.getPhoneNumber(), "Hotspot: " + planName, payment.getAmount());
         } catch (Exception e) {
             log.warn("eTIMS record failed for payment {}: {}", payment.getId(), e.getMessage());
+        }
+        // Settle a pending referral if this is the referred customer's first buy.
+        try {
+            referralService.settleIfPending(payment.getPhoneNumber());
+        } catch (Exception e) {
+            log.warn("Referral settle failed for payment {}: {}", payment.getId(), e.getMessage());
         }
         return voucher;
     }
