@@ -26,7 +26,14 @@ public class NotificationTemplate {
         SUBSCRIPTION_PAID,
         EXPIRY_REMINDER,
         SUBSCRIPTION_SUSPENDED,
-        SUBSCRIPTION_EXTENDED
+        SUBSCRIPTION_EXTENDED,
+        HOTSPOT_EXPIRY_NUDGE,
+        HOTSPOT_DATA_NUDGE,
+        FUP_NOTICE,
+        DUNNING_RETRY,
+        WINBACK_FIRST,
+        WINBACK_SECOND,
+        WINBACK_FINAL
     }
 
     @Id

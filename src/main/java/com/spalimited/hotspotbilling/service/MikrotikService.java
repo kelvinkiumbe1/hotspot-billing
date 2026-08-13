@@ -489,6 +489,25 @@ public class MikrotikService {
         log.info("Disconnected {} ({}) from {}", user, kind, router.getName());
     }
 
+    /**
+     * Sets a hotspot user's rate-limit, e.g. "2M/1M" — used to throttle a pass
+     * that has crossed its fair-use cap. A blank rate clears the limit. Also
+     * kicks the live session so the new limit takes effect on reconnect.
+     */
+    public void setHotspotRate(Router router, String user, String rate) {
+        if (!live(router)) {
+            throw new IllegalStateException("MikroTik integration is disabled");
+        }
+        try (ApiConnection connection = login(router)) {
+            String limit = rate == null ? "" : rate.trim();
+            connection.execute("/ip/hotspot/user/set [find name=" + user + "] rate-limit=" + limit);
+            connection.execute("/ip/hotspot/active/remove [find user=" + user + "]");
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Throttled hotspot user {} to '{}' on {}", user, rate, router.getName());
+    }
+
     /** RouterOS uptime like "1w2d3h4m5s", "6h31m8s" or "45s" → seconds. */
     public static long parseUptime(String raw) {
         if (raw == null || raw.isBlank()) {

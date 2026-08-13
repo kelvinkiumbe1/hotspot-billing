@@ -40,6 +40,11 @@ public class RouterMonitorJob {
     private final MessagingSettingsService messagingSettings;
     private final OperatorAlertSettingsService alertSettings;
     private final SubscriptionService subscriptionService;
+    private final FupService fupService;
+
+    /** Alert the operator when one voucher is used on several devices at once. */
+    @org.springframework.beans.factory.annotation.Value("${hotspot.sharing.alert-enabled:true}")
+    private boolean sharingAlertEnabled;
 
     @Scheduled(fixedDelay = 120_000, initialDelay = 20_000)
     @Transactional
@@ -99,6 +104,26 @@ public class RouterMonitorJob {
                         }
                     } catch (Exception e) {
                         log.warn("Hotspot reconcile failed for {}: {}", router.getName(), e.getMessage());
+                    }
+                    // A reboot can also clear PPPoE 'disabled' flags — re-assert
+                    // that suspended (lapsed) subscribers stay off, so none slip
+                    // back online after the router recovers.
+                    try {
+                        int reasserted = 0;
+                        for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.SUSPENDED)) {
+                            try {
+                                mikrotikService.setPppoeEnabled(sub, false);
+                                reasserted++;
+                            } catch (Exception ignore) {
+                                // one bad user shouldn't stop the rest
+                            }
+                        }
+                        if (reasserted > 0) {
+                            audit.system("router.reassert", "Re-disabled " + reasserted
+                                    + " suspended subscriber(s) after " + router.getName() + " recovered");
+                        }
+                    } catch (Exception e) {
+                        log.warn("PPPoE re-assert failed for {}: {}", router.getName(), e.getMessage());
                     }
                 }
             }
@@ -166,6 +191,7 @@ public class RouterMonitorJob {
             log.debug("Traffic capture skipped for {}: {}", router.getName(), e.getMessage());
             return;
         }
+        detectSharing(router, sessions);
         Instant bucket = Instant.now().truncatedTo(ChronoUnit.HOURS);
         for (Map<String, String> session : sessions) {
             if (!"hotspot".equals(session.get("kind"))) {
@@ -188,10 +214,18 @@ public class RouterMonitorJob {
             long deltaDown = observedDown >= voucher.getLastBytesOut() ? observedDown - voucher.getLastBytesOut() : observedDown;
             voucher.setLastBytesIn(observedUp);
             voucher.setLastBytesOut(observedDown);
+            voucher.setUsedBytes(voucher.getUsedBytes() + Math.max(0, deltaUp) + Math.max(0, deltaDown));
             if (voucher.getRouterId() == null) {
                 voucher.setRouterId(router.getId());
             }
             vouchers.save(voucher);
+
+            // Fair-use: throttle/block/notify once the pass crosses its cap.
+            try {
+                fupService.enforce(router, voucher);
+            } catch (Exception e) {
+                log.warn("FUP enforcement failed for voucher {}: {}", voucher.getId(), e.getMessage());
+            }
 
             if (deltaUp <= 0 && deltaDown <= 0) {
                 continue;
@@ -243,6 +277,49 @@ public class RouterMonitorJob {
             }
         } catch (Exception e) {
             log.warn("Outage compensation failed for {}: {}", router.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Flags voucher sharing: one code active on two or more distinct devices at
+     * the same time. Alerts the operator once per pass (guarded by
+     * {@code sharingFlaggedAt}); it stays an alert rather than an auto-kick so a
+     * customer's own phone-plus-laptop isn't punished.
+     */
+    private void detectSharing(Router router, List<Map<String, String>> sessions) {
+        if (!sharingAlertEnabled) {
+            return;
+        }
+        Map<String, java.util.Set<String>> macsByCode = new java.util.HashMap<>();
+        for (Map<String, String> session : sessions) {
+            if (!"hotspot".equals(session.get("kind"))) {
+                continue;
+            }
+            String code = session.get("user");
+            String mac = session.get("macAddress");
+            if (code == null || code.isBlank() || mac == null || mac.isBlank()) {
+                continue;
+            }
+            macsByCode.computeIfAbsent(code, k -> new java.util.HashSet<>()).add(mac);
+        }
+        for (Map.Entry<String, java.util.Set<String>> entry : macsByCode.entrySet()) {
+            if (entry.getValue().size() < 2) {
+                continue; // a single device — normal
+            }
+            Voucher v = vouchers.findByCode(entry.getKey()).orElse(null);
+            if (v == null || v.getSharingFlaggedAt() != null) {
+                continue;
+            }
+            audit.system("voucher.sharing", "Voucher " + entry.getKey() + " active on "
+                    + entry.getValue().size() + " devices at once on " + router.getName());
+            String alertPhone = messagingSettings.alertPhone();
+            if (alertPhone != null && !alertPhone.isBlank()) {
+                smsService.trySend(alertPhone, "ALERT: access code " + entry.getKey() + " is being used on "
+                        + entry.getValue().size() + " devices at once (possible sharing).");
+            }
+            v.setSharingFlaggedAt(Instant.now());
+            vouchers.save(v);
+            log.info("Flagged voucher {} as shared across {} devices", entry.getKey(), entry.getValue().size());
         }
     }
 

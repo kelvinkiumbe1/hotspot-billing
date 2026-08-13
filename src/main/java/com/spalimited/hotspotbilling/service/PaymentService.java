@@ -34,6 +34,7 @@ public class PaymentService {
     private final PlanRepository planRepository;
     private final MpesaService mpesaService;
     private final VoucherService voucherService;
+    private final EtimsService etimsService;
     private final CustomPlanService customPlanService;
     private final PromotionService promotionService;
     private final NotificationService notificationService;
@@ -200,6 +201,14 @@ public class PaymentService {
 
         // Reward the customer for the purchase (no-op if loyalty is off).
         loyaltyService.earn(payment.getPhoneNumber(), payment.getAmount());
+
+        // Fiscalise the sale for KRA (no-op until eTIMS is configured).
+        try {
+            etimsService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.HOTSPOT,
+                    payment.getPhoneNumber(), "Hotspot: " + planName, payment.getAmount());
+        } catch (Exception e) {
+            log.warn("eTIMS record failed for payment {}: {}", payment.getId(), e.getMessage());
+        }
         return voucher;
     }
 

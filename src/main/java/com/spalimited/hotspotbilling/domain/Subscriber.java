@@ -60,6 +60,36 @@ public class Subscriber {
     /** The paidUntil we last fired an automatic renewal STK prompt for. */
     private Instant autoStkForExpiry;
 
+    /**
+     * Dunning (failed-payment recovery) state. When an auto-renewal isn't paid,
+     * {@code dunningCycle} holds the paidUntil we're chasing (so a fresh cycle
+     * resets the chase), {@code dunningAttempts} counts retry prompts already
+     * sent, and {@code dunningNextAt} is when the next retry is due. All null/0
+     * when no recovery is in flight; cleared the moment any payment lands.
+     */
+    private Instant dunningCycle;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int dunningAttempts = 0;
+
+    private Instant dunningNextAt;
+
+    /**
+     * Win-back (re-engagement) state, mirroring the dunning fields but running
+     * later and slower: after a customer has stayed lapsed, an escalating series
+     * of come-back messages goes out. {@code winbackCycle} anchors it to the
+     * lapse (so a return-then-relapse resets), {@code winbackStage} counts
+     * messages sent, {@code winbackNextAt} is when the next one is due.
+     */
+    private Instant winbackCycle;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private int winbackStage = 0;
+
+    private Instant winbackNextAt;
+
     /** How the most recent successful payment was made (MPESA/CASH). */
     private String lastPaymentMethod;
 

@@ -26,4 +26,27 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     List<Voucher> findTop100ByOrderByCreatedAtDesc();
 
     List<Voucher> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+
+    /**
+     * Active passes about to run out that haven't been nudged yet — the source
+     * for the "your WiFi is almost up, buy more" WhatsApp/SMS reminder.
+     */
+    List<Voucher> findByStatusAndNudgedAtIsNullAndExpiresAtBetween(
+            Voucher.Status status, Instant from, Instant to);
+
+    /**
+     * Active passes on a data-capped plan that have burned through at least the
+     * threshold share of their cap and haven't had a data nudge yet. Kept in
+     * integer math to stay type-safe: {@code threshold = thresholdPercent *
+     * bytesPerMb}, and both sides are cross-multiplied by 100 to fold in the
+     * percentage without any fractional parameter.
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "select v from Voucher v where v.status = :status"
+                    + " and v.dataNudgedAt is null and v.phoneNumber is not null"
+                    + " and v.plan.dataLimitMb is not null and v.plan.dataLimitMb > 0"
+                    + " and v.usedBytes * 100 >= v.plan.dataLimitMb * :threshold")
+    List<Voucher> findDataNudgeCandidates(
+            @org.springframework.data.repository.query.Param("status") Voucher.Status status,
+            @org.springframework.data.repository.query.Param("threshold") long threshold);
 }

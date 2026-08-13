@@ -15,4 +15,10 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
     List<Subscriber> findByStatus(Subscriber.Status status);
 
     List<Subscriber> findByPhoneNumber(String phoneNumber);
+
+    /** Subscribers with an active dunning cycle whose next retry is now due. */
+    List<Subscriber> findByDunningCycleIsNotNullAndDunningNextAtLessThanEqual(java.time.Instant now);
+
+    /** Lapsed subscribers in a win-back series whose next message is now due. */
+    List<Subscriber> findByWinbackCycleIsNotNullAndWinbackNextAtLessThanEqual(java.time.Instant now);
 }

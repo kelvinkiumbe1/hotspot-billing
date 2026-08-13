@@ -20,20 +20,41 @@ import java.util.Map;
 public class NotificationService {
 
     /** Shipped wording, seeded on first use and editable thereafter. */
-    private static final Map<NotificationTemplate.Key, String> DEFAULTS = Map.of(
-            NotificationTemplate.Key.VOUCHER_ISSUED,
-            "Your {business} access code is {code}. Use it as both WiFi username and password. Thank you!",
-            NotificationTemplate.Key.TRIAL_ISSUED,
-            "Welcome to {business}! Your free trial code is {code}, valid for {minutes} minutes.",
-            NotificationTemplate.Key.SUBSCRIPTION_PAID,
-            "Payment received. Your {business} home internet is active until {date}. Thank you!",
-            NotificationTemplate.Key.EXPIRY_REMINDER,
-            "Reminder: your {business} home internet expires on {date}. Pay KES {amount} to stay connected: {payUrl}",
-            NotificationTemplate.Key.SUBSCRIPTION_SUSPENDED,
-            "Your {business} home internet has been suspended because the subscription expired. "
-                    + "Pay KES {amount} to reconnect instantly: {payUrl}",
-            NotificationTemplate.Key.SUBSCRIPTION_EXTENDED,
-            "Good news! Your {business} home internet has been extended until {date}.");
+    private static final Map<NotificationTemplate.Key, String> DEFAULTS = Map.ofEntries(
+            Map.entry(NotificationTemplate.Key.HOTSPOT_EXPIRY_NUDGE,
+                    "Heads up — your {business} WiFi runs out in about {minutes} min. "
+                            + "Reply to this message to buy more time and stay online. No need to log in again."),
+            Map.entry(NotificationTemplate.Key.HOTSPOT_DATA_NUDGE,
+                    "You've used most of your {business} data — {usedMb}MB of {capMb}MB. "
+                            + "Reply to this message to top up and stay online."),
+            Map.entry(NotificationTemplate.Key.FUP_NOTICE,
+                    "You've reached your {business} fair-use limit of {capMb}MB. "
+                            + "Reply to top up and keep browsing at full speed."),
+            Map.entry(NotificationTemplate.Key.DUNNING_RETRY,
+                    "We couldn't complete your {business} renewal yet. We've sent a fresh M-Pesa request "
+                            + "for KES {amount} — enter your PIN to stay connected, or pay here: {payUrl}"),
+            Map.entry(NotificationTemplate.Key.VOUCHER_ISSUED,
+                    "Your {business} access code is {code}. Use it as both WiFi username and password. Thank you!"),
+            Map.entry(NotificationTemplate.Key.TRIAL_ISSUED,
+                    "Welcome to {business}! Your free trial code is {code}, valid for {minutes} minutes."),
+            Map.entry(NotificationTemplate.Key.SUBSCRIPTION_PAID,
+                    "Payment received. Your {business} home internet is active until {date}. Thank you!"),
+            Map.entry(NotificationTemplate.Key.EXPIRY_REMINDER,
+                    "Reminder: your {business} home internet expires on {date}. Pay KES {amount} to stay connected: {payUrl}"),
+            Map.entry(NotificationTemplate.Key.SUBSCRIPTION_SUSPENDED,
+                    "Your {business} home internet has been suspended because the subscription expired. "
+                            + "Pay KES {amount} to reconnect instantly: {payUrl}"),
+            Map.entry(NotificationTemplate.Key.SUBSCRIPTION_EXTENDED,
+                    "Good news! Your {business} home internet has been extended until {date}."),
+            Map.entry(NotificationTemplate.Key.WINBACK_FIRST,
+                    "We miss you at {business}! Your internet's been off since {date}. "
+                            + "Come back today — pay KES {amount} here: {payUrl}"),
+            Map.entry(NotificationTemplate.Key.WINBACK_SECOND,
+                    "Still saving your spot at {business}. Reconnect now and stay online — "
+                            + "pay KES {amount}: {payUrl}"),
+            Map.entry(NotificationTemplate.Key.WINBACK_FINAL,
+                    "Last call from {business} — we'd love to have you back. "
+                            + "Reconnect today: {payUrl}"));
 
     private final NotificationTemplateRepository templates;
     private final SmsService smsService;

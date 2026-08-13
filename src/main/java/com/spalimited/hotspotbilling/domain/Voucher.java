@@ -63,6 +63,31 @@ public class Voucher {
     private Instant expiresAt;
 
     /**
+     * When the "your WiFi is almost up — buy more" nudge was sent for this pass.
+     * Set once so the hotspot re-purchase reminder can't repeat on every sweep.
+     */
+    private Instant nudgedAt;
+
+    /**
+     * Cumulative bytes (up+down) used on this pass, accumulated by the router
+     * monitor. Unlike {@link #lastBytesIn}/{@link #lastBytesOut} (session-counter
+     * cursors that reset on reconnect) this is a lifetime total, so it can be
+     * compared against a data-bundle plan's cap.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private long usedBytes = 0;
+
+    /** When the "almost out of data — top up" nudge was sent, so it fires once. */
+    private Instant dataNudgedAt;
+
+    /** When a fair-use (FUP) action was applied to this pass, so it fires once. */
+    private Instant fupAppliedAt;
+
+    /** When this pass was flagged as shared across devices, so we alert once. */
+    private Instant sharingFlaggedAt;
+
+    /**
      * Connect-time used so far, in seconds — the app's authoritative total, so
      * a router that reboots and loses its own counter can be handed back the
      * customer's *remaining* time rather than a fresh pass or a lockout.
