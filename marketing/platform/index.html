@@ -74,9 +74,11 @@
 
     .hero{position:relative;padding:96px 0 104px;overflow:hidden}
     .hero-bg{position:absolute;inset:0;z-index:-1}
-    .hero-bg img,.hero-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.18}
-    /* Video sits over the poster image; if it can't play, the poster shows. */
-    .hero-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,6,8,.5),var(--bg) 82%)}
+    .hero-bg img,.hero-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5}
+    /* Video sits over the poster image; if it can't play, the poster shows.
+       Darken the left (text) column and fade the bottom so the footage shows
+       through on the right while the headline stays crisp. */
+    .hero-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,6,8,.92) 20%,rgba(6,6,8,.28) 72%),linear-gradient(180deg,rgba(6,6,8,.3),var(--bg) 92%)}
     @media(prefers-reduced-motion:reduce){.hero-bg video{display:none}}
     .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
     @media(max-width:920px){.hero-grid{grid-template-columns:1fr}}
@@ -122,8 +124,8 @@
 
     /* image band */
     .band{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line)}
-    .band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28}
-    .band .band-in{position:relative;padding:56px 44px;background:linear-gradient(120deg,rgba(6,6,8,.86),rgba(6,6,8,.5))}
+    .band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
+    .band .band-in{position:relative;padding:56px 44px;background:linear-gradient(120deg,rgba(6,6,8,.9),rgba(6,6,8,.42))}
     .band h2{font-size:clamp(26px,3.4vw,36px);letter-spacing:-.02em;max-width:20ch}
     .band p{color:var(--muted);margin-top:12px;max-width:52ch}
 
@@ -134,8 +136,8 @@
     .price li{display:flex;gap:10px}.price li .t{color:var(--yellow);font-weight:800}
 
     .cta-band{position:relative;border-radius:22px;overflow:hidden;border:1px solid rgba(253,191,45,.3)}
-    .cta-band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.22}
-    .cta-band .in{position:relative;text-align:center;padding:60px 40px;background:linear-gradient(180deg,rgba(6,6,8,.7),rgba(6,6,8,.85))}
+    .cta-band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45}
+    .cta-band .in{position:relative;text-align:center;padding:60px 40px;background:linear-gradient(180deg,rgba(6,6,8,.62),rgba(6,6,8,.8))}
     .cta-band h2{font-size:clamp(26px,3.6vw,38px);letter-spacing:-.02em}
     .cta-band p{color:var(--muted);margin-top:10px;font-size:17px}
     .cta-band .cta{justify-content:center;margin-top:26px}
