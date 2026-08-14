@@ -1421,6 +1421,84 @@ function NeonRow({ plan, promo, onBuy, index = 0 }) {
 /* Screen 2 — Payment (phone number entry)                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The way out when the M-Pesa prompt doesn't work — a flat battery on the
+ * prompt, a SIM that won't take it, a customer who simply prefers the M-Pesa
+ * menu. They pay the paybill by hand using the account number shown here, and
+ * the pass issues itself; this panel watches for that and puts the code on
+ * screen without them having to go and read their SMS.
+ */
+function PayBillPanel({ plan }) {
+  const [info, setInfo] = useState(null)
+  const [activated, setActivated] = useState(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    // The MikroTik hotspot login page passes the device's MAC through; with it
+    // the payment is tied to this exact device, without it we fall back to
+    // matching on the paying phone number.
+    const q = new URLSearchParams()
+    if (params.get('mac')) q.set('mac', params.get('mac'))
+    if (params.get('router')) q.set('router', params.get('router'))
+    api(`/paybill/instructions${q.toString() ? `?${q}` : ''}`)
+      .then(setInfo)
+      .catch(() => setInfo(null))
+  }, [])
+
+  useEffect(() => {
+    if (!info?.payCode || activated) return undefined
+    const id = setInterval(() => {
+      api(`/paybill/status/${info.payCode}`)
+        .then((s) => { if (s.activated) setActivated(s.voucherCode) })
+        .catch(() => { /* keep waiting */ })
+    }, 5000)
+    return () => clearInterval(id)
+  }, [info, activated])
+
+  if (!info?.enabled || !(info.paybillNumber || info.tillNumber)) return null
+
+  if (activated) {
+    return (
+      <div className="w-full mt-8 p-4 rounded-xl border border-primary/40 bg-primary/5">
+        <p className="text-sm font-semibold flex items-center gap-1.5">
+          <Icon name="check_circle" className="text-primary text-[18px]!" /> Payment received
+        </p>
+        <p className="mt-1 text-sm">Your access code is <span className="font-mono font-bold text-lg">{activated}</span></p>
+        <p className="mt-1 text-xs text-on-surface-variant">Use it as both the WiFi username and password.</p>
+      </div>
+    )
+  }
+
+  return (
+    <details className="w-full mt-8 rounded-xl border border-outline-variant overflow-hidden">
+      <summary className="px-4 py-3 text-sm font-semibold cursor-pointer select-none flex items-center gap-2">
+        <Icon name="account_balance" className="text-[18px]! text-on-surface-variant" />
+        No prompt? Pay from the M-Pesa menu
+      </summary>
+      <div className="px-4 pb-4 text-sm">
+        <ol className="space-y-2 text-on-surface-variant">
+          <li>1. Open M-Pesa → Lipa na M-Pesa → {info.paybillNumber ? 'Pay Bill' : 'Buy Goods'}</li>
+          <li>
+            2. {info.paybillNumber ? 'Business number' : 'Till number'}:{' '}
+            <span className="font-mono font-bold text-on-surface">{info.paybillNumber || info.tillNumber}</span>
+          </li>
+          {info.payCode && (
+            <li>
+              3. Account number: <span className="font-mono font-bold text-on-surface tracking-widest">{info.payCode}</span>
+            </li>
+          )}
+          <li>{info.payCode ? '4' : '3'}. Amount: <span className="font-mono font-bold text-on-surface">KES {plan.price}</span></li>
+        </ol>
+        <p className="mt-3 text-xs text-on-surface-variant">
+          {info.autoLogin
+            ? 'Your internet starts by itself the moment the money lands — nothing else to do.'
+            : 'Your access code arrives by SMS the moment the money lands, and will appear here too.'}
+        </p>
+      </div>
+    </details>
+  )
+}
+
 function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
   const { t } = useT()
   return (
@@ -1491,6 +1569,8 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
             {sending ? t('pay.sending') : t('pay.payNow', { n: plan.price })}
           </button>
         </form>
+
+        <PayBillPanel plan={plan} />
       </main>
 
       <Footer />

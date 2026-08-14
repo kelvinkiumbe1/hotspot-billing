@@ -76,6 +76,7 @@ public class RevenueAuditService {
     private final VoucherRepository vouchers;
     private final C2bPaymentRepository c2bPayments;
     private final SubscriberRepository subscribers;
+    private final PayCodeRepository payCodes;
     private final PromotionRepository promotions;
     private final RouterRepository routers;
     private final MikrotikService mikrotik;
@@ -135,9 +136,15 @@ public class RevenueAuditService {
         List<String> unreachable = new ArrayList<>();
         if (mikrotik.settings().isEnabled()) {
             Set<String> ignored = ignoredAccounts(s);
+            // Zero-touch activation names a hotspot user after the paying
+            // device's MAC so the router logs it in by itself. Those are ours,
+            // even though the name is not a voucher code.
+            Set<String> ourMacs = new HashSet<>();
+            vouchers.findAllBoundMacs().forEach(m -> ourMacs.add(m.toLowerCase()));
+            payCodes.findAllMacAddresses().forEach(m -> ourMacs.add(m.toLowerCase()));
             for (Router router : routers.findByEnabledTrue()) {
                 try {
-                    drafts.addAll(ghostAccounts(router, ignored));
+                    drafts.addAll(ghostAccounts(router, ignored, ourMacs));
                     drafts.addAll(stillOnlineWithoutEntitlement(router));
                     routersChecked = true;
                 } catch (Exception e) {
@@ -392,12 +399,13 @@ public class RevenueAuditService {
      * invisible to every report in the product, because as far as billing is
      * concerned the customer doesn't exist. This is the check that finds it.
      */
-    private List<Draft> ghostAccounts(Router router, Set<String> ignored) {
+    private List<Draft> ghostAccounts(Router router, Set<String> ignored, Set<String> ourMacs) {
         Map<String, List<String>> configured = mikrotik.configuredAccounts(router);
         List<Draft> out = new ArrayList<>();
 
         for (String name : configured.getOrDefault("hotspot", List.of())) {
-            if (ignored.contains(name.toLowerCase()) || vouchers.existsByCode(name)) {
+            String lower = name.toLowerCase();
+            if (ignored.contains(lower) || ourMacs.contains(lower) || vouchers.existsByCode(name)) {
                 continue;
             }
             out.add(new Draft(RevenueFinding.Kind.GHOST_HOTSPOT_USER, "hotspot:" + router.getId() + ":" + name,

@@ -27,6 +27,7 @@ public class C2bService {
     private final C2bPaymentRepository c2bPayments;
     private final SubscriberRepository subscribers;
     private final SubscriptionService subscriptionService;
+    private final PaybillActivationService paybillActivation;
     private final SmsService smsService;
     private final AuditService audit;
 
@@ -50,8 +51,21 @@ public class C2bService {
 
         Subscriber sub = resolveSubscriber(billRefNumber, phoneNumber);
         if (sub == null) {
+            // Not a fixed-line customer. Before giving up and queueing this for
+            // the admin, try to serve it as what it usually is: somebody on the
+            // hotspot paying the paybill by hand because STK didn't work for
+            // them. Zero-touch activation issues the pass and, where the
+            // operator has enabled it, lets their device straight on.
+            PaybillActivationService.Outcome outcome =
+                    paybillActivation.activate(amount, phoneNumber, billRefNumber);
+            if (outcome.activated()) {
+                payment.setStatus(C2bPayment.Status.MATCHED);
+                payment.setNote(outcome.note());
+                return c2bPayments.save(payment);
+            }
             payment.setStatus(C2bPayment.Status.UNMATCHED);
-            payment.setNote("No subscriber matched account '" + billRefNumber + "' or phone " + phoneNumber);
+            payment.setNote(outcome.note() != null ? outcome.note()
+                    : "No subscriber matched account '" + billRefNumber + "' or phone " + phoneNumber);
             audit.system("c2b.unmatched", "Unmatched PayBill payment " + transactionId + " of KES " + amount);
             log.warn("Unmatched C2B payment {} (ref '{}', phone {})", transactionId, billRefNumber, phoneNumber);
             return c2bPayments.save(payment);

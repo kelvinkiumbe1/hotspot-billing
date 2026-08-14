@@ -161,6 +161,39 @@ public class MikrotikService {
         log.info("Provisioned hotspot user for voucher {}", voucher.getCode());
     }
 
+    /**
+     * Adds a hotspot user named after a device's MAC address. RouterOS logs
+     * such a device in on its own — no code typed, no login page — provided
+     * the hotspot server profile has {@code login-by=mac} switched on.
+     *
+     * <p>Used by zero-touch paybill activation to put the paying customer
+     * online the moment their money lands. Best-effort by design: the caller
+     * always sends the pass code as well, so a router without mac login (or
+     * one that rejects this) costs the customer a code to type, not access.
+     */
+    public void provisionMacLogin(Router router, String mac, Plan plan, int minutes) {
+        if (!live(router)) {
+            log.info("MikroTik disabled — skipping MAC login for {}", mac);
+            return;
+        }
+        String limitUptime = Math.max(1, minutes) + "m";
+        try (ApiConnection connection = login(router)) {
+            String profile = ensureHotspotProfile(connection, plan);
+            try {
+                connection.execute(String.format(
+                        "/ip/hotspot/user/add name=%s mac-address=%s profile=%s limit-uptime=%s",
+                        mac, mac, profile, limitUptime));
+            } catch (Exception alreadyExists) {
+                connection.execute(String.format(
+                        "/ip/hotspot/user/set [find name=%s] mac-address=%s profile=%s limit-uptime=%s",
+                        mac, mac, profile, limitUptime));
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Provisioned MAC login for {} on {}", mac, router.getName());
+    }
+
     /** Code → connect-time used, read from the router's per-user uptime counter. */
     public Map<String, Long> hotspotUserUptimes(Router router) {
         Map<String, Long> out = new HashMap<>();

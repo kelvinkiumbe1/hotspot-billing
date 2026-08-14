@@ -30,6 +30,11 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     /** Everything issued since a cutoff — the revenue audit's look-back window. */
     List<Voucher> findByCreatedAtAfter(Instant cutoff);
 
+    /** Devices a pass is locked to; a router user named after one of these is ours. */
+    @org.springframework.data.jpa.repository.Query(
+            "select v.boundMac from Voucher v where v.boundMac is not null")
+    List<String> findAllBoundMacs();
+
     /**
      * Active passes about to run out that haven't been nudged yet — the source
      * for the "your WiFi is almost up, buy more" WhatsApp/SMS reminder.

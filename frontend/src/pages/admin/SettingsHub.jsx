@@ -35,6 +35,7 @@ const SECTIONS = [
     group: 'Billing & messaging',
     items: [
       { key: 'payments', label: 'Payment gateways', hint: 'How customers pay you', icon: 'credit_card', need: 'SETTINGS' },
+      { key: 'paybill', label: 'Zero-touch PayBill', hint: 'Turn a plain paybill payment into a pass, no prompt needed', icon: 'account_balance', need: 'SETTINGS' },
       { key: 'vat', label: 'VAT', hint: 'Tax rate, KRA PIN, invoice numbering', icon: 'percent', need: 'SETTINGS' },
       { key: 'messaging', label: 'SMS & WhatsApp', hint: 'Your own gateway credentials', icon: 'chat', need: 'SETTINGS' },
       { key: 'email', label: 'Email (SMTP)', hint: 'Receipts, resets and reports', icon: 'mail', need: 'SETTINGS' },
@@ -1218,6 +1219,95 @@ function AlertsSection({ auth }) {
   )
 }
 
+function PaybillSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    api('/admin/settings/paybill', { auth }).then(setForm).catch((e) => setMsg({ ok: false, text: e.message }))
+  }, [auth])
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      setForm(await api('/admin/settings/paybill', { method: 'PUT', auth, body: form }))
+      setMsg({ ok: true, text: 'Saved.' })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Issue a pass automatically</span>
+            <span className="text-sm text-on-surface-variant">
+              When money reaches your paybill and it isn't a home-line customer, buy them the best package
+              the amount covers and send the code by WhatsApp or SMS.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          The captive portal shows each device a short account number to type, which is how the payment is
+          tied back to that device. Without one it falls back to matching on the paying phone number.
+        </p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Let the device straight on</span>
+            <span className="text-sm text-on-surface-variant">
+              Put the paying device online without it typing anything at all.
+            </span>
+          </div>
+          <Toggle checked={form.autoLoginByMac} onChange={(e) => set({ autoLoginByMac: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          Needs <span className="font-mono">login-by=mac</span> switched on in your MikroTik hotspot server
+          profile. The code is still sent either way, so nobody is stranded if the router refuses.
+        </p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="max-w-xs">
+          <label className={LABEL_CLS}>Account number stays valid for (minutes)</label>
+          <input type="number" min="5" max="1440" className={INPUT_CLS} value={form.payCodeMinutes}
+            onChange={(e) => set({ payCodeMinutes: Number(e.target.value) })} />
+          <p className="text-xs text-on-surface-variant mt-1">Long enough for somebody to walk to an M-Pesa agent.</p>
+        </div>
+        <div className="max-w-xs">
+          <label className={LABEL_CLS}>Never auto-issue above (KES)</label>
+          <input type="number" min="0" step="50" className={INPUT_CLS} value={form.maxAmount}
+            onChange={(e) => set({ maxAmount: Number(e.target.value) })} />
+          <p className="text-xs text-on-surface-variant mt-1">
+            A stranger sending far more than any package costs is usually a mistake. Above this it waits in
+            the unmatched list for you, rather than being turned into a small pass.
+          </p>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Text them when it's not enough</span>
+            <span className="text-sm text-on-surface-variant">If the amount is under your cheapest package, say so instead of staying silent.</span>
+          </div>
+          <Toggle checked={form.notifyOnShortfall} onChange={(e) => set({ notifyOnShortfall: e.target.checked })} />
+        </div>
+      </section>
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+    </form>
+  )
+}
+
 function EmailSection({ auth }) {
   const [form, setForm] = useState(null)
   const [saved, setSaved] = useState(null)
@@ -1593,6 +1683,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="Alerts & digest" subtitle="Router-down alerts, outage compensation and a daily sales summary." />
               <AlertsSection auth={auth} />
+            </>
+          )}
+          {current === 'paybill' && (
+            <>
+              <PageHeader
+                title="Zero-touch PayBill"
+                subtitle="A customer pays the paybill by hand and their pass issues itself — no STK prompt, no smartphone."
+              />
+              <PaybillSection auth={auth} />
             </>
           )}
           {current === 'loyalty' && (
