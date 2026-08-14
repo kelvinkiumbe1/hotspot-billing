@@ -36,6 +36,7 @@ const SECTIONS = [
     items: [
       { key: 'payments', label: 'Payment gateways', hint: 'How customers pay you', icon: 'credit_card', need: 'SETTINGS' },
       { key: 'paybill', label: 'Zero-touch PayBill', hint: 'Turn a plain paybill payment into a pass, no prompt needed', icon: 'account_balance', need: 'SETTINGS' },
+      { key: 'credit', label: 'Pay later (Lipa Baadaye)', hint: 'Trusted customers get online now and settle next time', icon: 'schedule', need: 'SETTINGS' },
       { key: 'vat', label: 'VAT', hint: 'Tax rate, KRA PIN, invoice numbering', icon: 'percent', need: 'SETTINGS' },
       { key: 'messaging', label: 'SMS & WhatsApp', hint: 'Your own gateway credentials', icon: 'chat', need: 'SETTINGS' },
       { key: 'email', label: 'Email (SMTP)', hint: 'Receipts, resets and reports', icon: 'mail', need: 'SETTINGS' },
@@ -1219,6 +1220,144 @@ function AlertsSection({ auth }) {
   )
 }
 
+function CreditSection({ auth }) {
+  const [data, setData] = useState(null)
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/admin/credit', { auth })
+    .then((d) => { setData(d); setForm(d.settings) })
+    .catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      setForm(await api('/admin/settings/credit', { method: 'PUT', auth, body: form }))
+      setMsg({ ok: true, text: 'Saved.' })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function writeOff(id) {
+    try {
+      await api(`/admin/credit/${id}/write-off`, { method: 'POST', auth })
+      await load()
+    } catch (err) { setMsg({ ok: false, text: err.message }) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Offer WiFi on credit</span>
+            <span className="text-sm text-on-surface-variant">
+              A customer whose money hasn't landed yet gets online now, and the amount is added to their
+              next M-Pesa purchase.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          This is your money at risk, so it starts switched off. Nobody is chased for a debt — the worst
+          case per customer is one small pass given away, and they take no more credit afterwards.
+        </p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-3">Who qualifies</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>Passes they must have paid for</label>
+            <input type="number" min="1" max="50" className={INPUT_CLS} value={form.minPurchases}
+              onChange={(e) => set({ minPurchases: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Days they must have been buying</label>
+            <input type="number" min="0" max="365" className={INPUT_CLS} value={form.minDaysKnown}
+              onChange={(e) => set({ minDaysKnown: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Dearest package lendable (KES)</label>
+            <input type="number" min="1" step="10" className={INPUT_CLS} value={form.maxAdvance}
+              onChange={(e) => set({ maxAdvance: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Missed repayments before cut off</label>
+            <input type="number" min="1" max="10" className={INPUT_CLS} value={form.maxDefaults}
+              onChange={(e) => set({ maxDefaults: Number(e.target.value) })} />
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-3">Terms</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>Service fee (%)</label>
+            <input type="number" min="0" max="50" className={INPUT_CLS} value={form.feePercent}
+              onChange={(e) => set({ feePercent: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Zero is a fair default — the point is the customer coming back.</p>
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Settle within (hours)</label>
+            <input type="number" min="1" max="720" className={INPUT_CLS} value={form.repayWithinHours}
+              onChange={(e) => set({ repayWithinHours: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">After this a reminder goes out; a cycle later it's written off.</p>
+          </div>
+        </div>
+      </section>
+
+      {data && (
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+          <p className="text-sm font-semibold mb-1">
+            Out on loan: KES {Number(data.outstandingTotal || 0)} across {data.outstanding.length} customer(s)
+          </p>
+          <p className="text-xs text-on-surface-variant mb-3">
+            Written off so far: {data.defaultedCount} for KES {Number(data.defaultedTotal || 0)}.
+          </p>
+          {data.outstanding.length > 0 && (
+            <div className="overflow-x-auto table-scroll">
+              <table className="data-table w-full">
+                <thead>
+                  <tr><th>Customer</th><th>Pass</th><th className="text-right">Due</th><th>By</th><th className="text-right"></th></tr>
+                </thead>
+                <tbody>
+                  {data.outstanding.map((a) => (
+                    <tr key={a.id}>
+                      <td className="font-mono text-xs">{a.phoneNumber}</td>
+                      <td className="font-mono text-xs">{a.voucherCode}</td>
+                      <td className="text-right tabular-nums">KES {Number(a.totalDue)}</td>
+                      <td className="text-xs">{new Date(a.dueAt).toLocaleDateString()}</td>
+                      <td className="text-right">
+                        <button type="button" onClick={() => writeOff(a.id)}
+                          className="px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer hover:bg-surface-container-high">
+                          Write off
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+    </form>
+  )
+}
+
 function PaybillSection({ auth }) {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -1683,6 +1822,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
             <>
               <PageHeader title="Alerts & digest" subtitle="Router-down alerts, outage compensation and a daily sales summary." />
               <AlertsSection auth={auth} />
+            </>
+          )}
+          {current === 'credit' && (
+            <>
+              <PageHeader
+                title="Pay later (Lipa Baadaye)"
+                subtitle="A customer who has paid you several times can get online now and settle on their next purchase."
+              />
+              <CreditSection auth={auth} />
             </>
           )}
           {current === 'paybill' && (

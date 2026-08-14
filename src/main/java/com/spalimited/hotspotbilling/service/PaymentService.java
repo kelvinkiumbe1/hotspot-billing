@@ -46,6 +46,7 @@ public class PaymentService {
     private final SmsService smsService;
     private final ManualClaimRepository manualClaims;
     private final PaymentGatewayService gatewayService;
+    private final CreditService creditService;
     private final VoucherRepository voucherRepository;
 
     /** Give the async callback a head start before the sweep queries Daraja. */
@@ -67,10 +68,15 @@ public class PaymentService {
             throw new IllegalStateException("Plan is not active");
         }
         BigDecimal price = promotionService.apply(plan.getPrice());
-        String checkoutRequestId = mpesaService.stkPush(phoneNumber, price, "HOTSPOT-" + planId);
+        // Anything taken on credit rides on this purchase. Collecting it as
+        // part of the amount the customer is already approving is the whole
+        // recovery mechanism — there is no separate debt to chase afterwards.
+        BigDecimal owed = creditService.outstandingFor(phoneNumber);
+        BigDecimal charge = price.add(owed);
+        String checkoutRequestId = mpesaService.stkPush(phoneNumber, charge, "HOTSPOT-" + planId);
         Payment payment = Payment.builder()
                 .phoneNumber(phoneNumber)
-                .amount(price)
+                .amount(charge)
                 .plan(plan)
                 .checkoutRequestId(checkoutRequestId)
                 .build();
@@ -180,6 +186,10 @@ public class PaymentService {
         payment.setVoucher(voucher);
         paymentRepository.save(payment);
         log.info("Payment {} succeeded, voucher {} issued", payment.getId(), voucher.getCode());
+
+        // The amount charged already included anything owed on a pay-later
+        // pass, so the debt is settled the moment the money lands.
+        creditService.settle(payment.getPhoneNumber(), "Payment #" + payment.getId());
 
         notificationService.send(
                 NotificationTemplate.Key.VOUCHER_ISSUED,

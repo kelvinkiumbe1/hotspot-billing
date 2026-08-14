@@ -57,6 +57,7 @@ public class PaybillActivationService {
     private final SmsService smsService;
     private final PortalSettingsService portalSettings;
     private final PaymentGatewayService gateways;
+    private final CreditService credit;
     private final AuditService audit;
 
     private final SecureRandom random = new SecureRandom();
@@ -169,7 +170,27 @@ public class PaybillActivationService {
         PayCode payCode = resolvePayCode(billRefNumber);
         Long routerId = payCode != null ? payCode.getRouterId() : null;
 
-        Plan plan = bestAffordablePlan(amount, routerId).orElse(null);
+        // A pay-later debt comes off the top, exactly as it would on an STK
+        // purchase. Money that doesn't even cover the debt is left alone — part
+        // -settling somebody's credit without telling them is worse than
+        // putting the payment in front of a human.
+        BigDecimal owed = credit.outstandingFor(phoneNumber);
+        if (owed.signum() > 0 && amount.compareTo(owed) < 0) {
+            return new Outcome(false, null, null, "KES " + amount + " received but KES " + owed
+                    + " is owed on a pay-later pass — not enough to settle it");
+        }
+        BigDecimal spendable = amount.subtract(owed);
+
+        Plan plan = bestAffordablePlan(spendable, routerId).orElse(null);
+        if (plan == null && owed.signum() > 0) {
+            // It cleared the debt and no more. Say so rather than leaving them
+            // wondering where their money went.
+            credit.settle(phoneNumber, "PayBill payment of KES " + amount);
+            smsService.trySend(phoneNumber, "Thank you — KES " + owed
+                    + " owed on your pay-later pass is now settled.");
+            return new Outcome(true, null, null, "Settled KES " + owed + " of pay-later credit; "
+                    + "the remainder did not cover a package");
+        }
         if (plan == null) {
             String note = "KES " + amount + " does not cover any hotspot plan on sale";
             if (s.isNotifyOnShortfall()) {
@@ -203,6 +224,9 @@ public class PaybillActivationService {
             payCode.setUsedAt(Instant.now());
             payCode.setVoucherCode(voucher.getCode());
             payCodes.save(payCode);
+        }
+        if (owed.signum() > 0) {
+            credit.settle(phoneNumber, "PayBill payment of KES " + amount);
         }
 
         notifications.send(NotificationTemplate.Key.VOUCHER_ISSUED, phoneNumber, Map.of(

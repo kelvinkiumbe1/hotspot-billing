@@ -1499,6 +1499,96 @@ function PayBillPanel({ plan }) {
   )
 }
 
+/**
+ * "Lipa Baadaye" — the answer to the moment a prepaid customer's money hasn't
+ * landed yet. A customer who has paid here several times can take a small pass
+ * on trust; it is settled automatically on their next purchase, so the debt is
+ * shown here plainly rather than turning up as a surprise on the M-Pesa prompt.
+ */
+function CreditPanel({ plan, phone }) {
+  const [state, setState] = useState(null)
+  const [taken, setTaken] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const digits = (phone || '').replace(/\D/g, '')
+
+  useEffect(() => {
+    if (digits.length < 9) { setState(null); return }
+    let cancelled = false
+    const id = setTimeout(() => {
+      api(`/credit/${normalizePhone(phone)}`)
+        .then((s) => { if (!cancelled) setState(s) })
+        .catch(() => { if (!cancelled) setState(null) })
+    }, 400)
+    return () => { cancelled = true; clearTimeout(id) }
+  }, [digits, phone])
+
+  async function take() {
+    setBusy(true); setError(null)
+    try {
+      setTaken(await api(`/credit/${normalizePhone(phone)}/take`, { method: 'POST', body: { planId: plan.id } }))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!state?.enabled) return null
+
+  if (taken) {
+    return (
+      <div className="w-full mt-6 p-4 rounded-xl border border-primary/40 bg-primary/5">
+        <p className="text-sm font-semibold flex items-center gap-1.5">
+          <Icon name="check_circle" className="text-primary text-[18px]!" /> You're online — pay later
+        </p>
+        <p className="mt-1 text-sm">Your access code is <span className="font-mono font-bold text-lg">{taken.code}</span></p>
+        <p className="mt-1 text-xs text-on-surface-variant">
+          KES {taken.dueAmount} will be added to your next purchase.
+        </p>
+      </div>
+    )
+  }
+
+  const owed = Number(state.outstanding || 0)
+  if (owed > 0) {
+    return (
+      <p className="w-full mt-6 text-xs text-on-surface-variant flex items-start gap-2">
+        <Icon name="info" className="text-[15px]! mt-px" />
+        KES {owed} from your earlier pay-later pass is added to this payment — you'll be asked for
+        KES {owed + Number(plan.price)} in total.
+      </p>
+    )
+  }
+
+  if (!state.eligible) {
+    return (
+      <p className="w-full mt-6 text-xs text-on-surface-variant flex items-start gap-2">
+        <Icon name="schedule" className="text-[15px]! mt-px" />
+        Pay later: {state.reason.toLowerCase()}.
+      </p>
+    )
+  }
+
+  return (
+    <div className="w-full mt-6">
+      <button
+        type="button"
+        onClick={take}
+        disabled={busy}
+        className="w-full h-12 rounded-xl border border-primary/50 text-primary font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+      >
+        <Icon name="schedule" /> {busy ? 'Just a moment…' : 'Get online now, pay on your next purchase'}
+      </button>
+      {error && <p className="mt-2 text-xs text-[#b91c1c]">{error}</p>}
+      <p className="mt-2 text-xs text-on-surface-variant text-center">
+        You've bought from us before, so we trust you for this one.
+      </p>
+    </div>
+  )
+}
+
 function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
   const { t } = useT()
   return (
@@ -1570,6 +1660,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
           </button>
         </form>
 
+        <CreditPanel plan={plan} phone={phone} />
         <PayBillPanel plan={plan} />
       </main>
 
