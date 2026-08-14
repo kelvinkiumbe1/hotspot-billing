@@ -30,6 +30,10 @@ public class OperatorAlertSettingsService {
         s.setMinOutageMinutes(Math.max(0, Math.min(1440, in.getMinOutageMinutes())));
         s.setSalesDigestEnabled(in.isSalesDigestEnabled());
         s.setSalesDigestHour(Math.max(0, Math.min(23, in.getSalesDigestHour())));
+        s.setCustomerOutageNotice(in.isCustomerOutageNotice());
+        s.setOutageNotifyAfterMinutes(Math.max(1, Math.min(240, in.getOutageNotifyAfterMinutes())));
+        s.setOutageEtaMinutes(Math.max(5, Math.min(1440, in.getOutageEtaMinutes())));
+        s.setStatusPageEnabled(in.isStatusPageEnabled());
         return repo.save(s);
     }
 

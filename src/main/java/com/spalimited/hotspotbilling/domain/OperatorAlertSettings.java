@@ -59,4 +59,30 @@ public class OperatorAlertSettings {
 
     /** The last day a digest went out, so a restart can't double-send. */
     private LocalDate lastDigestSent;
+
+    // --- Outage incidents ---
+
+    /**
+     * Tell affected customers when the network is down, rather than leaving
+     * them to work it out and call. Off by default: it puts a message in front
+     * of paying customers, which is the operator's decision to make.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean customerOutageNotice = false;
+
+    /** Wait this long before telling anyone — most blips fix themselves. */
+    @Builder.Default
+    @Column(nullable = false)
+    private int outageNotifyAfterMinutes = 10;
+
+    /** The estimate given in that message, in minutes. */
+    @Builder.Default
+    @Column(nullable = false)
+    private int outageEtaMinutes = 120;
+
+    /** Publish current and recent incidents on a public status page. */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean statusPageEnabled = true;
 }

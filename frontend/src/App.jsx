@@ -9,6 +9,7 @@ const Admin = lazy(() => import('./pages/Admin.jsx'))
 const Tech = lazy(() => import('./pages/Tech.jsx'))
 const PayPortal = lazy(() => import('./pages/PayPortal.jsx'))
 const MyAccount = lazy(() => import('./pages/MyAccount.jsx'))
+const Status = lazy(() => import('./pages/Status.jsx'))
 const NotFound = lazy(() => import('./pages/NotFound.jsx'))
 
 function Loading() {
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/tech/*" element={<Tech />} />
           <Route path="/pay" element={<PayPortal />} />
           <Route path="/my-account" element={<MyAccount />} />
+          <Route path="/status" element={<Status />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

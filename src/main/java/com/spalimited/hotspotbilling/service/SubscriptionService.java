@@ -1,7 +1,9 @@
 package com.spalimited.hotspotbilling.service;
 
+import com.spalimited.hotspotbilling.domain.Router;
 import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.domain.SubscriptionPayment;
+import com.spalimited.hotspotbilling.repository.RouterRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class SubscriptionService {
     private static final int DAYS_PER_MONTH = 30;
 
     private final SubscriberRepository subscribers;
+    private final RouterRepository routers;
     private final SubscriptionPaymentRepository payments;
     private final MikrotikService mikrotikService;
     private final MpesaService mpesaService;
@@ -269,6 +272,19 @@ public class SubscriptionService {
      */
     @Transactional
     public int compensateForOutage(java.time.Duration downtime) {
+        return compensateForOutage(downtime, null);
+    }
+
+    /**
+     * Credits an outage, optionally only to the customers on the routers that
+     * were actually down. Compensating a whole customer base for a fault on one
+     * site is generous but wrong: it tells the people who were never affected
+     * that there was a problem, and costs money for goodwill nobody needed.
+     *
+     * @param routerIds routers involved, or null to credit everybody
+     */
+    @Transactional
+    public int compensateForOutage(java.time.Duration downtime, java.util.Set<Long> routerIds) {
         long minutes = downtime.toMinutes();
         if (minutes <= 0) {
             return 0;
@@ -276,6 +292,9 @@ public class SubscriptionService {
         int credited = 0;
         for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.ACTIVE)) {
             if (sub.getPaidUntil() == null) {
+                continue;
+            }
+            if (routerIds != null && !routerIds.isEmpty() && !onAffectedRouter(sub, routerIds)) {
                 continue;
             }
             sub.setPaidUntil(sub.getPaidUntil().plus(minutes, ChronoUnit.MINUTES));
@@ -286,6 +305,29 @@ public class SubscriptionService {
             log.info("Outage compensation: extended {} subscriber(s) by {} minute(s)", credited, minutes);
         }
         return credited;
+    }
+
+    /**
+     * A subscriber with no router of their own sits on the default one, so an
+     * outage there affects them even though their record says nothing.
+     */
+    private boolean onAffectedRouter(Subscriber sub, java.util.Set<Long> routerIds) {
+        if (sub.getRouterId() != null) {
+            return routerIds.contains(sub.getRouterId());
+        }
+        Long defaultRouterId = routers.findByEnabledTrue().stream()
+                .filter(Router::isDefaultRouter)
+                .map(Router::getId)
+                .findFirst().orElse(null);
+        return defaultRouterId != null && routerIds.contains(defaultRouterId);
+    }
+
+    /** Everyone an outage on these routers actually touches. */
+    @Transactional(readOnly = true)
+    public java.util.List<Subscriber> affectedBy(java.util.Set<Long> routerIds) {
+        return subscribers.findByStatus(Subscriber.Status.ACTIVE).stream()
+                .filter(s -> routerIds == null || routerIds.isEmpty() || onAffectedRouter(s, routerIds))
+                .toList();
     }
 
     @Transactional

@@ -1193,6 +1193,44 @@ function AlertsSection({ auth }) {
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
+            <span className="text-base font-semibold block">Tell customers about outages</span>
+            <span className="text-sm text-on-surface-variant">
+              When routers go down together, text the customers on those routers once — with an
+              estimate — instead of leaving them to find out and ring you.
+            </span>
+          </div>
+          <Toggle checked={form.customerOutageNotice} onChange={(e) => set({ customerOutageNotice: e.target.checked })} />
+        </div>
+        {form.customerOutageNotice && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Wait before telling anyone (minutes)</label>
+              <input type="number" min="1" max="240" className={INPUT_CLS} value={form.outageNotifyAfterMinutes}
+                onChange={(e) => set({ outageNotifyAfterMinutes: Number(e.target.value) })} />
+              <p className="text-xs text-on-surface-variant mt-1">Most blips fix themselves; a message about one is worse than none.</p>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Estimate to give them (minutes)</label>
+              <input type="number" min="5" max="1440" className={INPUT_CLS} value={form.outageEtaMinutes}
+                onChange={(e) => set({ outageEtaMinutes: Number(e.target.value) })} />
+            </div>
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-4 pt-1">
+          <div>
+            <span className="text-base font-semibold block">Public status page</span>
+            <span className="text-sm text-on-surface-variant">
+              Publish current and recent outages at <span className="font-mono text-xs">/status</span> — areas and
+              times only, no customer detail.
+            </span>
+          </div>
+          <Toggle checked={form.statusPageEnabled} onChange={(e) => set({ statusPageEnabled: e.target.checked })} />
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
             <span className="text-base font-semibold block">Daily sales digest</span>
             <span className="text-sm text-on-surface-variant">A once-a-day summary of the day's takings, by SMS and email.</span>
           </div>

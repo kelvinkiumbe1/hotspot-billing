@@ -111,8 +111,13 @@ export default function SystemHealthPage({ auth }) {
   const [checking, setChecking] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
+  const [incidents, setIncidents] = useState(null)
+
   const load = () => api('/admin/ops/health', { auth }).then(setData).catch(() => setData({ open: [], jobs: [] }))
-  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load()
+    api('/admin/incidents', { auth }).then(setIncidents).catch(() => setIncidents(null))
+  }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function checkNow() {
     setChecking(true)
@@ -242,6 +247,34 @@ export default function SystemHealthPage({ auth }) {
           </div>
         </section>
       </div>
+
+      {incidents && (incidents.recent || []).length > 0 && (
+        <section className="mt-6">
+          <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+            <Icon name="wifi_off" className="text-[18px]! text-on-surface-variant" /> Network outages
+          </h3>
+          <div className="bg-surface-container-lowest rounded-lg border border-outline-variant divide-y divide-outline-variant">
+            {incidents.recent.slice(0, 10).map((i) => (
+              <div key={i.id} className="px-4 py-2.5 flex flex-wrap items-baseline gap-x-3">
+                <Dot status={i.status === 'RESOLVED' ? 'ok' : 'stale'} />
+                <span className="text-sm font-medium">{i.title}</span>
+                <span className="text-xs text-on-surface-variant flex-1 min-w-40">
+                  {fmtDate(i.startedAt)}
+                  {i.notifiedCount > 0 ? ` · ${i.notifiedCount} customer(s) told` : ' · nobody told'}
+                  {i.compensatedCount > 0 ? ` · ${i.compensatedCount} credited ${i.compensatedMinutes} min` : ''}
+                </span>
+                <span className={`text-xs font-semibold ${i.status === 'RESOLVED' ? 'text-secondary' : 'text-error'}`}>
+                  {i.status === 'RESOLVED' ? 'Resolved' : 'Ongoing'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-on-surface-variant">
+            Customers on the affected routers are told once, then given the all-clear and their time back
+            when it recovers. The same list is published at <span className="font-mono">/status</span>.
+          </p>
+        </section>
+      )}
 
       {(data.recent || []).length > 0 && (
         <div className="mt-6">

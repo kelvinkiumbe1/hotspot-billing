@@ -42,6 +42,7 @@ public class RouterMonitorJob {
     private final SubscriptionService subscriptionService;
     private final FupService fupService;
     private final HeartbeatService heartbeats;
+    private final IncidentService incidentService;
 
     /** Alert the operator when one voucher is used on several devices at once. */
     @org.springframework.beans.factory.annotation.Value("${hotspot.sharing.alert-enabled:true}")
@@ -86,6 +87,9 @@ public class RouterMonitorJob {
                 if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "ALERT: SPA WiFi router '" + router.getName() + "' is offline.");
                 }
+                // Group it with anything else that has just dropped: one cause,
+                // one incident, one message to the customers it touches.
+                incidentService.routerDown(router);
                 log.warn("Router {} went offline", router.getName());
             } else if (!wasOnline && online) {
                 audit.system("router.online", "Router " + router.getName() + " is back online");
@@ -93,7 +97,10 @@ public class RouterMonitorJob {
                 if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
                     smsService.trySend(alertPhone, "Recovered: SPA WiFi router '" + router.getName() + "' is back online.");
                 }
-                compensateForOutage(router, lastSeenBefore);
+                // Closes the incident once every router in it is back, which is
+                // where the all-clear and the compensation now happen — scoped
+                // to the customers who were actually affected.
+                incidentService.routerUp(router);
                 // A reboot can wipe the hotspot users. Re-create any that are
                 // missing and pin everyone to their remaining time, so paid
                 // customers reconnect and continue from where they left off.
@@ -251,36 +258,6 @@ public class RouterMonitorJob {
                 row.setPlanId(planId);
             }
             trafficUsage.save(row);
-        }
-    }
-
-    /**
-     * When the operator has opted in, credits active subscribers for a
-     * network outage by pushing their expiry back by the downtime. Only the
-     * default router (the one carrying paid customers) triggers this, and
-     * only outages past the configured minimum are counted.
-     */
-    private void compensateForOutage(Router router, Instant lastSeenBefore) {
-        if (!router.isDefaultRouter() || lastSeenBefore == null) {
-            return;
-        }
-        var settings = alertSettings.get();
-        if (!settings.isOutageCompensationEnabled()) {
-            return;
-        }
-        java.time.Duration downtime = java.time.Duration.between(lastSeenBefore, Instant.now());
-        if (downtime.toMinutes() < settings.getMinOutageMinutes()) {
-            return;
-        }
-        try {
-            int credited = subscriptionService.compensateForOutage(downtime);
-            if (credited > 0) {
-                audit.system("outage.compensate", "Extended " + credited + " subscriber(s) by "
-                        + downtime.toMinutes() + " min after a " + downtime.toMinutes() + "-minute outage on "
-                        + router.getName());
-            }
-        } catch (Exception e) {
-            log.warn("Outage compensation failed for {}: {}", router.getName(), e.getMessage());
         }
     }
 
