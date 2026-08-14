@@ -15,9 +15,11 @@ import org.springframework.stereotype.Component;
 public class SubscriptionJob {
 
     private final SubscriptionService subscriptionService;
+    private final HeartbeatService heartbeats;
 
     @Scheduled(fixedDelay = 3_600_000, initialDelay = 60_000)
     public void run() {
+        heartbeats.stamp("subscriptions");
         try {
             subscriptionService.sweep();
         } catch (Exception e) {

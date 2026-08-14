@@ -98,6 +98,16 @@ WHATSAPP_ACCESS_TOKEN=
 
 ALERT_PHONE=
 
+# --- Backups. BACKUP_REMOTE gets a copy off this machine (an rclone remote
+# --- like "s3:my-bucket/spa" or an scp target like "user@host:/backups") —
+# --- without it the only copy sits on the same disk as the database.
+# --- BACKUP_REPORT_TOKEN is an API token from Settings -> API tokens; the
+# --- backup script reports each run with it so the app can raise the alarm
+# --- when backups go quiet.
+BACKUP_REMOTE=
+BACKUP_REPORT_TOKEN=
+BACKUP_VERIFY=1
+
 # --- Passkeys. rp-id/origins are derived from the domain in the compose
 # --- file. When true, every staff member must enrol a passkey (biometric) on
 # --- first sign-in (safe once the domain is on HTTPS, which it is the moment

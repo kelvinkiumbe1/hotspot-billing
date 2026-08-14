@@ -41,6 +41,7 @@ public class RouterMonitorJob {
     private final OperatorAlertSettingsService alertSettings;
     private final SubscriptionService subscriptionService;
     private final FupService fupService;
+    private final HeartbeatService heartbeats;
 
     /** Alert the operator when one voucher is used on several devices at once. */
     @org.springframework.beans.factory.annotation.Value("${hotspot.sharing.alert-enabled:true}")
@@ -49,6 +50,9 @@ public class RouterMonitorJob {
     @Scheduled(fixedDelay = 120_000, initialDelay = 20_000)
     @Transactional
     public void run() {
+        // Stamped even when MikroTik is switched off: the point is proving the
+        // scheduler is alive, which is true either way.
+        heartbeats.stamp("router-monitor");
         if (!mikrotikService.settings().isEnabled()) {
             return;
         }

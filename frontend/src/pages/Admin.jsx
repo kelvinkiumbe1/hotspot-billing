@@ -25,6 +25,7 @@ import FiberPage from './admin/Fiber.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
+import SystemHealthPage from './admin/SystemHealth.jsx'
 import TaxSettingsPage from './admin/TaxSettings.jsx'
 import PaymentGatewaysPage from './admin/PaymentGateways.jsx'
 import SettingsHub from './admin/SettingsHub.jsx'
@@ -497,6 +498,7 @@ const NAV_GROUPS = [
       { key: 'staff', label: 'Staff Logins', icon: 'admin_panel_settings', need: 'STAFF' },
       { key: 'branches', label: 'Branches', icon: 'add_business', need: 'FINANCE' },
       { key: 'audit', label: 'Audit Log', icon: 'history', need: 'STAFF' },
+      { key: 'health', label: 'System Health', icon: 'monitor_heart', need: 'SETTINGS' },
       { key: 'settings', label: 'Settings', icon: 'settings', need: 'SETTINGS' },
     ],
   },
@@ -728,6 +730,7 @@ const TAB_TITLES = {
   team: 'Team',
   promos: 'Promotions & Branding',
   audit: 'Audit Log',
+  health: 'System Health',
   settings: 'Settings',
   subscription: 'Plan & billing',
   refer: 'Refer & Earn',
@@ -1242,6 +1245,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'branches' && <BranchesPage auth={auth} />}
         {tab === 'promos' && <BrandingPage auth={auth} />}
         {tab === 'audit' && <AuditLogPage auth={auth} />}
+        {tab === 'health' && <SystemHealthPage auth={auth} />}
         {tab === 'support' && <Support auth={auth} />}
         {tab === 'maintenance' && <Maintenance auth={auth} />}
         {tab === 'messages' && <Messages auth={auth} />}

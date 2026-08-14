@@ -18,9 +18,13 @@ import org.springframework.stereotype.Component;
 public class PaymentReconcileJob {
 
     private final PaymentService paymentService;
+    private final HeartbeatService heartbeats;
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
     public void run() {
+        // Stamped before the work, so a sweep that throws still proves the
+        // scheduler is alive — the two failures need telling apart.
+        heartbeats.stamp("payment-reconcile");
         try {
             int settled = paymentService.reconcilePending();
             if (settled > 0) {

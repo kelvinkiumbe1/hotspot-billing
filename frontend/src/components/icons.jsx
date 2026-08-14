@@ -30,7 +30,7 @@ import {
   Clock, Search, Send, HandCoins, Bot, Smartphone, MessageSquare, Gauge, Headset, ListTodo,
   CircleCheckBig, Timer, TrendingDown, TrendingUp, SlidersHorizontal, Eye, EyeOff, Wifi,
   RadioTower, Settings, Circle, ShieldAlert, BadgeCheck, BanknoteX, Inbox,
-  CircleQuestionMark, UserX, WifiOff, CalendarX,
+  CircleQuestionMark, UserX, WifiOff, CalendarX, HeartPulse, DatabaseBackup, ServerCog,
 } from 'lucide-react'
 
 const MAP = {
@@ -154,6 +154,10 @@ const MAP = {
   person_alert: UserX,
   wifi_off: WifiOff,
   event_busy: CalendarX,
+  // System health
+  monitor_heart: HeartPulse,
+  backup: DatabaseBackup,
+  dns: ServerCog,
   visibility: Eye,
   visibility_off: EyeOff,
   wifi: Wifi,
