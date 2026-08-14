@@ -475,7 +475,10 @@ public class PaymentService {
         }
         claim.setPhoneNumber(payerPhone);
 
-        Voucher voucher = voucherService.issue(plan, payerPhone);
+        // The money for this one came in as a claimed M-Pesa code rather than a
+        // Payment row, so stamp where it came from — otherwise the revenue
+        // audit sees a voucher with nothing behind it.
+        Voucher voucher = voucherService.issue(plan, payerPhone, null, null, "mpesa-claim");
         claim.setPlanId(plan.getId());
         claim.setVoucherId(voucher.getId());
         claim.setStatus(ManualClaim.Status.RESOLVED);

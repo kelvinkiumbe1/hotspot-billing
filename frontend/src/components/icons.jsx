@@ -29,7 +29,8 @@ import {
   LoaderCircle, QrCode, ReceiptText, Gift, RefreshCw, Minus, Router, Tag, BarChart3, Save,
   Clock, Search, Send, HandCoins, Bot, Smartphone, MessageSquare, Gauge, Headset, ListTodo,
   CircleCheckBig, Timer, TrendingDown, TrendingUp, SlidersHorizontal, Eye, EyeOff, Wifi,
-  RadioTower, Settings, Circle,
+  RadioTower, Settings, Circle, ShieldAlert, BadgeCheck, BanknoteX, Inbox,
+  CircleQuestionMark, UserX, WifiOff, CalendarX,
 } from 'lucide-react'
 
 const MAP = {
@@ -144,6 +145,15 @@ const MAP = {
   trending_down: TrendingDown,
   trending_up: TrendingUp,
   tune: SlidersHorizontal,
+  // Revenue Guard
+  policy: ShieldAlert,
+  verified_user: BadgeCheck,
+  money_off: BanknoteX,
+  inbox: Inbox,
+  help: CircleQuestionMark,
+  person_alert: UserX,
+  wifi_off: WifiOff,
+  event_busy: CalendarX,
   visibility: Eye,
   visibility_off: EyeOff,
   wifi: Wifi,

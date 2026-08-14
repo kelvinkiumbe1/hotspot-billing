@@ -181,6 +181,42 @@ public class MikrotikService {
     }
 
     /**
+     * Every account configured on the router: {@code "hotspot"} → hotspot user
+     * names, {@code "pppoe"} → PPP secret names, read in a single login.
+     *
+     * <p>This is what the router will let online, as opposed to what the
+     * billing system sold — the revenue audit compares the two to catch access
+     * created straight on the device, outside the system. It throws rather than
+     * returning an empty result when the router can't be read, because "no
+     * accounts" and "couldn't ask" mean very different things to that check.
+     */
+    public Map<String, List<String>> configuredAccounts(Router router) {
+        Map<String, List<String>> out = new HashMap<>();
+        out.put("hotspot", new java.util.ArrayList<>());
+        out.put("pppoe", new java.util.ArrayList<>());
+        if (!live(router)) {
+            throw new IllegalStateException("MikroTik integration is disabled");
+        }
+        try (ApiConnection connection = login(router)) {
+            for (Map<String, String> u : connection.execute("/ip/hotspot/user/print")) {
+                String name = u.get("name");
+                if (name != null && !name.isBlank()) {
+                    out.get("hotspot").add(name);
+                }
+            }
+            for (Map<String, String> s : connection.execute("/ppp/secret/print")) {
+                String name = s.get("name");
+                if (name != null && !name.isBlank()) {
+                    out.get("pppoe").add(name);
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        return out;
+    }
+
+    /**
      * Re-establishes every still-valid voucher on a router that has just come
      * back online. A reboot can drop the hotspot users entirely (a hard power
      * cut, a config reset, a replaced board), which would lock out customers

@@ -24,6 +24,7 @@ import CommunicationsPage from './admin/Communications.jsx'
 import FiberPage from './admin/Fiber.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
+import RevenueAuditPage from './admin/RevenueAudit.jsx'
 import TaxSettingsPage from './admin/TaxSettings.jsx'
 import PaymentGatewaysPage from './admin/PaymentGateways.jsx'
 import SettingsHub from './admin/SettingsHub.jsx'
@@ -476,6 +477,7 @@ const NAV_GROUPS = [
       { key: 'ledger', label: 'Ledger', icon: 'account_balance_wallet', need: 'FINANCE' },
       { key: 'payments', label: 'Payments', icon: 'payments', need: 'FINANCE' },
       { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
+      { key: 'assurance', label: 'Revenue Guard', icon: 'policy', need: 'FINANCE' },
       { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
       { key: 'agents', label: 'Agents', icon: 'storefront', need: 'SELL' },
     ],
@@ -716,6 +718,7 @@ const TAB_TITLES = {
   subscribers: 'Subscribers',
   payments: 'Payments',
   paybill: 'PayBill',
+  assurance: 'Revenue Guard',
   finance: 'Billing',
   routers: 'Routers',
   branches: 'Branches',
@@ -1233,6 +1236,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'subscribers' && <Subscribers auth={auth} />}
         {tab === 'payments' && <Payments auth={auth} />}
         {tab === 'paybill' && <PayBillPage auth={auth} />}
+        {tab === 'assurance' && <RevenueAuditPage auth={auth} />}
         {tab === 'finance' && <FinancePage auth={auth} />}
         {tab === 'routers' && <RoutersPage auth={auth} />}
         {tab === 'branches' && <BranchesPage auth={auth} />}

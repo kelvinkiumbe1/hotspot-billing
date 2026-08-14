@@ -33,4 +33,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal sumAmountByStatusSince(@Param("status") Payment.Status status, @Param("since") java.time.Instant since);
 
     long countByStatusAndCompletedAtAfter(Payment.Status status, java.time.Instant since);
+
+    // --- Revenue audit ---
+
+    List<Payment> findByStatusAndCreatedAtAfter(Payment.Status status, java.time.Instant since);
+
+    /** Vouchers a payment is attached to — the audit's "this one was paid for" set. */
+    @Query("select p.voucher.id from Payment p where p.voucher is not null")
+    List<Long> findAllVoucherIds();
 }

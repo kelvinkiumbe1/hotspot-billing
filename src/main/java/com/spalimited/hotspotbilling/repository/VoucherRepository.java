@@ -27,6 +27,9 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     List<Voucher> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
 
+    /** Everything issued since a cutoff — the revenue audit's look-back window. */
+    List<Voucher> findByCreatedAtAfter(Instant cutoff);
+
     /**
      * Active passes about to run out that haven't been nudged yet — the source
      * for the "your WiFi is almost up, buy more" WhatsApp/SMS reminder.

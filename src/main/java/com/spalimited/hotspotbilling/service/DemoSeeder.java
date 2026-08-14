@@ -148,6 +148,9 @@ public class DemoSeeder implements ApplicationRunner {
             Plan plan = planList.get(rnd.nextInt(planList.size()));
             vouchers.save(Voucher.builder()
                     .code(code()).plan(plan).status(Voucher.Status.UNUSED)
+                    // Stock has to carry an origin, or the revenue audit reads
+                    // it as service that appeared from nowhere.
+                    .createdBy("demo")
                     .createdAt(now.minus(Duration.ofDays(rnd.nextInt(20))))
                     .build());
         }
