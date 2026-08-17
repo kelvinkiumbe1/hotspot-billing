@@ -1,6 +1,7 @@
 package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.config.WhatsappSignatureGuard;
+import com.spalimited.hotspotbilling.domain.OutboundMessage;
 import com.spalimited.hotspotbilling.service.FieldBotService;
 import com.spalimited.hotspotbilling.service.WhatsappBotService;
 import com.spalimited.hotspotbilling.service.WhatsappService;
@@ -33,6 +34,7 @@ public class WhatsappWebhookController {
     private final FieldBotService fieldBot;
     private final WhatsappService whatsapp;
     private final WhatsappSignatureGuard signatureGuard;
+    private final com.spalimited.hotspotbilling.service.OutboxService outbox;
     private final ObjectMapper mapper;
     private final com.spalimited.hotspotbilling.repository.PaymentRepository payments;
     private final com.spalimited.hotspotbilling.service.MessagingSettingsService messagingSettings;
@@ -141,10 +143,32 @@ public class WhatsappWebhookController {
     }
 
     private void respond(String from, String text) {
+        String reply;
         try {
-            whatsapp.send(from, answer(from, text));
+            reply = answer(from, text);
         } catch (Exception e) {
-            log.warn("Could not answer {} on WhatsApp: {}", from, e.getMessage());
+            log.warn("Could not work out a reply for {}: {}", from, e.getMessage());
+            return;
+        }
+        boolean sent = false;
+        String failure = null;
+        try {
+            sent = whatsapp.send(from, reply);
+            if (!sent) {
+                failure = "WhatsApp would not deliver it — see the log for Meta's reason";
+            }
+        } catch (Exception e) {
+            failure = e.getMessage();
+        }
+        // Bot replies used to leave no trace anywhere an operator could see, so
+        // a reply Meta refused looked exactly like a bot that had stopped
+        // working. Recording them puts the refusal in the Outbox beside every
+        // other message, with the reason attached.
+        try {
+            outbox.record(OutboundMessage.Channel.WHATSAPP, from, null, reply,
+                    sent, failure, "bot-reply", "bot");
+        } catch (Exception e) {
+            log.debug("Could not log the bot reply to {}: {}", from, e.getMessage());
         }
     }
 
