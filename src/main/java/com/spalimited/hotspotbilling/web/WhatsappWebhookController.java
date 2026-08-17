@@ -14,6 +14,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * WhatsApp self-service: Meta's Cloud API posts inbound customer messages here,
@@ -92,7 +96,7 @@ public class WhatsappWebhookController {
                         String from = str(msg.get("from"));
                         String text = str(asMap(msg.get("text")).get("body"));
                         if (from == null) continue;
-                        whatsapp.send(from, answer(from, text));
+                        enqueue(from, text);
                     }
                 }
             }
@@ -100,6 +104,48 @@ public class WhatsappWebhookController {
             log.warn("WhatsApp inbound parse error: {}", e.getMessage());
         }
         return ResponseEntity.ok("EVENT_RECEIVED");
+    }
+
+    /**
+     * Meta wants its acknowledgement quickly, and working out a reply plus
+     * handing it back to Meta measured at nearly two seconds. Hold the webhook
+     * open for that and Meta eventually treats the endpoint as unhealthy and
+     * retries — and a retried delivery is a second reply to a customer who
+     * asked once. So the acknowledgement goes back immediately and the reply
+     * is worked out behind it.
+     *
+     * <p>Per-sender ordering is kept: each message from a number chains behind
+     * the previous one from that number, while different customers are served
+     * in parallel. Without that, somebody sending "2" then "1" quickly could
+     * have the two handled out of order against one in-memory session and get
+     * an answer to a question they had already moved past.
+     */
+    private final ExecutorService replies = Executors.newFixedThreadPool(8, r -> {
+        Thread t = new Thread(r, "whatsapp-reply");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private final Map<String, CompletableFuture<Void>> inFlight = new ConcurrentHashMap<>();
+
+    private void enqueue(String from, String text) {
+        inFlight.compute(from, (phone, previous) -> {
+            CompletableFuture<Void> next = previous == null || previous.isDone()
+                    ? CompletableFuture.runAsync(() -> respond(phone, text), replies)
+                    : previous.thenRunAsync(() -> respond(phone, text), replies);
+            // Drop the chain once it drains, so a busy day does not leave an
+            // entry per customer behind for the life of the process.
+            next.whenComplete((v, e) -> inFlight.remove(phone, next));
+            return next;
+        });
+    }
+
+    private void respond(String from, String text) {
+        try {
+            whatsapp.send(from, answer(from, text));
+        } catch (Exception e) {
+            log.warn("Could not answer {} on WhatsApp: {}", from, e.getMessage());
+        }
     }
 
     /**
