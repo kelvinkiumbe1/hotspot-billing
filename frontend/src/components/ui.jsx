@@ -2,11 +2,12 @@
  * Small shared building blocks for the admin pages, using the design
  * tokens from index.css.
  */
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 // Icon now lives in its own module (Lucide-backed); re-export so the many
 // `import { Icon } from '../components/ui.jsx'` call sites keep working.
 export { Icon } from './icons.jsx'
+import { Icon } from './icons.jsx'
 
 export function Skeleton({ className = '' }) {
   return <div className={`animate-pulse bg-surface-container-high rounded-xl ${className}`}></div>
@@ -88,6 +89,74 @@ export function PrimaryButton({ children, className = '', ...props }) {
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * The "Saved!" confirmation.
+ *
+ * <p>Saving used to turn a line of small grey text on somewhere down the
+ * page — easy to miss entirely, and it left people pressing Save a second
+ * time to be sure it had taken. This lands in the middle of the screen edge
+ * where the eye catches it, draws its tick, and leaves on its own.
+ *
+ * <p>Failures do not auto-dismiss. A message that says something went wrong
+ * has to survive long enough to be read and acted on, which a two-second
+ * fade does not.
+ *
+ * <p>Usage: keep `{ ok, text }` in state, render `<Toast toast={t}
+ * onDone={() => setT(null)} />`, and set it after a save.
+ */
+export function Toast({ toast, onDone, duration = 2400 }) {
+  const [leaving, setLeaving] = useState(false)
+
+  useEffect(() => {
+    setLeaving(false)
+    if (!toast || !toast.ok) return undefined
+    const hold = setTimeout(() => setLeaving(true), duration)
+    // Long enough for the leaving animation, then it is gone from the DOM.
+    const drop = setTimeout(() => onDone && onDone(), duration + 260)
+    return () => { clearTimeout(hold); clearTimeout(drop) }
+  }, [toast, duration, onDone])
+
+  if (!toast) return null
+  const ok = toast.ok
+
+  return (
+    <div
+      // Announced to a screen reader as well as shown, since the whole point
+      // is confirming something happened.
+      role="status"
+      aria-live="polite"
+      className={`fixed left-1/2 bottom-8 z-[100] pointer-events-none ${leaving ? 'toast-out' : 'toast-in'}`}
+    >
+      <div
+        // A failure stays until dismissed, so it has to be dismissable.
+        onClick={ok ? undefined : () => onDone && onDone()}
+        className={`flex items-center gap-2.5 rounded-full pl-3 pr-5 py-2.5 shadow-lg border ${
+          ok
+            ? 'bg-secondary-container text-on-secondary-container border-secondary/30'
+            : 'bg-error-container text-on-error-container border-error/30 pointer-events-auto cursor-pointer'
+        }`}
+      >
+        {ok ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" className="opacity-20" fill="currentColor" />
+            <path
+              d="M7.5 12.4l3 3 6-6.5"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="toast-tick"
+            />
+          </svg>
+        ) : (
+          <Icon name="error" className="text-[20px]!" />
+        )}
+        <span className="text-sm font-semibold">{toast.text}</span>
+      </div>
+    </div>
   )
 }
 

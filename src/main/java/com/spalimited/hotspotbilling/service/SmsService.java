@@ -47,7 +47,8 @@ public class SmsService {
                     "SMS is not configured — set SMS_ENABLED, SMS_USERNAME and SMS_API_KEY");
         }
         List<String> numbers = phoneNumbers.stream()
-                .filter(p -> p != null && p.matches("254\\d{9}"))
+                .map(SmsService::normalise)
+                .filter(java.util.Objects::nonNull)
                 .distinct()
                 .map(p -> "+" + p)
                 .collect(Collectors.toList());
@@ -72,8 +73,22 @@ public class SmsService {
     }
 
     /** As above, tagged with a campaign reference and the sender. */
-    public void trySend(String phoneNumber, String message, String recipientName,
+    public void trySend(String rawPhoneNumber, String message, String recipientName,
                         String campaignRef, String sentBy) {
+        // Numbers reach this method from wherever they were typed: a customer
+        // filling in a support form, an operator adding a technician, an
+        // imported spreadsheet. The gateways accept exactly 2547XXXXXXXX and
+        // discard anything else without a word, so a number entered the way
+        // people actually say it — "0757…" — used to mean the message was
+        // never sent and nobody found out. Normalising at the one place every
+        // send passes through is the only version of this fix that stays fixed.
+        String phoneNumber = normalise(rawPhoneNumber);
+        if (phoneNumber == null) {
+            log.warn("Not sending: '{}' is not a usable Kenyan mobile number", rawPhoneNumber);
+            outboxService.record(OutboundMessage.Channel.SMS, rawPhoneNumber, recipientName, message,
+                    false, "Not a usable phone number", campaignRef, sentBy);
+            return;
+        }
         if (whatsappService != null && whatsappService.isEnabled()) {
             boolean ok = whatsappService.send("+" + phoneNumber, message);
             outboxService.record(OutboundMessage.Channel.WHATSAPP, phoneNumber, recipientName,
@@ -181,5 +196,25 @@ public class SmsService {
 
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * A Kenyan mobile number as the gateways want it, however it was typed:
+     * {@code 0757306837}, {@code +254 757 306 837} and {@code 757306837} are
+     * the same phone. Null when it cannot be one — better a recorded failure
+     * than a message posted into the void.
+     */
+    static String normalise(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String d = raw.replaceAll("\\D", "");
+        if (d.length() == 10 && d.startsWith("0")) {
+            d = "254" + d.substring(1);
+        }
+        if (d.length() == 9 && (d.startsWith("7") || d.startsWith("1"))) {
+            d = "254" + d;
+        }
+        return d.matches("254\\d{9}") ? d : null;
     }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api.js'
-import { Icon, Skeleton, PageHeader, PrimaryButton, Toggle, INPUT_CLS, LABEL_CLS } from '../../components/ui.jsx'
+import { Icon, Skeleton, PageHeader, PrimaryButton, Toast, Toggle, INPUT_CLS, LABEL_CLS } from '../../components/ui.jsx'
 
 const TEMPLATE_LABELS = {
   VOUCHER_ISSUED: ['Voucher issued', 'Sent after a customer pays for a WiFi pass.'],
@@ -71,7 +71,7 @@ export default function Branding({ auth }) {
     setMsg(null)
     try {
       await api('/admin/portal-settings', { method: 'PUT', auth, body: { ...form, trialMinutes: Number(form.trialMinutes) || 15 } })
-      setMsg({ ok: true, text: 'Saved — the customer portal updates immediately.' })
+      setMsg({ ok: true, text: 'Saved!' })
     } catch (err) {
       setMsg({ ok: false, text: err.message })
     } finally {
@@ -127,7 +127,9 @@ export default function Branding({ auth }) {
         ))}
       </nav>
 
-      {msg && <p className={`text-sm font-semibold mb-4 ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</p>}
+      {/* Confirmation is a toast rather than a line of text further down the
+          page, which people were missing and then saving a second time. */}
+      <Toast toast={msg} onDone={() => setMsg(null)} />
 
       {tab === 'portal' && (
         <div className="flex flex-col gap-6">
