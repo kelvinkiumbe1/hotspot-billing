@@ -47,6 +47,7 @@ const SECTIONS = [
     group: 'Automation',
     items: [
       { key: 'field', label: 'Field jobs', hint: 'Technicians work jobs from WhatsApp; quiet jobs get chased', icon: 'engineering', need: 'SETTINGS' },
+      { key: 'agentpay', label: 'Agent payouts', hint: 'Commission paid out on a schedule over M-Pesa', icon: 'payments', need: 'SETTINGS' },
     ],
   },
   {
@@ -1609,6 +1610,230 @@ function FieldSection({ auth }) {
   )
 }
 
+const PAYOUT_STATUS_TONE = {
+  PAID: 'bg-secondary-container text-on-secondary-container',
+  MANUAL: 'bg-surface-container-high text-on-surface-variant',
+  SENT: 'bg-primary-container/40 text-primary',
+  PENDING: 'bg-[#f59e0b]/10 text-[#b45309]',
+  FAILED: 'bg-[#b91c1c]/10 text-[#b91c1c]',
+}
+
+/**
+ * Agent payouts. The screen leads with who is owed what and why anyone is
+ * blocked, because the failure this replaces is an agent quietly missing from
+ * the run — being left out for want of a phone number should be impossible to
+ * miss, not something discovered when they complain.
+ */
+function AgentPayoutSection({ auth }) {
+  const [data, setData] = useState(null)
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/admin/agents/payouts', { auth })
+    .then((d) => { setData(d); setForm(d.settings) })
+    .catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      await api('/admin/agents/payouts/settings', { method: 'PUT', auth, body: form })
+      setMsg({ ok: true, text: 'Saved.' })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function act(path, ok) {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api(path, { method: 'POST', auth })
+      setMsg({ ok: true, text: ok(r) })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  const dueTotal = (data?.due || []).filter((d) => !d.blockedBecause)
+    .reduce((sum, d) => sum + Number(d.owed || 0), 0)
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Pay commission on a schedule</span>
+            <span className="text-sm text-on-surface-variant">
+              On pay day the round is worked out and each agent is sent their balance over M-Pesa.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        <div className="flex items-start justify-between gap-4 pt-3 border-t border-outline-variant/40">
+          <div>
+            <span className="text-sm font-semibold block">Send without asking me</span>
+            <span className="text-sm text-on-surface-variant">
+              Off is the sensible first month: the round is still worked out and queued, you just
+              press the button.
+            </span>
+          </div>
+          <Toggle checked={form.autoSend} onChange={(e) => set({ autoSend: e.target.checked })} />
+        </div>
+        {!data?.canSendMoney && (
+          <p className="text-xs text-[#b45309] flex items-start gap-2">
+            <Icon name="warning" className="text-[16px]! mt-0.5" />
+            M-Pesa cannot send money yet. Add the initiator name and security credential under
+            Settings → Payment gateways, and make sure your callback URL is publicly reachable.
+            Until then payouts can be prepared but not released.
+          </p>
+        )}
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-3">When, and how much</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>How often</label>
+            <select className={INPUT_CLS} value={form.frequency}
+              onChange={(e) => set({ frequency: e.target.value })}>
+              <option value="WEEKLY">Every week</option>
+              <option value="MONTHLY">Every month</option>
+            </select>
+          </div>
+          {form.frequency === 'WEEKLY' ? (
+            <div>
+              <label className={LABEL_CLS}>Pay day</label>
+              <select className={INPUT_CLS} value={form.dayOfWeek}
+                onChange={(e) => set({ dayOfWeek: Number(e.target.value) })}>
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                  .map((d, i) => <option key={d} value={i + 1}>{d}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className={LABEL_CLS}>Day of the month</label>
+              <input type="number" min="1" max="31" className={INPUT_CLS} value={form.dayOfMonth}
+                onChange={(e) => set({ dayOfMonth: Number(e.target.value) })} />
+              <p className="text-xs text-on-surface-variant mt-1">The 31st still pays on the last day of a short month.</p>
+            </div>
+          )}
+          <div>
+            <label className={LABEL_CLS}>At (hour, 0–23)</label>
+            <input type="number" min="0" max="23" className={INPUT_CLS} value={form.runHour}
+              onChange={(e) => set({ runHour: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Don't pay less than (KES)</label>
+            <input type="number" min="1" step="50" className={INPUT_CLS} value={form.minimumAmount}
+              onChange={(e) => set({ minimumAmount: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Smaller balances roll over to the next round.</p>
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Most to pay in one round (KES)</label>
+            <input type="number" min="1" step="1000" className={INPUT_CLS} value={form.maxPerRun}
+              onChange={(e) => set({ maxPerRun: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">A ceiling, so a mistake can't empty the float.</p>
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Pay from shortcode (optional)</label>
+            <input className={INPUT_CLS} value={form.b2cShortCode || ''}
+              onChange={(e) => set({ b2cShortCode: e.target.value })} placeholder="Same as collection" />
+            <p className="text-xs text-on-surface-variant mt-1">Only if Safaricom gave you a separate B2C shortcode.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-1">
+          Owed right now: KES {dueTotal.toLocaleString()} across {(data?.due || []).filter((d) => !d.blockedBecause).length} agent(s)
+        </p>
+        {(data?.due || []).length === 0 ? (
+          <p className="text-xs text-on-surface-variant">Nobody is over the minimum yet.</p>
+        ) : (
+          <div className="overflow-x-auto table-scroll mt-2">
+            <table className="data-table w-full">
+              <thead>
+                <tr><th>Agent</th><th>Number</th><th className="text-right">Owed</th><th></th></tr>
+              </thead>
+              <tbody>
+                {data.due.map((d) => (
+                  <tr key={d.agentId}>
+                    <td>{d.agentName} <span className="text-xs text-on-surface-variant">{d.code}</span></td>
+                    <td className="font-mono text-xs">{d.phoneNumber || '—'}</td>
+                    <td className="text-right tabular-nums">KES {Number(d.owed).toLocaleString()}</td>
+                    <td className="text-xs text-[#b45309]">{d.blockedBecause}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {(data?.history || []).length > 0 && (
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+          <p className="text-sm font-semibold mb-2">Recent payouts</p>
+          <div className="overflow-x-auto table-scroll">
+            <table className="data-table w-full">
+              <thead>
+                <tr><th>Agent</th><th className="text-right">Amount</th><th>Status</th><th>Reference</th><th className="text-right"></th></tr>
+              </thead>
+              <tbody>
+                {data.history.slice(0, 25).map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.agentName}</td>
+                    <td className="text-right tabular-nums">KES {Number(p.amount).toLocaleString()}</td>
+                    <td>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${PAYOUT_STATUS_TONE[p.status] || ''}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="font-mono text-xs">{p.receipt || <span className="text-on-surface-variant">{p.error || '—'}</span>}</td>
+                    <td className="text-right whitespace-nowrap">
+                      {p.status === 'PENDING' && (
+                        <>
+                          <button type="button" disabled={busy}
+                            onClick={() => act(`/admin/agents/payouts/${p.id}/release`, () => 'Sent to M-Pesa.')}
+                            className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold cursor-pointer disabled:opacity-50">
+                            Release
+                          </button>
+                          <button type="button" disabled={busy}
+                            onClick={() => act(`/admin/agents/payouts/${p.id}/cancel`, () => 'Cancelled.')}
+                            className="ml-2 px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer disabled:opacity-50">
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        <button type="button" disabled={busy}
+          onClick={() => act('/admin/agents/payouts/run',
+            (r) => `Prepared ${r.queued} payout(s) totalling KES ${Number(r.total).toLocaleString()}${r.sent ? `, ${r.sent} sent` : ''}.`)}
+          className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-semibold cursor-pointer disabled:opacity-50">
+          Work out this round now
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function PaybillSection({ auth }) {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -2091,6 +2316,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
                 subtitle="Technicians run their jobs from WhatsApp, and work nobody has touched chases itself."
               />
               <FieldSection auth={auth} />
+            </>
+          )}
+          {current === 'agentpay' && (
+            <>
+              <PageHeader
+                title="Agent payouts"
+                subtitle="Commission is already worked out from the vouchers your agents sold. This pays it."
+              />
+              <AgentPayoutSection auth={auth} />
             </>
           )}
           {current === 'paybill' && (

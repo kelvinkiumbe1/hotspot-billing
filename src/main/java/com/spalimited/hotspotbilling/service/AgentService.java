@@ -57,11 +57,9 @@ public class AgentService {
         return agents.save(agent);
     }
 
-    @Transactional
-    public Agent recordCommissionPayout(Long id, BigDecimal amount) {
-        Agent agent = agent(id);
-        agent.setCommissionPaid(agent.getCommissionPaid().add(amount));
-        return agents.save(agent);
+    @Transactional(readOnly = true)
+    public Agent agentById(Long id) {
+        return agent(id);
     }
 
     @Transactional

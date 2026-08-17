@@ -186,6 +186,67 @@ public class MpesaService {
     }
 
     /**
+     * Sends money out: a B2C BusinessPayment, used to pay agent commission.
+     *
+     * <p>Asynchronous like Transaction Status — Daraja accepting the request
+     * means only that it will try. The ConversationID returned here correlates
+     * the result that eventually says whether the money actually moved, and
+     * nothing should be treated as paid until it arrives.
+     *
+     * <p>Needs the same initiator credentials as transaction verification,
+     * plus a shortcode enabled for B2C on Safaricom's side. Returns null when
+     * that is not configured or Daraja refused the request, and never throws:
+     * a payout run must record a refusal against that agent and carry on to
+     * the next, not abort halfway through paying people.
+     */
+    public String b2cPayment(String phoneNumber, BigDecimal amount, String shortCode, String remarks) {
+        PaymentGatewayService.DarajaConfig cfg = gatewayService.daraja();
+        String resultUrl = deriveCallbackUrl("b2c-result");
+        String payFrom = shortCode == null || shortCode.isBlank() ? cfg.shortCode() : shortCode.trim();
+        if (!cfg.canVerifyTransactions() || resultUrl == null
+                || phoneNumber == null || amount == null || amount.signum() <= 0) {
+            return null;
+        }
+        Map<String, Object> body = Map.ofEntries(
+                Map.entry("InitiatorName", cfg.initiatorName()),
+                Map.entry("SecurityCredential", cfg.securityCredential()),
+                Map.entry("CommandID", "BusinessPayment"),
+                Map.entry("Amount", amount.setScale(0, java.math.RoundingMode.DOWN).toBigInteger()),
+                Map.entry("PartyA", payFrom),
+                Map.entry("PartyB", phoneNumber),
+                Map.entry("Remarks", remarks == null ? "Commission payout" : remarks),
+                Map.entry("QueueTimeOutURL", deriveCallbackUrl("b2c-timeout")),
+                Map.entry("ResultURL", resultUrl),
+                Map.entry("Occasion", "commission"));
+        JsonNode response;
+        try {
+            response = clientFor(cfg.baseUrl()).post()
+                    .uri("/mpesa/b2c/v1/paymentrequest")
+                    .header("Authorization", "Bearer " + fetchAccessToken(cfg))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            log.warn("B2C payment to {} rejected: {}", phoneNumber, e.getMessage());
+            return null;
+        }
+        if (response == null || response.path("ResponseCode").asInt(-1) != 0) {
+            log.warn("B2C payment to {} not accepted: {}", phoneNumber, response);
+            return null;
+        }
+        String conversationId = response.path("ConversationID").asText();
+        log.info("B2C payment of {} to {} accepted (ConversationID={})", amount, phoneNumber, conversationId);
+        return conversationId;
+    }
+
+    /** True when money can actually be sent out right now. */
+    public boolean canSendMoney() {
+        return gatewayService.daraja().canVerifyTransactions()
+                && deriveCallbackUrl("b2c-result") != null;
+    }
+
+    /**
      * Builds a Daraja result/timeout URL from the configured callback URL by
      * swapping its final segment, so all the async endpoints share one public
      * base without a second setting to keep in sync.

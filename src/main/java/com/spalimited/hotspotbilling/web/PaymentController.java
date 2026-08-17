@@ -3,6 +3,7 @@ package com.spalimited.hotspotbilling.web;
 import tools.jackson.databind.JsonNode;
 import com.spalimited.hotspotbilling.config.MpesaCallbackGuard;
 import com.spalimited.hotspotbilling.domain.Payment;
+import com.spalimited.hotspotbilling.service.AgentPayoutService;
 import com.spalimited.hotspotbilling.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final AgentPayoutService agentPayouts;
     private final MpesaCallbackGuard callbackGuard;
 
     public record StkPushRequest(
@@ -116,6 +118,34 @@ public class PaymentController {
         callbackGuard.assertFromSafaricom(request);
         log.debug("Daraja transaction-status result: {}", body);
         paymentService.handleTransactionResult(body);
+        return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
+    }
+
+    /**
+     * Async B2C result posted by Daraja — the moment an agent's commission
+     * actually counts as paid. Always answered with an accept, because a
+     * non-2xx makes Safaricom retry, and a retry we then process twice would
+     * credit the agent twice.
+     */
+    @PostMapping("/mpesa/b2c-result")
+    public Map<String, Object> b2cResult(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
+        log.debug("Daraja B2C result: {}", body);
+        try {
+            agentPayouts.handleB2cResult(body);
+        } catch (Exception e) {
+            log.warn("Could not apply B2C result: {}", e.getMessage());
+        }
+        return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
+    }
+
+    /** Timeout notice for a payout Safaricom couldn't complete in time. */
+    @PostMapping("/mpesa/b2c-timeout")
+    public Map<String, Object> b2cTimeout(@RequestBody JsonNode body, HttpServletRequest request) {
+        callbackGuard.assertFromSafaricom(request);
+        // Deliberately not marked failed: a timeout is Safaricom saying it does
+        // not know yet, and treating that as "unpaid" invites a double payment.
+        log.warn("Daraja B2C payout timed out: {}", body);
         return Map.of("ResultCode", 0, "ResultDesc", "Accepted");
     }
 

@@ -3,6 +3,9 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.Agent;
 import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.domain.VoucherBatch;
+import com.spalimited.hotspotbilling.domain.AgentPayoutSettings;
+import com.spalimited.hotspotbilling.domain.CommissionPayout;
+import com.spalimited.hotspotbilling.service.AgentPayoutService;
 import com.spalimited.hotspotbilling.service.AgentService;
 import com.spalimited.hotspotbilling.service.AuditService;
 import jakarta.validation.Valid;
@@ -24,6 +27,7 @@ import java.util.Map;
 public class AgentController {
 
     private final AgentService agentService;
+    private final AgentPayoutService agentPayouts;
     private final AuditService audit;
 
     // --- Agents ---
@@ -64,13 +68,75 @@ public class AgentController {
     public record PayoutRequest(@NotNull @Min(1) BigDecimal amount) {
     }
 
+    /**
+     * Commission the operator moved themselves. Recorded through the payout
+     * ledger rather than straight onto the agent, so their paid total has one
+     * explanation whether the money went out by hand or on a schedule.
+     */
     @PreAuthorize("hasAuthority('FINANCE')")
     @PostMapping("/agents/{id}/commission")
     public Agent payCommission(@PathVariable Long id, @Valid @RequestBody PayoutRequest request, Principal principal) {
-        Agent agent = agentService.recordCommissionPayout(id, request.amount());
+        agentPayouts.recordManual(id, request.amount(), principal == null ? "office" : principal.getName());
+        Agent agent = agentService.agentById(id);
         audit.record(principal, "agent.commission",
-                "Paid KES " + request.amount() + " commission to " + agent.getFullName());
+                "Recorded KES " + request.amount() + " commission paid by hand to " + agent.getFullName());
         return agent;
+    }
+
+    // --- Commission payouts ---
+
+    /** What is owed, what has been paid, and how the schedule is set. */
+    @PreAuthorize("hasAuthority('FINANCE')")
+    @GetMapping("/agents/payouts")
+    public Map<String, Object> payouts() {
+        return Map.of(
+                "settings", agentPayouts.settings(),
+                "due", agentPayouts.due().stream().map(d -> Map.of(
+                        "agentId", d.agent().getId(),
+                        "agentName", d.agent().getFullName(),
+                        "code", d.agent().getCode(),
+                        "phoneNumber", d.agent().getPhoneNumber() == null ? "" : d.agent().getPhoneNumber(),
+                        "owed", d.owed(),
+                        "blockedBecause", d.blockedBecause() == null ? "" : d.blockedBecause())).toList(),
+                "history", agentPayouts.history(),
+                "canSendMoney", agentPayouts.canSendMoney());
+    }
+
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @PutMapping("/agents/payouts/settings")
+    public AgentPayoutSettings savePayoutSettings(@RequestBody AgentPayoutSettings body, Principal principal) {
+        AgentPayoutSettings saved = agentPayouts.update(body);
+        audit.record(principal, "agent.payout.settings",
+                "Updated agent commission payouts (" + (saved.isEnabled() ? "on" : "off")
+                        + (saved.isAutoSend() ? ", automatic" : ", needs release") + ")");
+        return saved;
+    }
+
+    /** Works out this round of payouts now instead of waiting for the schedule. */
+    @PreAuthorize("hasAuthority('FINANCE')")
+    @PostMapping("/agents/payouts/run")
+    public Map<String, Object> runPayouts(Principal principal) {
+        Map<String, Object> result = agentPayouts.runNow(principal == null ? "office" : principal.getName());
+        audit.record(principal, "agent.payout.run",
+                "Prepared " + result.get("queued") + " commission payout(s) totalling KES " + result.get("total"));
+        return result;
+    }
+
+    @PreAuthorize("hasAuthority('FINANCE')")
+    @PostMapping("/agents/payouts/{id}/release")
+    public CommissionPayout releasePayout(@PathVariable Long id, Principal principal) {
+        CommissionPayout payout = agentPayouts.release(id);
+        audit.record(principal, "agent.payout.release",
+                "Released commission payout #" + id + " (KES " + payout.getAmount() + ")");
+        return payout;
+    }
+
+    @PreAuthorize("hasAuthority('FINANCE')")
+    @PostMapping("/agents/payouts/{id}/cancel")
+    public CommissionPayout cancelPayout(@PathVariable Long id, Principal principal) {
+        CommissionPayout payout = agentPayouts.cancel(id);
+        audit.record(principal, "agent.payout.cancel", "Cancelled commission payout #" + id);
+        return payout;
     }
 
     @PreAuthorize("hasAuthority('SELL')")
