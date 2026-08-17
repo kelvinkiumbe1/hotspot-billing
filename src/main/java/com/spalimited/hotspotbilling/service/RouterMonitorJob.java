@@ -41,6 +41,7 @@ public class RouterMonitorJob {
     private final OperatorAlertSettingsService alertSettings;
     private final SubscriptionService subscriptionService;
     private final FupService fupService;
+    private final VoucherService voucherService;
     private final HeartbeatService heartbeats;
     private final IncidentService incidentService;
 
@@ -54,6 +55,14 @@ public class RouterMonitorJob {
         // Stamped even when MikroTik is switched off: the point is proving the
         // scheduler is alive, which is true either way.
         heartbeats.stamp("router-monitor");
+        // Passes that have run past their time are cut off here rather than in
+        // their own job: this is the sweep that already talks to the routers,
+        // and a deadline the router does not honour is not a deadline.
+        try {
+            voucherService.expirePastDeadline();
+        } catch (Exception e) {
+            log.warn("Could not expire passes past their deadline: {}", e.getMessage());
+        }
         if (!mikrotikService.settings().isEnabled()) {
             return;
         }
@@ -176,6 +185,13 @@ public class RouterMonitorJob {
                     v.setStatus(Voucher.Status.ACTIVE);
                     if (v.getActivatedAt() == null) {
                         v.setActivatedAt(Instant.now());
+                    }
+                    // Batch stock has no deadline until somebody uses it. Without
+                    // this, a code redeemed at the hotspot login rather than
+                    // through the portal never got one at all — which is why
+                    // those customers never received an expiry warning.
+                    if (v.getExpiresAt() == null) {
+                        v.setExpiresAt(Instant.now().plusSeconds(v.getDurationSeconds()));
                     }
                 }
                 if (v.getStatus() == Voucher.Status.ACTIVE && v.isExhausted()) {

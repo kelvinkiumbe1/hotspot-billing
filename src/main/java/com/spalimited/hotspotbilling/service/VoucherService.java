@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -86,10 +87,30 @@ public class VoucherService {
                 .phoneNumber(phoneNumber)
                 .createdBy(createdBy)
                 .build();
+        startClockIfSold(voucher);
         voucher = voucherRepository.save(voucher);
         mikrotikService.provisionVoucher(voucher);
         log.info("Issued voucher {} for plan '{}'", voucher.getCode(), plan.getName());
         return voucher;
+    }
+
+    /**
+     * A pass someone has just bought starts running now, not whenever they
+     * first connect. Somebody who pays at nine for six hours expects it to
+     * run to three, and a code that sits unused keeping its full value is an
+     * invitation to buy cheap passes and hoard them.
+     *
+     * <p>Only for passes issued <em>to somebody</em>. Stock generated in a
+     * batch for an agent to resell has no buyer yet, so its clock cannot have
+     * started — otherwise inventory handed over on Monday is worthless by
+     * Tuesday. Shelf life for unsold stock is a separate control
+     * ({@code unusedVoucherExpiryDays}).
+     */
+    private void startClockIfSold(Voucher voucher) {
+        if (voucher.getPhoneNumber() == null || voucher.getPhoneNumber().isBlank()) {
+            return;
+        }
+        voucher.setExpiresAt(Instant.now().plus(voucher.getEffectiveDurationMinutes(), ChronoUnit.MINUTES));
     }
 
     /**
@@ -118,6 +139,7 @@ public class VoucherService {
                 .customDurationMinutes(minutes)
                 .createdBy(createdBy)
                 .build();
+        startClockIfSold(voucher);
         voucher = voucherRepository.save(voucher);
         mikrotikService.provisionVoucher(voucher);
         log.info("Issued custom {}-minute voucher {}", minutes, voucher.getCode());
@@ -163,8 +185,47 @@ public class VoucherService {
         }
         voucher.setStatus(Voucher.Status.ACTIVE);
         voucher.setActivatedAt(Instant.now());
-        voucher.setExpiresAt(Instant.now().plus(voucher.getEffectiveDurationMinutes(), ChronoUnit.MINUTES));
+        // A pass sold to somebody already has its deadline, set when they paid.
+        // Only stock that had no buyer starts counting on first use.
+        if (voucher.getExpiresAt() == null) {
+            voucher.setExpiresAt(Instant.now().plus(voucher.getEffectiveDurationMinutes(), ChronoUnit.MINUTES));
+        }
         return voucher;
+    }
+
+    /**
+     * Cuts off passes whose wall-clock deadline has gone by.
+     *
+     * <p>This has to exist for the deadline to mean anything. The router is
+     * told {@code limit-uptime}, which counts connected time — so a customer
+     * who buys six hours at nine, uses one, and comes back at eight in the
+     * evening still has five hours of credit sitting on the router. Marking
+     * the pass expired in the database without removing it there would leave
+     * them online, and the revenue audit would then quite correctly start
+     * reporting the system's own passes as expired-but-still-connected.
+     */
+    @Transactional
+    public int expirePastDeadline() {
+        List<Voucher> due = voucherRepository.findByStatusInAndExpiresAtBefore(
+                List.of(Voucher.Status.UNUSED, Voucher.Status.ACTIVE), Instant.now());
+        int closed = 0;
+        for (Voucher v : due) {
+            v.setStatus(Voucher.Status.EXPIRED);
+            voucherRepository.save(v);
+            try {
+                mikrotikService.removeVoucher(v);
+            } catch (Exception e) {
+                // The database is the record; a router we cannot reach now
+                // gets tidied by the next pass, or by the recovery reconcile.
+                log.debug("Could not remove expired voucher {} from the router: {}",
+                        v.getCode(), e.getMessage());
+            }
+            closed++;
+        }
+        if (closed > 0) {
+            log.info("Expired {} pass(es) that ran past their time", closed);
+        }
+        return closed;
     }
 
     private String uniqueCode(String prefix, int totalLength) {
