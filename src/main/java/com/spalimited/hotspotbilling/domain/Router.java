@@ -77,6 +77,13 @@ public class Router {
 
     private String boardName;
 
+    /**
+     * What this site's link can actually carry, in Mbps. Nothing can measure
+     * this from the outside — it is what the operator bought — and without it
+     * capacity planning has a numerator and no denominator.
+     */
+    private Integer capacityMbps;
+
     private Integer activeHotspotUsers;
 
     private Integer activePppoeUsers;

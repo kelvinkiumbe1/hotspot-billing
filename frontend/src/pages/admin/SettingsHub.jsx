@@ -49,6 +49,7 @@ const SECTIONS = [
       { key: 'field', label: 'Field jobs', hint: 'Technicians work jobs from WhatsApp; quiet jobs get chased', icon: 'engineering', need: 'SETTINGS' },
       { key: 'agentpay', label: 'Agent payouts', hint: 'Commission paid out on a schedule over M-Pesa', icon: 'payments', need: 'SETTINGS' },
       { key: 'offpeak', label: 'Off-peak offers', hint: 'Sell the hours the link is idle at a night rate', icon: 'bedtime', need: 'SETTINGS' },
+      { key: 'capacity', label: 'Capacity planning', hint: 'Busy hour per site, and how long before it fills', icon: 'speed', need: 'SETTINGS' },
     ],
   },
   {
@@ -1611,6 +1612,223 @@ function FieldSection({ auth }) {
   )
 }
 
+const VERDICT_TONE = {
+  CRITICAL: 'bg-[#b91c1c]/10 text-[#b91c1c]',
+  WARNING: 'bg-[#f59e0b]/10 text-[#b45309]',
+  OK: 'bg-secondary-container text-on-secondary-container',
+  UNDERUSED: 'bg-primary-container/40 text-primary',
+  UNKNOWN: 'bg-surface-container-high text-on-surface-variant',
+}
+
+/**
+ * Capacity planning. Each site's link capacity is typed in here rather than
+ * measured, because nothing can measure it from the outside — it is what the
+ * operator bought. Without it the busy hour is a number with no denominator,
+ * so the screen asks for it plainly instead of hiding the site.
+ */
+function CapacitySection({ auth }) {
+  const [data, setData] = useState(null)
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [drafts, setDrafts] = useState({})
+
+  const load = () => api('/admin/capacity', { auth })
+    .then((d) => { setData(d); setForm(d.settings) })
+    .catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      await api('/admin/capacity/settings', { method: 'PUT', auth, body: form })
+      setMsg({ ok: true, text: 'Saved.' })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function saveCapacity(routerId) {
+    const value = drafts[routerId]
+    setBusy(true); setMsg(null)
+    try {
+      await api(`/admin/capacity/routers/${routerId}`, {
+        method: 'PUT', auth, body: { capacityMbps: value === '' ? null : Number(value) },
+      })
+      setDrafts((d) => ({ ...d, [routerId]: undefined }))
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-3xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Watch capacity</span>
+            <span className="text-sm text-on-surface-variant">
+              Reads each site's busy hour from traffic you're already recording, and says how many
+              weeks of growth are left before it fills.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant flex items-start gap-2">
+          <Icon name="info" className="text-[16px]! mt-0.5" />
+          Advisory only. Nothing here reconfigures a router or changes anyone's package — buying
+          backhaul is not a decision to hand to a scheduler.
+        </p>
+        {data?.note && <p className="text-xs text-[#b45309]">{data.note}</p>}
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-3">Your sites</p>
+        {(data?.sites || []).length === 0 ? (
+          <p className="text-xs text-on-surface-variant">No enabled routers yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {data.sites.map((s) => (
+              <div key={s.routerId} className="border border-outline-variant/40 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <span className="font-semibold text-sm">{s.name}</span>
+                    {s.location && <span className="text-xs text-on-surface-variant"> · {s.location}</span>}
+                    <p className="text-xs text-on-surface-variant">
+                      Busy hour {s.busyHourMbps} Mbps
+                      {s.capacityMbps ? ` of ${s.capacityMbps} Mbps` : ''}
+                      {' · '}{s.daysOfData} day(s) of data
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${VERDICT_TONE[s.verdict] || ''}`}>
+                    {s.verdict}
+                  </span>
+                </div>
+
+                {s.usedPercent != null && (
+                  <div className="h-2 rounded-full bg-surface-container-high overflow-hidden mb-2">
+                    <div
+                      className={`h-full ${s.usedPercent >= form.criticalPercent ? 'bg-[#b91c1c]'
+                        : s.usedPercent >= form.warnPercent ? 'bg-[#f59e0b]' : 'bg-primary'}`}
+                      style={{ width: `${Math.min(100, s.usedPercent)}%` }}
+                    />
+                  </div>
+                )}
+
+                <p className="text-xs text-on-surface-variant">{s.advice}</p>
+
+                <div className="flex items-end gap-2 mt-3">
+                  <div className="max-w-[10rem]">
+                    <label className={LABEL_CLS}>Link capacity (Mbps)</label>
+                    <input type="number" min="1" className={INPUT_CLS}
+                      value={drafts[s.routerId] ?? (s.capacityMbps ?? '')}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [s.routerId]: e.target.value }))} />
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => saveCapacity(s.routerId)}
+                    className="px-3 py-2 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer disabled:opacity-50">
+                    Save
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {(data?.heaviest || []).length > 0 && (
+        <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+          <p className="text-sm font-semibold mb-1">Heaviest users</p>
+          <p className="text-xs text-on-surface-variant mb-3">
+            Worth a word about a bigger package — or a look at whether one code is being shared
+            around a whole building.
+          </p>
+          <div className="overflow-x-auto table-scroll">
+            <table className="data-table w-full">
+              <thead>
+                <tr><th>User</th><th>Site</th><th className="text-right">Used</th><th className="text-right">Share of site</th></tr>
+              </thead>
+              <tbody>
+                {data.heaviest.map((u) => (
+                  <tr key={`${u.routerId}-${u.userKey}`}>
+                    <td className="font-mono text-xs">{u.userKey}</td>
+                    <td className="text-xs">{u.routerName}</td>
+                    <td className="text-right tabular-nums">{u.gigabytes} GB</td>
+                    <td className="text-right tabular-nums">{u.shareOfSitePercent}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-3">Thresholds</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>Days of history to read</label>
+            <input type="number" min="7" max="180" className={INPUT_CLS} value={form.lookbackDays}
+              onChange={(e) => set({ lookbackDays: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Getting full at (%)</label>
+            <input type="number" min="10" max="99" className={INPUT_CLS} value={form.warnPercent}
+              onChange={(e) => set({ warnPercent: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Full at (%)</label>
+            <input type="number" min="11" max="100" className={INPUT_CLS} value={form.criticalPercent}
+              onChange={(e) => set({ criticalPercent: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Capacity going to waste below (%)</label>
+            <input type="number" min="1" max="90" className={INPUT_CLS} value={form.underusedPercent}
+              onChange={(e) => set({ underusedPercent: Number(e.target.value) })} />
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm font-semibold block">Text me weekly, if anything needs saying</span>
+            <span className="text-sm text-on-surface-variant">
+              Nothing is sent on a quiet week, so a message means something.
+            </span>
+          </div>
+          <Toggle checked={form.notify} onChange={(e) => set({ notify: e.target.checked })} />
+        </div>
+        {form.notify && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Day</label>
+              <select className={INPUT_CLS} value={form.notifyDayOfWeek}
+                onChange={(e) => set({ notifyDayOfWeek: Number(e.target.value) })}>
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                  .map((d, i) => <option key={d} value={i + 1}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Hour (0–23)</label>
+              <input type="number" min="0" max="23" className={INPUT_CLS} value={form.notifyHour}
+                onChange={(e) => set({ notifyHour: Number(e.target.value) })} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+    </form>
+  )
+}
+
 /**
  * Off-peak offers. The bar chart is not decoration: an operator will not hand
  * a discount to a scheduler on trust, and seeing that the hours it picked are
@@ -2506,6 +2724,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
                 subtitle="Technicians run their jobs from WhatsApp, and work nobody has touched chases itself."
               />
               <FieldSection auth={auth} />
+            </>
+          )}
+          {current === 'capacity' && (
+            <>
+              <PageHeader
+                title="Capacity planning"
+                subtitle="Backhaul takes weeks to order. This is the several weeks of warning."
+              />
+              <CapacitySection auth={auth} />
             </>
           )}
           {current === 'offpeak' && (
