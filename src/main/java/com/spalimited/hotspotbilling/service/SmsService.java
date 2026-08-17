@@ -90,6 +90,8 @@ public class SmsService {
             return;
         }
         if (whatsappService != null && whatsappService.isEnabled()) {
+            // WhatsApp is billed per message and renders emoji properly, so it
+            // gets the message as written.
             boolean ok = whatsappService.send("+" + phoneNumber, message);
             outboxService.record(OutboundMessage.Channel.WHATSAPP, phoneNumber, recipientName,
                     message, ok, ok ? null : "WhatsApp gateway rejected the message",
@@ -108,15 +110,45 @@ public class SmsService {
                     false, "No WhatsApp or SMS gateway is configured", campaignRef, sentBy);
             return;
         }
+        String forSms = plainForSms(message);
         try {
-            sendBulk(List.of(phoneNumber), message);
-            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
+            sendBulk(List.of(phoneNumber), forSms);
+            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, forSms,
                     true, null, campaignRef, sentBy);
         } catch (Exception e) {
             log.warn("SMS to {} failed: {}", phoneNumber, e.getMessage());
-            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
+            outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, forSms,
                     false, e.getMessage(), campaignRef, sentBy);
         }
+    }
+
+    /**
+     * Strips emoji and other non-GSM characters before an SMS goes out.
+     *
+     * <p>An SMS holds 160 characters — but one emoji anywhere in it switches
+     * the whole message to a wider encoding that holds only 70, so a single
+     * decorative character turns one paid message into two or three. Measured
+     * on this system's own wording: the off-peak offer and the technician's
+     * "on my way" both cost two instead of one, and "your job is resolved"
+     * three instead of one. On a nightly offer to a hundred customers that is
+     * a hundred messages a night bought for a moon.
+     *
+     * <p>WhatsApp is billed per message and renders them properly, so it keeps
+     * them. Only the SMS fallback is stripped.
+     */
+    static String plainForSms(String message) {
+        if (message == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(message.length());
+        message.codePoints().forEach(cp -> {
+            if (cp == '\n' || cp == '\r' || (cp >= 0x20 && cp <= 0x7E)) {
+                sb.appendCodePoint(cp);
+            }
+        });
+        // Removing a leading emoji leaves the line starting with a space, and
+        // two words that used to be separated by one are now separated by two.
+        return sb.toString().replaceAll("[ \\t]{2,}", " ").replaceAll("(?m)^[ \\t]+", "").trim();
     }
 
     private void dispatch(String to, String message) {

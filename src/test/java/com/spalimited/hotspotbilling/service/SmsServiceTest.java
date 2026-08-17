@@ -80,6 +80,38 @@ class SmsServiceTest {
     }
 
     @Test
+    @DisplayName("Emoji are stripped for SMS, where one of them triples the bill")
+    void stripsEmojiFromSms() {
+        String written = "🌙 KIUMBE WiFi night rate: 30% off until 06:00.\nReply to buy.";
+
+        String forSms = SmsService.plainForSms(written);
+
+        assertThat(forSms).isEqualTo("KIUMBE WiFi night rate: 30% off until 06:00.\nReply to buy.");
+        // 160 characters per SMS in the plain encoding, 70 once any emoji
+        // forces the wide one — so this is one paid message rather than two.
+        assertThat(forSms.chars().allMatch(c -> c < 128)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Stripping never leaves ragged spacing behind")
+    void tidiesUpAfterStripping() {
+        assertThat(SmsService.plainForSms("✅  Done  —  all good"))
+                .isEqualTo("Done all good");
+        assertThat(SmsService.plainForSms("⏰ Job #42 has had no update.\n⚠️ Please reply."))
+                .isEqualTo("Job #42 has had no update.\nPlease reply.");
+    }
+
+    @Test
+    @DisplayName("WhatsApp keeps the emoji, because it costs the same either way")
+    void whatsappKeepsTheMessageAsWritten() {
+        String written = "🎟️ Your code is ABC123";
+
+        service.trySend("254757306837", written);
+
+        verify(whatsappService).send(eq("+254757306837"), eq(written));
+    }
+
+    @Test
     @DisplayName("A number that could not be sent to never looks like it was")
     void neverReportsSuccessForABadNumber() {
         service.trySend("07", "Your code is ABC123");
