@@ -387,11 +387,21 @@ public class WhatsappBotService {
         return v == null ? t(s, "resendNone") : t(s, "resendFound", v.getCode(), voucherState(v));
     }
 
+    /**
+     * Read from the clock, not from the stored status. The sweep that marks a
+     * pass EXPIRED runs every couple of minutes, so for that window a pass
+     * whose time has gone is still stored as UNUSED — and the bot would tell
+     * the customer their dead code was "ready to use" in the same breath as
+     * option 2 telling them it had finished.
+     */
     private String voucherState(Voucher v) {
+        if (voucherService.statusOf(v).minutesLeft() <= 0) {
+            return "finished";
+        }
         return switch (v.getStatus()) {
             case UNUSED -> "ready to use";
             case ACTIVE -> "in use";
-            case EXPIRED -> "expired";
+            case EXPIRED -> "finished";
         };
     }
 
