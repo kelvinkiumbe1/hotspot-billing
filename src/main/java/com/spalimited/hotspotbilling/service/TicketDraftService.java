@@ -162,6 +162,14 @@ public class TicketDraftService {
             if (!paid) {
                 facts.add("NOTE: their subscription is not currently paid — that alone would explain "
                         + "a dead connection.");
+                // The amount is the difference between a reply that diagnoses
+                // the problem and one the customer can act on without ringing
+                // back to ask what they owe.
+                if (sub.getMonthlyFee() != null && sub.getMonthlyFee().signum() > 0) {
+                    facts.add("Their monthly fee is KES "
+                            + sub.getMonthlyFee().stripTrailingZeros().toPlainString()
+                            + " — that is what restores the connection.");
+                }
             }
             if (sub.getRouterId() != null) {
                 routers.findById(sub.getRouterId()).ifPresent(r -> facts.add(
@@ -268,10 +276,15 @@ public class TicketDraftService {
                 + "Rules:\n"
                 + "- Under 60 words. It is read on a phone.\n"
                 + "- Warm, plain, direct. Kenyan English. No corporate filler.\n"
+                + "- Short, complete sentences. Never join two statements with a comma.\n"
                 + "- Use the FACTS below. Never state anything that is not in them — no invented "
                 + "times, causes, engineer names or ticket numbers.\n"
-                + "- If the facts show the customer has not paid or has expired, say so kindly and "
-                + "tell them paying restores it.\n"
+                + "- Begin with one short sentence showing you have understood their problem. Then "
+                + "the answer.\n"
+                + "- If the facts show the customer has not paid or has expired, say so kindly, give "
+                + "the exact amount if the facts state one, and tell them they can reply to this "
+                + "message to pay. A reply that diagnoses the problem without saying what to do next "
+                + "just earns a phone call.\n"
                 + "- If the facts show an outage this customer IS affected by, acknowledge it. If the "
                 + "outage does not affect them, do not mention it at all.\n"
                 + "- Never promise a refund, a discount, a compensation amount, or a specific arrival "
