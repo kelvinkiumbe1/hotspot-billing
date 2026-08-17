@@ -167,7 +167,11 @@ public class FieldOpsService {
      * that is not a phone number cannot be told anything, and the caller should
      * be able to notice that rather than assume it worked.
      */
-    @Transactional(readOnly = true)
+    // Deliberately NOT readOnly: sending records every attempt in the outbox,
+    // and Postgres refuses an INSERT in a read-only transaction — then aborts
+    // the transaction, so everything after it in the same unit of work fails
+    // too. Marked read-only on the assumption that "notify" only reads.
+    @Transactional
     public int notifyNewTicket(SupportTicket ticket) {
         FieldSettings s = settings();
         if (!s.isNotifyTechniciansOnNewTicket()) {

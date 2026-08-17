@@ -3620,6 +3620,7 @@ function Support({ auth }) {
   const [technicians, setTechnicians] = useState([])
   const [showNew, setShowNew] = useState(false)
   const [savingAssignees, setSavingAssignees] = useState(false)
+  const [assignError, setAssignError] = useState(null)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -3635,11 +3636,19 @@ function Support({ auth }) {
 
   async function setAssignees(ticketId, assigneeIds) {
     setSavingAssignees(true)
+    setAssignError(null)
     try {
       await api(`/admin/tickets/${ticketId}/assignees`, {
         method: 'PATCH', auth, body: { assigneeIds: assigneeIds.map(Number) },
       })
       await load()
+    } catch (err) {
+      // Without this the picker kept showing the name it had optimistically
+      // ticked, so the ticket read as assigned while the server had nothing —
+      // and the technician was blamed for ignoring a job never given to them.
+      setAssignError(err.message)
+      // Put the display back in step with whatever the server actually holds.
+      await load().catch(() => {})
     } finally {
       setSavingAssignees(false)
     }
@@ -3838,11 +3847,18 @@ function Support({ auth }) {
                     disabled={savingAssignees}
                     onChange={(ids) => setAssignees(selected.id, ids)}
                   />
-                  <p className="text-xs text-on-surface-variant mt-2">
-                    {(selected.assigneeIds || []).length === 0
-                      ? 'Nobody is on this yet. Picking someone moves it to In Progress and texts them.'
-                      : 'Tap a name to add or remove. New assignees get a text with the job details.'}
-                  </p>
+                  {assignError ? (
+                    <p className="text-xs text-[#b91c1c] mt-2 flex items-start gap-1.5">
+                      <Icon name="error" className="text-[15px]! mt-0.5" />
+                      Not saved — {assignError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant mt-2">
+                      {(selected.assigneeIds || []).length === 0
+                        ? 'Nobody is on this yet. Picking someone moves it to In Progress and texts them.'
+                        : 'Tap a name to add or remove. New assignees get a text with the job details.'}
+                    </p>
+                  )}
                 </div>
               </div>
 
