@@ -48,6 +48,7 @@ const SECTIONS = [
     items: [
       { key: 'field', label: 'Field jobs', hint: 'Technicians work jobs from WhatsApp; quiet jobs get chased', icon: 'engineering', need: 'SETTINGS' },
       { key: 'agentpay', label: 'Agent payouts', hint: 'Commission paid out on a schedule over M-Pesa', icon: 'payments', need: 'SETTINGS' },
+      { key: 'offpeak', label: 'Off-peak offers', hint: 'Sell the hours the link is idle at a night rate', icon: 'bedtime', need: 'SETTINGS' },
     ],
   },
   {
@@ -1610,6 +1611,195 @@ function FieldSection({ auth }) {
   )
 }
 
+/**
+ * Off-peak offers. The bar chart is not decoration: an operator will not hand
+ * a discount to a scheduler on trust, and seeing that the hours it picked are
+ * genuinely the empty ones is what makes switching it on a reasonable thing
+ * to do.
+ */
+function OffPeakSection({ auth }) {
+  const [data, setData] = useState(null)
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => api('/admin/offpeak', { auth })
+    .then((d) => { setData(d); setForm(d.settings) })
+    .catch((e) => setMsg({ ok: false, text: e.message }))
+  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      await api('/admin/offpeak/settings', { method: 'PUT', auth, body: form })
+      setMsg({ ok: true, text: 'Saved.' })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function syncNow() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api('/admin/offpeak/sync', { method: 'POST', auth })
+      setMsg({
+        ok: true,
+        text: r.inWindow
+          ? `Quiet hours right now — the offer is ${r.offerRunning ? 'running' : 'not running'}${r.skipped ? ` (${r.skipped})` : ''}.`
+          : 'Not in the quiet hours, so no offer is running.',
+      })
+      await load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  const hours = data?.hours || []
+  const peak = Math.max(1, ...hours.map((h) => Number(h.megabytes || 0)))
+  const start = form.autoWindow && data?.suggestedStart != null ? data.suggestedStart : form.windowStartHour
+  const end = form.autoWindow && data?.suggestedEnd != null ? data.suggestedEnd : form.windowEndHour
+  const inWindow = (h) => (start === end ? false : start < end ? h >= start && h < end : h >= start || h < end)
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Run a night rate</span>
+            <span className="text-sm text-on-surface-variant">
+              Across the quiet hours, every package is discounted automatically. The offer opens and
+              closes itself.
+            </span>
+          </div>
+          <Toggle checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          A promotion you started by hand always wins: this will not stack a second discount on top of
+          one of yours, and it only ever closes offers it opened itself.
+        </p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <div className="flex items-baseline justify-between mb-1">
+          <p className="text-sm font-semibold">Your day, hour by hour</p>
+          <span className="text-xs text-on-surface-variant">{data?.daysOfData || 0} day(s) of traffic</span>
+        </div>
+        {data?.note
+          ? <p className="text-xs text-[#b45309] mb-3">{data.note}</p>
+          : (
+            <p className="text-xs text-on-surface-variant mb-3">
+              Shaded hours are the window in force. Bars are traffic; the number underneath is how many
+              sales landed in that hour.
+            </p>
+          )}
+        <div className="flex items-end gap-[3px] h-28">
+          {hours.map((h) => (
+            <div key={h.hour} className="flex-1 flex flex-col justify-end items-center h-full"
+              title={`${String(h.hour).padStart(2, '0')}:00 — ${Number(h.megabytes).toLocaleString()} MB, ${h.sales} sale(s)`}>
+              <div
+                className={`w-full rounded-t ${inWindow(h.hour) ? 'bg-primary/70' : 'bg-outline-variant'}`}
+                style={{ height: `${Math.max(2, (Number(h.megabytes) / peak) * 100)}%` }}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-[3px] mt-1">
+          {hours.map((h) => (
+            <div key={h.hour} className="flex-1 text-center text-[9px] text-on-surface-variant tabular-nums">
+              {h.hour % 3 === 0 ? String(h.hour).padStart(2, '0') : ''}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm font-semibold block">Work the quiet hours out for me</span>
+            <span className="text-sm text-on-surface-variant">
+              {data?.suggestedStart != null
+                ? `From the last ${form.lookbackDays} days that is ${String(data.suggestedStart).padStart(2, '0')}:00 to ${String(data.suggestedEnd).padStart(2, '0')}:00.`
+                : 'Not enough traffic recorded yet — the hours below are used until there is.'}
+            </span>
+          </div>
+          <Toggle checked={form.autoWindow} onChange={(e) => set({ autoWindow: e.target.checked })} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className={LABEL_CLS}>Quiet hours start</label>
+            <input type="number" min="0" max="23" className={INPUT_CLS} value={form.windowStartHour}
+              onChange={(e) => set({ windowStartHour: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>…and end</label>
+            <input type="number" min="0" max="23" className={INPUT_CLS} value={form.windowEndHour}
+              onChange={(e) => set({ windowEndHour: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">May cross midnight.</p>
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Discount (%)</label>
+            <input type="number" min="1" max="90" className={INPUT_CLS} value={form.discountPercent}
+              onChange={(e) => set({ discountPercent: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">
+              A KES 100 pass becomes KES {data?.exampleHundred ?? '—'}.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm font-semibold block">Tell people when it opens</span>
+            <span className="text-sm text-on-surface-variant">
+              A discount nobody knows about sells nothing.
+            </span>
+          </div>
+          <Toggle checked={form.notify} onChange={(e) => set({ notify: e.target.checked })} />
+        </div>
+        {form.notify && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Who to tell</label>
+              <select className={INPUT_CLS} value={form.audience}
+                onChange={(e) => set({ audience: e.target.value })}>
+                {(data?.audiences || []).map((a) => (
+                  <option key={a.key} value={a.key}>{a.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Most messages per night</label>
+              <input type="number" min="1" max="5000" className={INPUT_CLS} value={form.maxMessagesPerRun}
+                onChange={(e) => set({ maxMessagesPerRun: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Leave at least (days) between</label>
+              <input type="number" min="1" max="90" className={INPUT_CLS} value={form.minDaysBetweenMessages}
+                onChange={(e) => set({ minDaysBetweenMessages: Number(e.target.value) })} />
+              <p className="text-xs text-on-surface-variant mt-1">Per customer, not per run.</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        <button type="button" onClick={syncNow} disabled={busy}
+          className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-semibold cursor-pointer disabled:opacity-50">
+          Apply now
+        </button>
+      </div>
+    </form>
+  )
+}
+
 const PAYOUT_STATUS_TONE = {
   PAID: 'bg-secondary-container text-on-secondary-container',
   MANUAL: 'bg-surface-container-high text-on-surface-variant',
@@ -2316,6 +2506,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
                 subtitle="Technicians run their jobs from WhatsApp, and work nobody has touched chases itself."
               />
               <FieldSection auth={auth} />
+            </>
+          )}
+          {current === 'offpeak' && (
+            <>
+              <PageHeader
+                title="Off-peak offers"
+                subtitle="Your link is paid for all night. This sells the part of it nobody is using."
+              />
+              <OffPeakSection auth={auth} />
             </>
           )}
           {current === 'agentpay' && (

@@ -41,6 +41,17 @@ public class Promotion {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /**
+     * Who opened this offer. A promotion the operator started by hand is
+     * theirs: the off-peak scheduler may only close the ones it opened, or it
+     * would end a weekend sale the moment it decided the quiet hours were over.
+     */
+    @Builder.Default
+    @Column(nullable = false, length = 16)
+    private String source = "MANUAL";
+
+    public static final String SOURCE_OFFPEAK = "OFFPEAK";
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
