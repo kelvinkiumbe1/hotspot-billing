@@ -91,6 +91,7 @@ public class HealthMonitorService {
         found.addAll(checkJobs());
         found.addAll(checkMessaging());
         found.addAll(checkRouters());
+        found.addAll(checkWebhookTrust());
 
         Instant now = Instant.now();
         Set<String> seen = new HashSet<>();
@@ -187,6 +188,29 @@ public class HealthMonitorService {
                             + "clears this; until it runs, that work is not happening at all."));
         }
         return out;
+    }
+
+    /**
+     * An inbound WhatsApp webhook that cannot be proved to be Meta's. The bots
+     * behind it act on the sender's number alone, so an unsigned endpoint lets
+     * anyone who knows the URL read a customer's voucher code — or, posing as
+     * a technician, the whole job queue with every customer's details on it.
+     *
+     * <p>Only raised once WhatsApp is actually switched on. Warning rather
+     * than critical: nothing is broken, but nothing is protected either, and
+     * this must not be discoverable only from a log line.
+     */
+    private List<Finding> checkWebhookTrust() {
+        var messaging = messagingSettings.settings();
+        if (!messaging.isWhatsappEnabled() || messaging.isInboundVerifiable()) {
+            return List.of();
+        }
+        return List.of(new Finding("whatsapp.unsigned", HealthAlert.Severity.WARNING,
+                "WhatsApp messages are not being verified as genuine",
+                "No Meta app secret is set, so an inbound message's sender is only a claim. "
+                        + "Anyone who knows the webhook URL could pose as a customer and read their "
+                        + "access code, or pose as a technician and read the whole job queue. "
+                        + "Add the app secret under Settings → SMS & WhatsApp."));
     }
 
     /** Codes that are never delivered are indistinguishable from codes never sent. */

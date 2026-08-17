@@ -1,0 +1,13 @@
+-- The WhatsApp inbound webhook is a public, unauthenticated endpoint, and the
+-- bots behind it trust one thing: the "from" number in the payload. The GET
+-- handshake is verified; the POST that carries real messages never was.
+--
+-- So anyone who learned the URL could hand-craft a payload with any number
+-- they liked. As a customer that leaks their voucher code and account state.
+-- As a technician it hands over the whole job queue — every open customer's
+-- name and phone number — plus the ability to send messages that arrive as
+-- the business.
+--
+-- Meta signs every delivery with X-Hub-Signature-256, an HMAC of the raw body
+-- under the app secret. This is where that secret lives so it can be checked.
+ALTER TABLE messaging_settings ADD COLUMN whatsapp_app_secret VARCHAR(200);

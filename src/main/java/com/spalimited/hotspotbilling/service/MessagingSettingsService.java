@@ -94,7 +94,11 @@ public class MessagingSettingsService {
         out.put("whatsappEnabled", s.isWhatsappEnabled());
         out.put("whatsappPhoneNumberId", s.getWhatsappPhoneNumberId());
         out.put("whatsappAccessToken", mask(s.getWhatsappAccessToken()));
+        out.put("whatsappAppSecret", mask(s.getWhatsappAppSecret()));
         out.put("whatsappWorking", wa.enabled() && notBlank(wa.phoneNumberId()) && notBlank(wa.accessToken()));
+        // Whether an inbound message can be proved to have come from Meta.
+        // Without it the sender's number is only a claim, and the bots act on it.
+        out.put("whatsappInboundVerified", s.isInboundVerifiable());
 
         out.put("alertPhone", s.getAlertPhone());
         out.put("updatedAt", s.getUpdatedAt());
@@ -127,6 +131,10 @@ public class MessagingSettingsService {
         if (notBlank(incoming.getWhatsappAccessToken())
                 && !incoming.getWhatsappAccessToken().startsWith("••••")) {
             s.setWhatsappAccessToken(incoming.getWhatsappAccessToken().trim());
+        }
+        if (notBlank(incoming.getWhatsappAppSecret())
+                && !incoming.getWhatsappAppSecret().startsWith("••••")) {
+            s.setWhatsappAppSecret(incoming.getWhatsappAppSecret().trim());
         }
 
         s.setAlertPhone(trim(incoming.getAlertPhone()));

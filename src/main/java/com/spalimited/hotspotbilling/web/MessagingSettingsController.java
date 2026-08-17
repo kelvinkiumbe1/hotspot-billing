@@ -40,6 +40,7 @@ public class MessagingSettingsController {
             boolean whatsappEnabled,
             String whatsappPhoneNumberId,
             String whatsappAccessToken,
+            String whatsappAppSecret,
             @Pattern(regexp = "|254\\d{9}", message = "Use the 2547XXXXXXXX form, or leave it blank")
             String alertPhone) {
     }
@@ -55,6 +56,7 @@ public class MessagingSettingsController {
                 .whatsappEnabled(request.whatsappEnabled())
                 .whatsappPhoneNumberId(request.whatsappPhoneNumberId())
                 .whatsappAccessToken(request.whatsappAccessToken())
+                .whatsappAppSecret(request.whatsappAppSecret())
                 .alertPhone(request.alertPhone())
                 .build(), principal.getName());
         audit.record(principal, "messaging.settings", "Updated messaging gateways");

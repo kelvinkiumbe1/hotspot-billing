@@ -776,6 +776,7 @@ function MessagingSection({ auth }) {
         whatsappEnabled: d.whatsappEnabled,
         whatsappPhoneNumberId: d.whatsappPhoneNumberId || '',
         whatsappAccessToken: '',
+        whatsappAppSecret: '',
         alertPhone: d.alertPhone || '',
       })
     }).catch((e) => setMsg({ ok: false, text: e.message }))
@@ -900,6 +901,25 @@ function MessagingSection({ auth }) {
               <input className={INPUT_CLS} type="password" value={form.whatsappAccessToken}
                 onChange={(e) => set({ whatsappAccessToken: e.target.value })}
                 placeholder={saved?.whatsappAccessToken || 'from Meta'} />
+            </div>
+            <div className="md:col-span-2">
+              <label className={LABEL_CLS}>App secret</label>
+              <input className={INPUT_CLS} type="password" value={form.whatsappAppSecret}
+                onChange={(e) => set({ whatsappAppSecret: e.target.value })}
+                placeholder={saved?.whatsappAppSecret || 'from Meta — App settings → Basic'} />
+              {saved?.whatsappInboundVerified ? (
+                <p className="text-xs text-secondary mt-1 flex items-start gap-1.5">
+                  <Icon name="verified_user" className="text-[15px]! mt-0.5" />
+                  Incoming messages are checked against Meta's signature.
+                </p>
+              ) : (
+                <p className="text-xs text-[#b91c1c] mt-1 flex items-start gap-1.5">
+                  <Icon name="gpp_maybe" className="text-[15px]! mt-0.5" />
+                  Without this, an incoming message's sender is only a claim. Anyone who knows your
+                  webhook URL could pose as a customer and read their access code, or pose as a
+                  technician and read your whole job queue. Set it before going live.
+                </p>
+              )}
             </div>
           </div>
         )}

@@ -57,6 +57,19 @@ public class MessagingSettings {
     @Column(length = 1000)
     private String whatsappAccessToken;
 
+    /**
+     * Meta app secret, used to verify that an inbound webhook really came from
+     * Meta. Without it the "from" number on a message is only a claim, and the
+     * bots behind it act on that claim.
+     */
+    @Column(length = 200)
+    private String whatsappAppSecret;
+
+    @jakarta.persistence.Transient
+    public boolean isInboundVerifiable() {
+        return whatsappAppSecret != null && !whatsappAppSecret.isBlank();
+    }
+
     /** Phone that receives router-offline alerts and daily digests. */
     private String alertPhone;
 
