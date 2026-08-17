@@ -682,8 +682,13 @@ function WhatsappAssistantPanel({ auth }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const scroller = useRef(null)
-  // A stable "customer" number for this preview session.
-  const phone = useRef('2547' + Math.floor(10000000 + Math.random() * 89999999))
+  // Who the preview is pretending to be. Editable, because half the menu
+  // answers from the caller's own records — status, renew, resend a code,
+  // referrals — and against an invented number every one of those correctly
+  // replies "we can't find you", which reads as the bot being broken.
+  // A made-up number is only the starting point.
+  const [phone, setPhone] = useState(
+    () => '2547' + Math.floor(10000000 + Math.random() * 89999999))
 
   useEffect(() => { api('/admin/whatsapp/config', { auth }).then(setCfg).catch(() => {}) }, [auth])
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [msgs])
@@ -698,7 +703,7 @@ function WhatsappAssistantPanel({ auth }) {
     setMsgs((m) => [...m, { who: 'you', text: q }])
     setBusy(true)
     try {
-      const r = await api('/admin/whatsapp/simulate', { method: 'POST', auth, body: { phone: phone.current, text: q } })
+      const r = await api('/admin/whatsapp/simulate', { method: 'POST', auth, body: { phone, text: q } })
       setMsgs((m) => [...m, { who: 'bot', text: r.reply }])
     } catch (e) {
       setMsgs((m) => [...m, { who: 'bot', text: '(error: ' + e.message + ')' }])
@@ -735,6 +740,21 @@ function WhatsappAssistantPanel({ auth }) {
       </ol>
 
       <p className="text-[11px] font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Try it — chat as a customer</p>
+      <div className="flex flex-wrap items-end gap-2 mb-2">
+        <div className="flex-1 min-w-[12rem]">
+          <label className={LABEL_CLS}>Chatting as</label>
+          <input
+            className={INPUT_CLS}
+            value={phone}
+            placeholder="2547XXXXXXXX"
+            onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setMsgs([]) }}
+          />
+        </div>
+        <p className="text-xs text-on-surface-variant flex-1 min-w-[14rem] pb-2">
+          Put a real customer's number here to try <b>status</b>, <b>renew</b> or <b>resend my code</b> —
+          those answer from that number's own records. Changing it starts a fresh conversation.
+        </p>
+      </div>
       <div ref={scroller} className="h-56 overflow-y-auto rounded-lg border border-outline-variant bg-surface p-3 space-y-2">
         {msgs.length === 0 && <p className="text-xs text-on-surface-variant">Type <b>hi</b> to start. Try <b>1</b> to buy, <b>2</b> for status, <b>sw</b> for Kiswahili.</p>}
         {msgs.map((m, i) => (
