@@ -7,6 +7,9 @@ import com.spalimited.hotspotbilling.repository.SupportTicketRepository;
 import com.spalimited.hotspotbilling.repository.TechnicianRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.FieldOpsService;
+import com.spalimited.hotspotbilling.service.PortalSettingsService;
+import com.spalimited.hotspotbilling.service.SmsService;
+import com.spalimited.hotspotbilling.service.TicketDraftService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +41,9 @@ public class SupportController {
     private final SupportTicketRepository tickets;
     private final TechnicianRepository technicians;
     private final FieldOpsService fieldOps;
+    private final TicketDraftService drafts;
+    private final SmsService smsService;
+    private final PortalSettingsService portalSettings;
     private final AuditService audit;
 
     // --- Public: customers open tickets ---
@@ -348,6 +354,17 @@ public class SupportController {
         return sorted.size() % 2 == 1 ? sorted.get(mid) : (sorted.get(mid - 1) + sorted.get(mid)) / 2;
     }
 
+    /**
+     * A suggested first reply, plus the facts behind it. Regenerated on demand
+     * so an agent who has just learned something can ask again; the stored one
+     * is what the sweep left ready.
+     */
+    @PreAuthorize("hasAuthority('CUSTOMERS')")
+    @PostMapping("/api/admin/tickets/{id}/draft")
+    public TicketDraftService.Draft draft(@PathVariable Long id) {
+        return drafts.draft(id);
+    }
+
     public record ReplyRequest(@NotBlank String body) {
     }
 
@@ -365,7 +382,37 @@ public class SupportController {
         if (ticket.getStatus() == SupportTicket.Status.OPEN) {
             ticket.setStatus(SupportTicket.Status.IN_PROGRESS);
         }
-        return tickets.save(ticket);
+        // The suggestion has served its purpose either way — sent as-is, edited,
+        // or ignored — and leaving it would offer stale advice on the next visit.
+        ticket.setAiDraft(null);
+        SupportTicket saved = tickets.save(ticket);
+        deliver(saved, request.body());
+        return saved;
+    }
+
+    /**
+     * Actually gets the reply to the customer. Until now a reply was only
+     * stored: staff typed an answer into the dashboard, it appeared in the
+     * thread, and the customer — who opened the ticket from WhatsApp or the
+     * portal and has no reason to come back and look — never saw it.
+     *
+     * <p>Best effort, and never fatal: a gateway that is down must not lose
+     * the reply that has already been written. Every attempt lands in the
+     * outbox, so a delivery that failed is visible rather than assumed.
+     */
+    private void deliver(SupportTicket ticket, String body) {
+        String phone = ticket.getPhoneNumber();
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+        String business = portalSettings.settings().getBusinessName();
+        try {
+            smsService.trySend(phone,
+                    (business == null || business.isBlank() ? "" : business + " support:\n") + body,
+                    ticket.getCustomerName(), "ticket-" + ticket.getId(), null);
+        } catch (Exception e) {
+            log.warn("Could not deliver the reply to ticket {}: {}", ticket.getId(), e.getMessage());
+        }
     }
 
     public record StatusRequest(@NotNull SupportTicket.Status status) {

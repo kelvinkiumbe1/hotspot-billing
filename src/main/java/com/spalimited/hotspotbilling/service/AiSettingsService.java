@@ -28,6 +28,7 @@ public class AiSettingsService {
         out.put("enabled", s.isEnabled());
         out.put("model", s.getModel());
         out.put("apiKey", mask(s.getApiKey()));
+        out.put("draftTicketReplies", s.isDraftTicketReplies());
         out.put("working", s.isConfigured());
         return out;
     }
@@ -38,6 +39,7 @@ public class AiSettingsService {
         s.setEnabled(in.isEnabled());
         s.setModel(in.getModel() == null || in.getModel().isBlank()
                 ? "llama-3.3-70b-versatile" : in.getModel().trim());
+        s.setDraftTicketReplies(in.isDraftTicketReplies());
         // Blank or still-masked key means "keep the stored one".
         if (in.getApiKey() != null && !in.getApiKey().isBlank() && !in.getApiKey().startsWith("••••")) {
             s.setApiKey(in.getApiKey().trim());

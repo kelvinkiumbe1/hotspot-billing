@@ -92,6 +92,29 @@ public class SupportTicket {
     /** When the operator was told nobody had picked this job up. Same reasoning. */
     private Instant queueAlertedAt;
 
+    // --- Suggested first reply ---
+
+    /**
+     * A reply drafted from this customer's own account state, the network's
+     * state, and what closed similar tickets before. Never sent on its own:
+     * an agent sends it, edits it, or ignores it.
+     */
+    @Column(length = 2000)
+    private String aiDraft;
+
+    private Instant aiDraftedAt;
+
+    /** The facts the draft was built from, so an agent can check rather than trust it. */
+    @Column(length = 1200)
+    private String aiDraftBasis;
+
+    /**
+     * When drafting was last attempted, successful or not. Without it a ticket
+     * the model cannot answer — or a key that has expired — would be retried on
+     * every pass, forever, at the operator's expense.
+     */
+    private Instant aiDraftTriedAt;
+
     /**
      * How long the job took, or how long it has been running so far. Live
      * rather than stored, so a ticket left open keeps counting instead of

@@ -28,7 +28,7 @@ public class AiController {
         return settings.describe();
     }
 
-    public record AiRequest(boolean enabled, String apiKey, String model) {
+    public record AiRequest(boolean enabled, String apiKey, String model, boolean draftTicketReplies) {
     }
 
     @PutMapping("/settings/ai")
@@ -37,6 +37,7 @@ public class AiController {
                 .enabled(req.enabled())
                 .apiKey(req.apiKey())
                 .model(req.model())
+                .draftTicketReplies(req.draftTicketReplies())
                 .build());
         audit.record(principal, "settings.ai", "Updated AI assistant (" + (req.enabled() ? "on" : "off") + ")");
         return settings.describe();

@@ -43,6 +43,15 @@ public class AiSettings {
     @Column(nullable = false, length = 80)
     private String model = "llama-3.3-70b-versatile";
 
+    /**
+     * Draft a first reply for every support ticket that comes in, ready for a
+     * human to send, edit or throw away. Nothing is ever sent automatically —
+     * the customer only ever hears from a person who pressed send.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean draftTicketReplies = false;
+
     @jakarta.persistence.Transient
     public boolean isConfigured() {
         return enabled && apiKey != null && !apiKey.isBlank();

@@ -78,13 +78,29 @@ public class AiService {
                 + "guessing. Amounts are in Kenyan Shillings (KES). You cannot change anything — you only "
                 + "read and explain.\n\nCURRENT DATA:\n" + snapshot();
 
+        return chat(system, question, 700, 0.3);
+    }
+
+    /**
+     * One turn against the operator's own model, with the caller's system
+     * prompt. Shared so anything that wants the model — the assistant, the
+     * ticket-reply copilot — goes through the same key, the same error
+     * handling and the same "say it plainly when it fails" behaviour, rather
+     * than each growing its own HTTP client.
+     */
+    public String chat(String system, String user, int maxTokens, double temperature) {
+        AiSettings s = settings.get();
+        if (!s.isConfigured()) {
+            throw new IllegalStateException("The assistant is off — turn it on and add your Groq API key first");
+        }
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", s.getModel());
-        body.put("temperature", 0.3);
-        body.put("max_tokens", 700);
+        body.put("temperature", temperature);
+        body.put("max_tokens", maxTokens);
         body.put("messages", List.of(
                 Map.of("role", "system", "content", system),
-                Map.of("role", "user", "content", question)));
+                Map.of("role", "user", "content", user)));
 
         try {
             HttpRequest request = HttpRequest.newBuilder()

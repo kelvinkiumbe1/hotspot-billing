@@ -1025,7 +1025,12 @@ function AiSection({ auth }) {
 
   const load = () => api('/admin/settings/ai', { auth }).then((d) => {
     setSaved(d)
-    setForm({ enabled: d.enabled, model: d.model || 'llama-3.3-70b-versatile', apiKey: '' })
+    setForm({
+      enabled: d.enabled,
+      model: d.model || 'llama-3.3-70b-versatile',
+      apiKey: '',
+      draftTicketReplies: !!d.draftTicketReplies,
+    })
   }).catch((e) => setMsg({ ok: false, text: e.message }))
   useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1091,6 +1096,28 @@ function AiSection({ auth }) {
             Your question and a snapshot of your current figures are sent to Groq under your API key. It only reads data — it can't change anything.
           </p>
         </section>
+
+        {form.enabled && (
+          <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="text-base font-semibold block">Draft replies to support tickets</span>
+                <span className="text-sm text-on-surface-variant">
+                  Every new ticket gets a suggested first reply waiting on it, written from that
+                  customer's own account, the network's state right now, and what closed similar
+                  tickets before.
+                </span>
+              </div>
+              <Toggle checked={form.draftTicketReplies}
+                onChange={(e) => setForm({ ...form, draftTicketReplies: e.target.checked })} />
+            </div>
+            <p className="text-xs text-on-surface-variant flex items-start gap-2">
+              <Icon name="lock" className="text-[16px]! mt-0.5" />
+              Nothing is ever sent on its own. A person reads the draft and presses Send, edits it,
+              or ignores it — and the facts behind it are shown alongside so it can be checked.
+            </p>
+          </section>
+        )}
         {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
       </form>

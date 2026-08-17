@@ -3868,6 +3868,12 @@ function Support({ auth }) {
                 ))}
               </div>
 
+              <SuggestedReply
+                ticket={selected}
+                auth={auth}
+                onUse={(text) => setReply(text)}
+              />
+
               <div className="p-4 border-t border-outline-variant/30">
                 <div className="border border-outline-variant rounded-lg bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all overflow-hidden">
                   <textarea
@@ -3927,6 +3933,102 @@ function Support({ auth }) {
             </>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The suggested first reply, and — collapsed underneath it — the facts it was
+ * written from. The facts are shown deliberately: an agent who can see that
+ * the draft says "your subscription expired on 3 Aug" *because* the record
+ * says so will trust it where it is right and catch it where it is wrong.
+ * Sending is still a human pressing Send; "Use this" only fills the box.
+ */
+function SuggestedReply({ ticket, auth, onUse }) {
+  const [state, setState] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [showBasis, setShowBasis] = useState(false)
+
+  // A different ticket is a different draft; keep whatever the sweep left.
+  useEffect(() => {
+    setState(ticket.aiDraft
+      ? { draft: ticket.aiDraft, basis: (ticket.aiDraftBasis || '').split('\n').filter(Boolean), drafted: true }
+      : null)
+    setShowBasis(false)
+  }, [ticket.id, ticket.aiDraft, ticket.aiDraftBasis])
+
+  async function suggest() {
+    setBusy(true)
+    try {
+      setState(await api(`/admin/tickets/${ticket.id}/draft`, { method: 'POST', auth }))
+    } catch (e) {
+      setState({ draft: null, basis: [], drafted: false, error: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!state) {
+    return (
+      <div className="px-4 pt-3">
+        <button
+          onClick={suggest}
+          disabled={busy}
+          className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+        >
+          <Icon name="auto_awesome" className="text-[16px]!" />
+          {busy ? 'Looking it up…' : 'Suggest a reply'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-4 mt-3 rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-primary/20">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+          <Icon name="auto_awesome" className="text-[14px]!" /> Suggested reply
+        </span>
+        <div className="flex items-center gap-2">
+          <button onClick={suggest} disabled={busy}
+            className="text-xs text-on-surface-variant hover:text-primary cursor-pointer disabled:opacity-50">
+            {busy ? 'Redrafting…' : 'Redraft'}
+          </button>
+          {state.draft && (
+            <button onClick={() => onUse(state.draft)}
+              className="px-3 py-1 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:opacity-90 cursor-pointer">
+              Use this
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-3">
+        {state.draft
+          ? <p className="text-sm whitespace-pre-wrap text-on-surface">{state.draft}</p>
+          : (
+            <p className="text-xs text-on-surface-variant">
+              {state.error || 'No wording was drafted — the assistant is off or could not be reached. The facts below still stand.'}
+            </p>
+          )}
+
+        {state.basis?.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-primary/15">
+            <button onClick={() => setShowBasis(!showBasis)}
+              className="text-[11px] font-semibold text-on-surface-variant hover:text-primary flex items-center gap-1 cursor-pointer">
+              <Icon name={showBasis ? 'expand_less' : 'expand_more'} className="text-[14px]!" />
+              What this is based on ({state.basis.length})
+            </button>
+            {showBasis && (
+              <ul className="mt-2 space-y-1">
+                {state.basis.map((b, i) => (
+                  <li key={i} className="text-xs text-on-surface-variant whitespace-pre-wrap">{b}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
