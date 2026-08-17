@@ -733,7 +733,10 @@ function WhatsappAssistantPanel({ auth }) {
     return () => { stopped = true; clearInterval(timer) }
   }, [auth, phone])
 
-  const webhookUrl = cfg ? window.location.origin + cfg.webhookPath : ''
+  // The address Meta has to reach, which is not the one in the browser bar
+  // when the admin is being used over the LAN. Falls back to the current
+  // origin only when no public callback URL is configured at all.
+  const webhookUrl = cfg ? (cfg.publicWebhookUrl || window.location.origin + cfg.webhookPath) : ''
   const copy = (v) => { try { navigator.clipboard.writeText(v) } catch { /* ignore */ } }
 
   async function send() {

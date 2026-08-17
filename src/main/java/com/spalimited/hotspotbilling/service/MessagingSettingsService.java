@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Effective messaging configuration: whatever the operator saved in the
@@ -30,6 +31,9 @@ public class MessagingSettingsService {
     @Value("${app.alert-phone:}")
     private String alertPhoneFallback;
 
+    @Value("${whatsapp.webhook-verify-token:}")
+    private String verifyTokenFallback;
+
     public record SmsConfig(boolean enabled, String provider, String username, String apiKey,
                             String senderId, String baseUrl) {
     }
@@ -42,6 +46,30 @@ public class MessagingSettingsService {
     public MessagingSettings settings() {
         return repository.findById(ROW_ID)
                 .orElseGet(() -> repository.save(MessagingSettings.builder().id(ROW_ID).build()));
+    }
+
+    /**
+     * The webhook verify token, generating one the first time it is asked for.
+     *
+     * <p>Both ends only have to agree on the same string, so there is nothing
+     * for a human to decide and no reason to make them invent one. An empty
+     * field here used to mean Meta's handshake failed with no explanation.
+     */
+    @Transactional
+    public String whatsappVerifyToken() {
+        MessagingSettings s = settings();
+        if (notBlank(s.getWhatsappVerifyToken())) {
+            return s.getWhatsappVerifyToken();
+        }
+        // An environment variable set before this moved into the database still
+        // wins, so an existing deployment's registered webhook keeps working.
+        if (notBlank(verifyTokenFallback)) {
+            return verifyTokenFallback.trim();
+        }
+        String generated = "zidi-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20);
+        s.setWhatsappVerifyToken(generated);
+        repository.save(s);
+        return generated;
     }
 
     @Transactional(readOnly = true)
@@ -135,6 +163,11 @@ public class MessagingSettingsService {
         if (notBlank(incoming.getWhatsappAppSecret())
                 && !incoming.getWhatsappAppSecret().startsWith("••••")) {
             s.setWhatsappAppSecret(incoming.getWhatsappAppSecret().trim());
+        }
+        // Shown in full rather than masked, so unlike the secrets above a blank
+        // here means "leave the generated one alone", not "you cleared it".
+        if (notBlank(incoming.getWhatsappVerifyToken())) {
+            s.setWhatsappVerifyToken(incoming.getWhatsappVerifyToken().trim());
         }
 
         s.setAlertPhone(trim(incoming.getAlertPhone()));

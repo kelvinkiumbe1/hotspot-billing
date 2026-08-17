@@ -1,0 +1,11 @@
+-- Connecting WhatsApp needed four things and one of them lived somewhere else.
+-- The phone number id, access token and app secret are all set in the admin;
+-- the webhook verify token was an environment variable, so an operator who got
+-- that far had to edit a file on the server and restart before Meta's handshake
+-- would succeed. In practice they get a red cross in Meta's dashboard and no
+-- indication why.
+--
+-- It joins the others. A token is generated on first use, since it is only a
+-- shared string both ends must agree on and there is nothing for a human to
+-- decide about it.
+ALTER TABLE messaging_settings ADD COLUMN whatsapp_verify_token VARCHAR(120);

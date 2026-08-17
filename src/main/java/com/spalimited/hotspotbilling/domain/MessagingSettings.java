@@ -65,6 +65,14 @@ public class MessagingSettings {
     @Column(length = 200)
     private String whatsappAppSecret;
 
+    /**
+     * The string Meta echoes back during the webhook handshake. Not a secret
+     * in the usual sense — both ends simply have to hold the same one — so it
+     * is shown in full for copying rather than masked.
+     */
+    @Column(length = 120)
+    private String whatsappVerifyToken;
+
     @jakarta.persistence.Transient
     public boolean isInboundVerifiable() {
         return whatsappAppSecret != null && !whatsappAppSecret.isBlank();

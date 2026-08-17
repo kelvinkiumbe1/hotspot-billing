@@ -31,9 +31,20 @@ public class WhatsappWebhookController {
     private final WhatsappSignatureGuard signatureGuard;
     private final ObjectMapper mapper;
     private final com.spalimited.hotspotbilling.repository.PaymentRepository payments;
+    private final com.spalimited.hotspotbilling.service.MessagingSettingsService messagingSettings;
 
-    @Value("${whatsapp.webhook-verify-token:}")
-    private String verifyToken;
+    /** The public HTTPS base is already proven by the M-Pesa callback. */
+    @Value("${mpesa.callback-url:}")
+    private String mpesaCallbackUrl;
+
+    private String publicWebhookUrl() {
+        if (mpesaCallbackUrl == null || !mpesaCallbackUrl.startsWith("http")) {
+            return null;
+        }
+        int path = mpesaCallbackUrl.indexOf('/', mpesaCallbackUrl.indexOf("//") + 2);
+        String base = path > 0 ? mpesaCallbackUrl.substring(0, path) : mpesaCallbackUrl;
+        return base + "/api/whatsapp/webhook";
+    }
 
     /** Meta's one-time webhook verification handshake. */
     @GetMapping("/api/whatsapp/webhook")
@@ -41,10 +52,13 @@ public class WhatsappWebhookController {
             @RequestParam(name = "hub.mode", required = false) String mode,
             @RequestParam(name = "hub.verify_token", required = false) String token,
             @RequestParam(name = "hub.challenge", required = false) String challenge) {
-        if ("subscribe".equals(mode) && verifyToken != null && !verifyToken.isBlank()
-                && verifyToken.equals(token)) {
+        String expected = messagingSettings.whatsappVerifyToken();
+        if ("subscribe".equals(mode) && expected != null && !expected.isBlank()
+                && expected.equals(token)) {
             return ResponseEntity.ok(challenge);
         }
+        log.warn("WhatsApp webhook verification refused (mode={}, token matched={})",
+                mode, expected != null && expected.equals(token));
         return ResponseEntity.status(403).body("Verification failed");
     }
 
@@ -112,11 +126,16 @@ public class WhatsappWebhookController {
     /** What the operator needs to connect Meta's webhook to this account. */
     @GetMapping("/api/admin/whatsapp/config")
     public Map<String, Object> config() {
-        boolean set = verifyToken != null && !verifyToken.isBlank();
+        String token = messagingSettings.whatsappVerifyToken();
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("webhookPath", "/api/whatsapp/webhook");
-        out.put("verifyToken", set ? verifyToken : "");
-        out.put("configured", set);
+        out.put("verifyToken", token == null ? "" : token);
+        out.put("configured", token != null && !token.isBlank());
+        // The address Meta must reach. Derived from the M-Pesa callback URL,
+        // which is already a public HTTPS address that works — asking for the
+        // same thing twice is how the two drift apart.
+        out.put("publicWebhookUrl", publicWebhookUrl());
+        out.put("inboundVerified", messagingSettings.settings().isInboundVerifiable());
         // The preview needs somebody to be. Defaulting it to an invented
         // number made every lookup answer "we can't find you" and the message
         // feed watch a phone that has never existed — so the last customer who
