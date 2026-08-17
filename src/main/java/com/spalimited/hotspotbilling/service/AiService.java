@@ -52,6 +52,7 @@ public class AiService {
     private final SubscriberRepository subscribers;
     private final RouterRepository routers;
     private final PortalSettingsService portalSettings;
+    private final SystemContextService systemContext;
     private final HttpClient http = HttpClient.newHttpClient();
 
     public boolean isEnabled() {
@@ -73,10 +74,19 @@ public class AiService {
 
         String system = "You are the assistant for a hotspot/ISP billing system called Zidi, "
                 + "used by the operator \"" + portalSettings.settings().getBusinessName() + "\". "
-                + "Answer the operator's questions clearly and concisely. Use the live figures below "
-                + "when they are relevant. If the answer is not in the data, say so plainly rather than "
-                + "guessing. Amounts are in Kenyan Shillings (KES). You cannot change anything — you only "
-                + "read and explain.\n\nCURRENT DATA:\n" + snapshot();
+                + "Answer the operator's questions clearly and concisely.\n"
+                + "Everything below is about THIS operator's own system. Use it. If the answer is not "
+                + "there, say so plainly — never guess at how the system behaves or at a figure. "
+                + "When something is switched off, say it is off rather than describing what it would "
+                + "do. When you name a problem, say where in the admin it is dealt with. Amounts are "
+                + "in Kenyan Shillings (KES).\n"
+                + "You can only read. You cannot change a setting, message a customer or move money; "
+                + "if the operator asks you to, tell them where to do it themselves.\n"
+                + "Answer as somebody who knows this system, not as somebody reading a report about "
+                + "it. Never mention these notes, their section headings, or that you were given "
+                + "them.\n\n"
+                + systemContext.forAssistant()
+                + "\nCURRENT DATA:\n" + snapshot();
 
         return chat(system, question, 700, 0.3);
     }
