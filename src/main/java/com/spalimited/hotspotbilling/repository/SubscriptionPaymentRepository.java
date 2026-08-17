@@ -25,4 +25,10 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
     BigDecimal sumAmountByStatusSince(@Param("status") SubscriptionPayment.Status status, @Param("since") Instant since);
 
     long countByStatusAndCompletedAtAfter(SubscriptionPayment.Status status, Instant since);
+
+    /** Closed window for the briefing's week-on-week comparison. */
+    @Query("select coalesce(sum(p.amount), 0) from SubscriptionPayment p "
+            + "where p.status = :status and p.completedAt >= :from and p.completedAt < :to")
+    BigDecimal sumAmountByStatusBetween(@Param("status") SubscriptionPayment.Status status,
+                                        @Param("from") Instant from, @Param("to") Instant to);
 }

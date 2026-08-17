@@ -40,7 +40,7 @@ const SECTIONS = [
       { key: 'vat', label: 'VAT', hint: 'Tax rate, KRA PIN, invoice numbering', icon: 'percent', need: 'SETTINGS' },
       { key: 'messaging', label: 'SMS & WhatsApp', hint: 'Your own gateway credentials', icon: 'chat', need: 'SETTINGS' },
       { key: 'email', label: 'Email (SMTP)', hint: 'Receipts, resets and reports', icon: 'mail', need: 'SETTINGS' },
-      { key: 'alerts', label: 'Alerts & digest', hint: 'Outage alerts, compensation, daily sales', icon: 'notifications_active', need: 'SETTINGS' },
+      { key: 'alerts', label: 'Alerts & briefing', hint: 'Outage alerts, compensation, your daily briefing', icon: 'notifications_active', need: 'SETTINGS' },
     ],
   },
   {
@@ -1163,6 +1163,7 @@ function AlertsSection({ auth }) {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [preview, setPreview] = useState(null)
 
   const load = () => api('/admin/settings/alerts', { auth }).then(setForm).catch((e) => setMsg({ ok: false, text: e.message }))
   useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1185,6 +1186,16 @@ function AlertsSection({ auth }) {
     try {
       const r = await api('/admin/settings/alerts/digest/test', { method: 'POST', auth })
       setMsg({ ok: true, text: r.message })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  /** Builds the briefing and shows it here, without messaging anyone. */
+  async function showPreview() {
+    setBusy(true); setMsg(null)
+    try {
+      setPreview((await api('/admin/settings/alerts/digest/preview', { auth })).preview)
     } catch (err) {
       setMsg({ ok: false, text: err.message })
     } finally { setBusy(false) }
@@ -1264,8 +1275,12 @@ function AlertsSection({ auth }) {
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="text-base font-semibold block">Daily sales digest</span>
-            <span className="text-sm text-on-surface-variant">A once-a-day summary of the day's takings, by SMS and email.</span>
+            <span className="text-base font-semibold block">Daily briefing</span>
+            <span className="text-sm text-on-surface-variant">
+              One message a day with everything worth knowing: takings against last week, who joined
+              and who lapsed, jobs nobody has taken, what the revenue audit found, and the state of
+              the network. Sections with nothing to report are left out.
+            </span>
           </div>
           <Toggle checked={form.salesDigestEnabled} onChange={(e) => set({ salesDigestEnabled: e.target.checked })} />
         </div>
@@ -1277,6 +1292,9 @@ function AlertsSection({ auth }) {
             <p className="text-xs text-on-surface-variant mt-1">Server time. Goes to your alert phone and SMTP from-address.</p>
           </div>
         )}
+        {preview && (
+          <pre className="text-xs whitespace-pre-wrap bg-surface-container rounded-lg p-3">{preview}</pre>
+        )}
       </section>
 
       {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
@@ -1285,7 +1303,10 @@ function AlertsSection({ auth }) {
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
         <button type="button" disabled={busy}
           className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-medium disabled:opacity-40"
-          onClick={testDigest}>Send test digest now</button>
+          onClick={showPreview}>See today's briefing</button>
+        <button type="button" disabled={busy}
+          className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-medium disabled:opacity-40"
+          onClick={testDigest}>Send it to me now</button>
       </div>
     </form>
   )
@@ -2050,7 +2071,7 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
           )}
           {current === 'alerts' && (
             <>
-              <PageHeader title="Alerts & digest" subtitle="Router-down alerts, outage compensation and a daily sales summary." />
+              <PageHeader title="Alerts & briefing" subtitle="Router-down alerts, outage compensation, and the one message a day that tells you how the business is doing." />
               <AlertsSection auth={auth} />
             </>
           )}

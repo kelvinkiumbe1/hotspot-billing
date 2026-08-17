@@ -34,6 +34,17 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     long countByStatusAndCompletedAtAfter(Payment.Status status, java.time.Instant since);
 
+    /**
+     * A closed window, so the briefing can compare today against the same day
+     * last week. Half-open [from, to) — otherwise a payment landing exactly on
+     * midnight is counted in both days.
+     */
+    @Query("select coalesce(sum(p.amount), 0) from Payment p "
+            + "where p.status = :status and p.completedAt >= :from and p.completedAt < :to")
+    BigDecimal sumAmountByStatusBetween(@Param("status") Payment.Status status,
+                                        @Param("from") java.time.Instant from,
+                                        @Param("to") java.time.Instant to);
+
     // --- Revenue audit ---
 
     List<Payment> findByStatusAndCreatedAtAfter(Payment.Status status, java.time.Instant since);
