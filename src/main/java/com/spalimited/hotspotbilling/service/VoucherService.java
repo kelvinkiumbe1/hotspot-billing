@@ -243,7 +243,16 @@ public class VoucherService {
         if (v.getStatus() == Voucher.Status.EXPIRED) {
             throw new IllegalStateException("That pass has already finished");
         }
-        return mikrotikService.kickSessions(v);
+        boolean released = mikrotikService.kickSessions(v);
+        if (released && v.getBoundMac() != null) {
+            // Forget which device this was, so the binding sweep attaches it to
+            // whichever one is used next. Leaving it would let the customer
+            // sign out and then be refused everywhere — one device at a time is
+            // the rule, not one device forever.
+            v.setBoundMac(null);
+            voucherRepository.save(v);
+        }
+        return released;
     }
 
     /**

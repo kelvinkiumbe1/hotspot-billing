@@ -333,15 +333,39 @@ public class MikrotikService {
         if (!live(router)) {
             return false;
         }
+        String code = voucher.getCode();
         try (ApiConnection connection = login(router)) {
-            connection.execute("/ip/hotspot/active/remove [find user=" + voucher.getCode() + "]");
-            log.info("Signed out any device using voucher {}", voucher.getCode());
+            // Three separate things hold a device on, and dropping only the
+            // first is why "log me out" looks like it did nothing.
+            quietly(connection, "/ip/hotspot/active/remove [find user=" + code + "]",
+                    "no active session");
+            // RouterOS's default server profile is login-by=cookie, and the
+            // cookie outlives the session by days. Leave it and the browser
+            // silently signs itself back in on its very next request — the
+            // customer watches their "other device" reconnect in seconds.
+            quietly(connection, "/ip/hotspot/cookie/remove [find user=" + code + "]",
+                    "no stored cookie");
+            // And if the code was bound to that device's MAC, the next device
+            // would be refused — which is the opposite of what was asked for.
+            quietly(connection, "/ip/hotspot/user/set [find name=" + code + "] mac-address=\"\"",
+                    "no MAC binding");
+            log.info("Released voucher {} from its device", code);
             return true;
         } catch (Exception e) {
-            // No active session is the ordinary case, not a failure: nobody is
-            // signed in, which is exactly the state being asked for.
-            log.debug("Nothing to sign out for {}: {}", voucher.getCode(), e.getMessage());
-            return true;
+            log.warn("Could not sign out {}: {}", code, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Runs a command whose "failure" is usually just nothing to do. Kept
+     * separate so one absent cookie does not abandon the rest of the release.
+     */
+    private void quietly(ApiConnection connection, String command, String benignReason) {
+        try {
+            connection.execute(command);
+        } catch (Exception e) {
+            log.debug("{} ({}): {}", benignReason, command, e.getMessage());
         }
     }
 
@@ -351,11 +375,13 @@ public class MikrotikService {
             return;
         }
         try (ApiConnection connection = login(router)) {
-            try {
-                connection.execute("/ip/hotspot/active/remove [find user=" + voucher.getCode() + "]");
-            } catch (Exception noActiveSession) {
-                log.debug("No active session to kick for {}", voucher.getCode());
-            }
+            quietly(connection, "/ip/hotspot/active/remove [find user=" + voucher.getCode() + "]",
+                    "no active session");
+            // Removing the user makes a cookie re-login fail anyway, since it
+            // names a user that no longer exists — but clearing it costs one
+            // command and leaves nothing behind to reason about.
+            quietly(connection, "/ip/hotspot/cookie/remove [find user=" + voucher.getCode() + "]",
+                    "no stored cookie");
             connection.execute("/ip/hotspot/user/remove [find name=" + voucher.getCode() + "]");
         } catch (Exception e) {
             throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);

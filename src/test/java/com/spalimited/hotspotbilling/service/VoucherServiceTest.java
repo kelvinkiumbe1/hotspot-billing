@@ -233,6 +233,34 @@ class VoucherServiceTest {
     }
 
     @Test
+    @DisplayName("Signing out forgets the device, so the next one is not refused")
+    void signOutReleasesTheMacBinding() {
+        Voucher v = live(3600, Instant.now().plus(Duration.ofHours(5)), 0);
+        v.setBoundMac("AA:BB:CC:DD:EE:FF");
+        when(mikrotikService.kickSessions(v)).thenReturn(true);
+
+        service.signOutDevices(v);
+
+        // One device at a time is the rule; one device forever is not. Leaving
+        // the binding would sign them out of everywhere permanently.
+        assertThat(v.getBoundMac()).isNull();
+    }
+
+    @Test
+    @DisplayName("A sign-out the router refused leaves the binding alone")
+    void keepsTheBindingWhenTheRouterSaysNo() {
+        Voucher v = live(3600, Instant.now().plus(Duration.ofHours(5)), 0);
+        v.setBoundMac("AA:BB:CC:DD:EE:FF");
+        when(mikrotikService.kickSessions(v)).thenReturn(false);
+
+        assertThat(service.signOutDevices(v)).isFalse();
+
+        // The device is still on and still bound; clearing our copy would put
+        // the two out of step for the next binding sweep to "fix" wrongly.
+        assertThat(v.getBoundMac()).isEqualTo("AA:BB:CC:DD:EE:FF");
+    }
+
+    @Test
     @DisplayName("Reissuing gives a new code, kills the old one, and carries the balance over")
     void reissueCarriesTheBalance() {
         Voucher v = live(3600, Instant.now().plus(Duration.ofHours(5)), 200L * 1_048_576L);
