@@ -219,6 +219,55 @@ class OffPeakServiceTest {
     }
 
     @Test
+    @DisplayName("Hours with nothing recorded are never chosen as the quiet ones")
+    void willNotDiscountAnUnrecordedHour() {
+        List<TrafficUsage> rows = new ArrayList<>();
+        for (int day = 1; day <= 14; day++) {
+            LocalDate date = LocalDate.now().minusDays(day);
+            for (int hour = 0; hour < 24; hour++) {
+                // Capture is missing entirely between 08:00 and 13:00 — the
+                // busiest selling hours of the morning, and the cheapest
+                // possible mistake to make.
+                if (hour >= 8 && hour <= 13) {
+                    continue;
+                }
+                rows.add(bucket(date, hour, 900L * 1_048_576L));
+            }
+        }
+        when(traffic.findByBucketHourGreaterThanEqual(any())).thenReturn(rows);
+
+        OffPeakService.DayShape shape = service.analyse();
+
+        if (shape.suggestedStart() != null) {
+            for (int h = 8; h <= 13; h++) {
+                assertThat(OffPeakService.inWindow(h, shape.suggestedStart(), shape.suggestedEnd()))
+                        .as("hour %d was never recorded and must not be discounted", h)
+                        .isFalse();
+            }
+        }
+        assertThat(shape.hours().get(9).get("observed")).isEqualTo(false);
+        assertThat(shape.hours().get(3).get("observed")).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("When capture is too patchy to trust, no window is suggested at all")
+    void declinesWhenCaptureIsPatchy() {
+        List<TrafficUsage> rows = new ArrayList<>();
+        for (int day = 1; day <= 14; day++) {
+            // Only three hours a day were ever recorded: nowhere is a window.
+            for (int hour : new int[]{0, 12, 18}) {
+                rows.add(bucket(LocalDate.now().minusDays(day), hour, 900L * 1_048_576L));
+            }
+        }
+        when(traffic.findByBucketHourGreaterThanEqual(any())).thenReturn(rows);
+
+        OffPeakService.DayShape shape = service.analyse();
+
+        assertThat(shape.suggestedStart()).isNull();
+        assertThat(shape.note()).contains("gap in capture");
+    }
+
+    @Test
     @DisplayName("A window that crosses midnight is understood as one stretch")
     void handlesMidnight() {
         assertThat(OffPeakService.inWindow(23, 22, 6)).isTrue();

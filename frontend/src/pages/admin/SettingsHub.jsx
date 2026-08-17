@@ -1911,17 +1911,21 @@ function OffPeakSection({ auth }) {
           ? <p className="text-xs text-[#b45309] mb-3">{data.note}</p>
           : (
             <p className="text-xs text-on-surface-variant mb-3">
-              Shaded hours are the window in force. Bars are traffic; the number underneath is how many
-              sales landed in that hour.
+              Shaded hours are the window in force. Bars are traffic. A faint dashed column is an hour
+              with nothing recorded — never treated as quiet, because nothing looks emptier than an
+              hour that was never measured.
             </p>
           )}
         <div className="flex items-end gap-[3px] h-28">
           {hours.map((h) => (
             <div key={h.hour} className="flex-1 flex flex-col justify-end items-center h-full"
-              title={`${String(h.hour).padStart(2, '0')}:00 — ${Number(h.megabytes).toLocaleString()} MB, ${h.sales} sale(s)`}>
+              title={h.observed === false
+                ? `${String(h.hour).padStart(2, '0')}:00 — no traffic recorded in this hour`
+                : `${String(h.hour).padStart(2, '0')}:00 — ${Number(h.megabytes).toLocaleString()} MB, ${h.sales} sale(s)`}>
               <div
-                className={`w-full rounded-t ${inWindow(h.hour) ? 'bg-primary/70' : 'bg-outline-variant'}`}
-                style={{ height: `${Math.max(2, (Number(h.megabytes) / peak) * 100)}%` }}
+                className={`w-full rounded-t ${h.observed === false ? 'bg-outline-variant/30 border-t border-dashed border-outline'
+                  : inWindow(h.hour) ? 'bg-primary/70' : 'bg-outline-variant'}`}
+                style={{ height: `${h.observed === false ? 100 : Math.max(2, (Number(h.megabytes) / peak) * 100)}%` }}
               />
             </div>
           ))}

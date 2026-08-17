@@ -99,6 +99,16 @@ public class OffPeakService {
 
     // --- Reading the day ---
 
+    /**
+     * An hour must have carried traffic on at least this share of the observed
+     * days before its quietness means anything. Traffic capture is hotspot-only
+     * and depends on the router being reachable, so an hour with no rows at all
+     * is far more likely to be a gap in the recording than a genuinely idle
+     * hour — and discounting the morning because nothing was captured then
+     * would give away the busiest sales of the day.
+     */
+    private static final double MIN_COVERAGE = 0.34;
+
     /** Traffic and sales by hour of day, and the window they suggest. */
     public record DayShape(List<Map<String, Object>> hours, Integer suggestedStart,
                            Integer suggestedEnd, int daysOfData, String note) {
@@ -117,11 +127,18 @@ public class OffPeakService {
         long[] bytes = new long[24];
         long[] sales = new long[24];
         Set<LocalDate> days = new HashSet<>();
+        // Which days each hour was actually recorded on, so a gap in capture
+        // is not mistaken for a quiet hour.
+        List<Set<LocalDate>> daysPerHour = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            daysPerHour.add(new HashSet<>());
+        }
 
         for (TrafficUsage row : traffic.findByBucketHourGreaterThanEqual(since)) {
             LocalDateTime at = LocalDateTime.ofInstant(row.getBucketHour(), ZONE);
             bytes[at.getHour()] += row.getBytesUp() + row.getBytesDown();
             days.add(at.toLocalDate());
+            daysPerHour.get(at.getHour()).add(at.toLocalDate());
         }
         for (Payment p : payments.findByStatusAndCreatedAtAfter(Payment.Status.SUCCESS, since)) {
             Instant at = p.getCompletedAt() != null ? p.getCompletedAt() : p.getCreatedAt();
@@ -130,12 +147,16 @@ public class OffPeakService {
             }
         }
 
+        int needed = Math.max(1, (int) Math.ceil(days.size() * MIN_COVERAGE));
+        boolean[] observed = new boolean[24];
         List<Map<String, Object>> hours = new ArrayList<>();
         for (int h = 0; h < 24; h++) {
+            observed[h] = daysPerHour.get(h).size() >= needed;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("hour", h);
             row.put("megabytes", bytes[h] / 1_048_576L);
             row.put("sales", sales[h]);
+            row.put("observed", observed[h]);
             hours.add(row);
         }
 
@@ -146,8 +167,25 @@ public class OffPeakService {
                             + "Set the window by hand until then.");
         }
 
-        int[] window = quietestWindow(bytes, sales);
+        int[] window = quietestWindow(bytes, sales, observed);
+        if (window == null) {
+            long gaps = countFalse(observed);
+            return new DayShape(hours, null, null, days.size(),
+                    gaps + " hour(s) of the day have almost no traffic recorded at all. That is more "
+                            + "likely a gap in capture than a quiet hour, so no window is being "
+                            + "suggested — set it by hand.");
+        }
         return new DayShape(hours, window[0], window[1], days.size(), null);
+    }
+
+    private static long countFalse(boolean[] flags) {
+        long n = 0;
+        for (boolean f : flags) {
+            if (!f) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /**
@@ -156,19 +194,28 @@ public class OffPeakService {
      * so a busy-but-unsold hour is not mistaken for spare capacity, and each
      * measure is normalised against its own peak so bytes and sale counts can
      * be added without one drowning the other.
+     *
+     * <p>Hours with no traffic recorded are not candidates at any price.
+     * Nothing looks quieter than an hour that was never measured, and the
+     * cheapest way to lose a morning's revenue is to discount it.
+     *
+     * <p>Returns null when no window avoids the unrecorded hours.
      */
-    private static int[] quietestWindow(long[] bytes, long[] sales) {
+    private static int[] quietestWindow(long[] bytes, long[] sales, boolean[] observed) {
         double peakBytes = Math.max(1, max(bytes));
         double peakSales = Math.max(1, max(sales));
 
         double bestScore = Double.MAX_VALUE;
-        int bestStart = 22;
+        int bestStart = -1;
         int bestLength = MIN_WINDOW_HOURS;
 
         for (int start = 0; start < 24; start++) {
             double sum = 0;
             for (int length = 1; length <= MAX_WINDOW_HOURS; length++) {
                 int hour = (start + length - 1) % 24;
+                if (!observed[hour]) {
+                    break; // and every longer window from this start too
+                }
                 sum += bytes[hour] / peakBytes + sales[hour] / peakSales;
                 if (length < MIN_WINDOW_HOURS) {
                     continue;
@@ -176,8 +223,8 @@ public class OffPeakService {
                 double mean = sum / length;
                 // A longer window at practically the same quietness is worth
                 // more: it is more hours of otherwise wasted capacity sold.
-                boolean clearlyBetter = mean < bestScore * 0.98;
-                boolean tiedButLonger = mean < bestScore * 1.02 && length > bestLength;
+                boolean clearlyBetter = bestStart < 0 || mean < bestScore * 0.98;
+                boolean tiedButLonger = bestStart >= 0 && mean < bestScore * 1.02 && length > bestLength;
                 if (clearlyBetter || tiedButLonger) {
                     bestStart = start;
                     bestLength = length;
@@ -188,7 +235,7 @@ public class OffPeakService {
                 }
             }
         }
-        return new int[]{bestStart, (bestStart + bestLength) % 24};
+        return bestStart < 0 ? null : new int[]{bestStart, (bestStart + bestLength) % 24};
     }
 
     private static long max(long[] values) {
