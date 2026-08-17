@@ -6,11 +6,12 @@ import com.spalimited.hotspotbilling.domain.TicketMessage;
 import com.spalimited.hotspotbilling.repository.SupportTicketRepository;
 import com.spalimited.hotspotbilling.repository.TechnicianRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
-import com.spalimited.hotspotbilling.service.SmsService;
+import com.spalimited.hotspotbilling.service.FieldOpsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,11 +32,12 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class SupportController {
 
     private final SupportTicketRepository tickets;
     private final TechnicianRepository technicians;
-    private final SmsService smsService;
+    private final FieldOpsService fieldOps;
     private final AuditService audit;
 
     // --- Public: customers open tickets ---
@@ -166,15 +168,12 @@ public class SupportController {
         ticket.getAssigneeIds().addAll(valid);
     }
 
-    /** Best-effort heads-up; a failed SMS must never block the assignment. */
+    /** Best-effort heads-up; a failed message must never block the assignment. */
     private void notifyAssignees(SupportTicket ticket, Set<Long> technicianIds) {
-        for (Long technicianId : technicianIds) {
-            technicians.findById(technicianId)
-                    .filter(t -> t.getPhoneNumber() != null && !t.getPhoneNumber().isBlank())
-                    .ifPresent(t -> smsService.trySend(t.getPhoneNumber(),
-                            "New job assigned: " + ticket.getSubject()
-                                    + " for " + ticket.getCustomerName()
-                                    + " (" + ticket.getPhoneNumber() + ")."));
+        try {
+            fieldOps.notifyAssignment(ticket, technicianIds);
+        } catch (Exception e) {
+            log.warn("Could not notify assignees of ticket {}: {}", ticket.getId(), e.getMessage());
         }
     }
 

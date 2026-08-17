@@ -1,5 +1,6 @@
 package com.spalimited.hotspotbilling.web;
 
+import com.spalimited.hotspotbilling.service.FieldBotService;
 import com.spalimited.hotspotbilling.service.WhatsappBotService;
 import com.spalimited.hotspotbilling.service.WhatsappService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class WhatsappWebhookController {
 
     private final WhatsappBotService bot;
+    private final FieldBotService fieldBot;
     private final WhatsappService whatsapp;
 
     @Value("${whatsapp.webhook-verify-token:}")
@@ -52,8 +54,7 @@ public class WhatsappWebhookController {
                         String from = str(msg.get("from"));
                         String text = str(asMap(msg.get("text")).get("body"));
                         if (from == null) continue;
-                        String reply = bot.replyWithPhone(from, text);
-                        whatsapp.send(from, reply);
+                        whatsapp.send(from, answer(from, text));
                     }
                 }
             }
@@ -63,6 +64,17 @@ public class WhatsappWebhookController {
         return ResponseEntity.ok("EVENT_RECEIVED");
     }
 
+    /**
+     * One WhatsApp number serves both audiences. A message from a number on an
+     * active technician's record is field work; everyone else is a customer.
+     * Technicians are the smaller, known set, so they are checked first — and a
+     * technician buying their own voucher can still do it from another phone.
+     */
+    private String answer(String from, String text) {
+        String staffReply = fieldBot.reply(from, text);
+        return staffReply != null ? staffReply : bot.replyWithPhone(from, text);
+    }
+
     public record Sim(String phone, String text) {
     }
 
@@ -70,7 +82,7 @@ public class WhatsappWebhookController {
     @PostMapping("/api/admin/whatsapp/simulate")
     public Map<String, String> simulate(@RequestBody Sim sim) {
         String phone = sim.phone() == null || sim.phone().isBlank() ? "254700000000" : sim.phone();
-        return Map.of("reply", bot.replyWithPhone(phone, sim.text()));
+        return Map.of("reply", answer(phone, sim.text()));
     }
 
     /** What the operator needs to connect Meta's webhook to this account. */

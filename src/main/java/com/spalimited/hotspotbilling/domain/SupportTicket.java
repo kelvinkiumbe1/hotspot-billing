@@ -84,6 +84,15 @@ public class SupportTicket {
     private String resolvedBy;
 
     /**
+     * When the assigned technician was last chased about this job. Stamped so a
+     * job that stays stale is nudged once rather than on every sweep.
+     */
+    private Instant lastNudgedAt;
+
+    /** When the operator was told nobody had picked this job up. Same reasoning. */
+    private Instant queueAlertedAt;
+
+    /**
      * How long the job took, or how long it has been running so far. Live
      * rather than stored, so a ticket left open keeps counting instead of
      * showing a figure frozen at the last save.

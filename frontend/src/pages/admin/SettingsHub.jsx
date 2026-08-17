@@ -44,6 +44,12 @@ const SECTIONS = [
     ],
   },
   {
+    group: 'Automation',
+    items: [
+      { key: 'field', label: 'Field jobs', hint: 'Technicians work jobs from WhatsApp; quiet jobs get chased', icon: 'engineering', need: 'SETTINGS' },
+    ],
+  },
+  {
     group: 'Developer',
     items: [
       { key: 'developer', label: 'API tokens', hint: 'Programmatic access to the API', icon: 'key', need: 'SETTINGS' },
@@ -1396,6 +1402,165 @@ function CreditSection({ auth }) {
   )
 }
 
+/**
+ * Field jobs — the technician's WhatsApp assistant and the sweeps that chase
+ * work nobody has touched. The preview matters more than it looks: an operator
+ * who cannot try the conversation will not trust it enough to switch it on.
+ */
+function FieldSection({ auth }) {
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [sim, setSim] = useState({ phone: '', text: 'jobs' })
+  const [simOut, setSimOut] = useState(null)
+
+  useEffect(() => {
+    api('/admin/field/settings', { auth }).then(setForm).catch((e) => setMsg({ ok: false, text: e.message }))
+  }, [auth])
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setMsg(null) }
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try {
+      setForm(await api('/admin/field/settings', { method: 'PUT', auth, body: form }))
+      setMsg({ ok: true, text: 'Saved.' })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function sweepNow() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api('/admin/field/sweep', { method: 'POST', auth })
+      setMsg({ ok: true, text: `Chased ${r.nudged} quiet job(s), escalated ${r.escalated} nobody had taken.` })
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function runSim() {
+    setSimOut(null)
+    try {
+      setSimOut(await api('/admin/field/simulate', { method: 'POST', auth, body: sim }))
+    } catch (err) {
+      setSimOut({ reply: '', note: err.message })
+    }
+  }
+
+  if (!form) return <Skeleton className="h-64" />
+
+  return (
+    <form onSubmit={save} className="space-y-6 max-w-2xl">
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-base font-semibold block">Technicians work jobs from WhatsApp</span>
+            <span className="text-sm text-on-surface-variant">
+              A message from the number on a technician's record opens their job list instead of the
+              customer menu — see the job, tell the customer you're coming, leave a note, close it.
+            </span>
+          </div>
+          <Toggle checked={form.whatsappEnabled} onChange={(e) => set({ whatsappEnabled: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          Technicians without a phone number on their record simply carry on using the Field Connect app.
+          Nothing here replaces it.
+        </p>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-1">Chasing quiet work</p>
+        <p className="text-xs text-on-surface-variant mb-3">
+          Each job is chased once per window, not on every sweep, so a long job isn't pestered.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>Nudge the technician after (hours)</label>
+            <input type="number" min="1" max="168" className={INPUT_CLS} value={form.staleJobHours}
+              onChange={(e) => set({ staleJobHours: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Counted from the last note, not the last save.</p>
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Tell you nobody has taken it after (minutes)</label>
+            <input type="number" min="5" max="1440" className={INPUT_CLS} value={form.unassignedAlertMinutes}
+              onChange={(e) => set({ unassignedAlertMinutes: Number(e.target.value) })} />
+            <p className="text-xs text-on-surface-variant mt-1">Goes to your alert number under SMS &amp; WhatsApp.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm font-semibold block">Morning job list</span>
+            <span className="text-sm text-on-surface-variant">
+              Each technician gets what they're carrying, at the start of the day.
+            </span>
+          </div>
+          <Toggle checked={form.dailySummaryEnabled} onChange={(e) => set({ dailySummaryEnabled: e.target.checked })} />
+        </div>
+        {form.dailySummaryEnabled && (
+          <div className="max-w-[12rem]">
+            <label className={LABEL_CLS}>Send at (hour, 0–23)</label>
+            <input type="number" min="0" max="23" className={INPUT_CLS} value={form.dailySummaryHour}
+              onChange={(e) => set({ dailySummaryHour: Number(e.target.value) })} />
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-4 pt-2 border-t border-outline-variant/40">
+          <div>
+            <span className="text-sm font-semibold block">Tell the customer when a job is closed</span>
+            <span className="text-sm text-on-surface-variant">
+              In the technician's own words, where they left any.
+            </span>
+          </div>
+          <Toggle checked={form.notifyCustomerOnClose} onChange={(e) => set({ notifyCustomerOnClose: e.target.checked })} />
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
+        <p className="text-sm font-semibold mb-1">Try the technician conversation</p>
+        <p className="text-xs text-on-surface-variant mb-3">
+          Nothing is sent. Use a technician's real number — that is how they're recognised.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL_CLS}>From (technician's number)</label>
+            <input className={INPUT_CLS} placeholder="2547XXXXXXXX" value={sim.phone}
+              onChange={(e) => setSim((s) => ({ ...s, phone: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL_CLS}>Message</label>
+            <input className={INPUT_CLS} value={sim.text}
+              onChange={(e) => setSim((s) => ({ ...s, text: e.target.value }))} />
+          </div>
+        </div>
+        <button type="button" onClick={runSim}
+          className="mt-3 px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer hover:bg-surface-container-high">
+          Send to the preview
+        </button>
+        {simOut && (
+          <div className="mt-3">
+            {simOut.reply
+              ? <pre className="text-xs whitespace-pre-wrap bg-surface-container rounded-lg p-3">{simOut.reply}</pre>
+              : <p className="text-xs text-on-surface-variant">{simOut.note}</p>}
+          </div>
+        )}
+      </section>
+
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      <div className="flex items-center gap-3">
+        <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
+        <button type="button" onClick={sweepNow} disabled={busy}
+          className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-semibold cursor-pointer hover:bg-surface-container-high disabled:opacity-50">
+          Chase now
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function PaybillSection({ auth }) {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -1869,6 +2034,15 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
                 subtitle="A customer who has paid you several times can get online now and settle on their next purchase."
               />
               <CreditSection auth={auth} />
+            </>
+          )}
+          {current === 'field' && (
+            <>
+              <PageHeader
+                title="Field jobs"
+                subtitle="Technicians run their jobs from WhatsApp, and work nobody has touched chases itself."
+              />
+              <FieldSection auth={auth} />
             </>
           )}
           {current === 'paybill' && (

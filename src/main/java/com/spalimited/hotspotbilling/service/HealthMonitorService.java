@@ -47,14 +47,16 @@ public class HealthMonitorService {
             "router-monitor", Duration.ofMinutes(20),
             "payment-reconcile", Duration.ofMinutes(20),
             "subscriptions", Duration.ofHours(4),
-            "dunning", Duration.ofHours(2));
+            "dunning", Duration.ofHours(2),
+            "field-ops", Duration.ofHours(1));
 
     /** Friendlier names for the alert text than the keys above. */
     private static final Map<String, String> JOB_LABELS = Map.of(
             "router-monitor", "router monitoring",
             "payment-reconcile", "payment reconciliation",
             "subscriptions", "subscription expiry and suspension",
-            "dunning", "failed-payment recovery");
+            "dunning", "failed-payment recovery",
+            "field-ops", "field job chasing");
 
     private final HealthAlertRepository alerts;
     private final JobHeartbeatRepository heartbeats;
