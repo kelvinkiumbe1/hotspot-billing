@@ -49,6 +49,12 @@ public class PaymentGatewayService {
     private static final String SANDBOX = "https://sandbox.safaricom.co.ke";
     private static final String PRODUCTION = "https://api.safaricom.co.ke";
 
+    /** One gateway by kind, whether or not it is the active one. */
+    @Transactional(readOnly = true)
+    public Optional<PaymentGateway> find(PaymentGateway.Kind kind) {
+        return gateways.findByKind(kind);
+    }
+
     @Transactional(readOnly = true)
     public Optional<PaymentGateway> active() {
         return gateways.findByActiveTrue();

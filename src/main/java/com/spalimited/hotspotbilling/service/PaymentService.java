@@ -169,6 +169,57 @@ public class PaymentService {
     }
 
     /**
+     * Settles a payment a card processor has told us about.
+     *
+     * <p>Deliberately the same shape as the M-Pesa callback path, and it funnels
+     * into the same {@code completeSuccess}: whichever rail took the money, the
+     * voucher is issued, the code sent, loyalty awarded and webhooks fired by
+     * one piece of code. The alternative — a second issue path per provider —
+     * is how systems end up with vouchers that exist but were never texted.
+     *
+     * @param providerRef what the processor calls the transaction
+     * @param reference   what we called it when we started the charge
+     */
+    @Transactional
+    public void settleFromProvider(String provider, String providerRef, String reference,
+                                   boolean paid, java.math.BigDecimal amount, String receipt,
+                                   String failureReason) {
+        // Either identifier may be the one we stored, depending on the rail, so
+        // both are tried before giving up.
+        Payment payment = paymentRepository.findByCheckoutRequestId(
+                        reference == null ? "" : reference)
+                .or(() -> paymentRepository.findByCheckoutRequestId(
+                        providerRef == null ? "" : providerRef))
+                .orElse(null);
+        if (payment == null) {
+            log.warn("{} webhook for unknown reference {} / {}", provider, reference, providerRef);
+            return;
+        }
+        if (payment.getStatus() != Payment.Status.PENDING) {
+            // Every one of these providers retries until it gets a 2xx, so a
+            // repeat is the normal case and must not issue a second voucher.
+            log.info("Ignoring repeat {} webhook for payment {}", provider, payment.getId());
+            return;
+        }
+        if (!paid) {
+            markFailed(payment, provider + ": " + (failureReason == null ? "not paid" : failureReason));
+            return;
+        }
+
+        // The same amount check the M-Pesa path makes, and for a stronger
+        // reason here: Flutterwave's webhook is authenticated by a shared header
+        // rather than a signature over the body, so the body is the part we
+        // trust least. A mismatch is recorded as FAILED so reconciliation sees
+        // it rather than a voucher being minted for the wrong money.
+        java.math.BigDecimal expected = payment.getAmount();
+        if (expected != null && (amount == null || amount.compareTo(expected) != 0)) {
+            markFailed(payment, provider + " reported " + amount + " but we asked for " + expected);
+            return;
+        }
+        completeSuccess(payment, receipt);
+    }
+
+    /**
      * The single place a payment turns into a voucher: marks it SUCCESS, issues
      * the pass, texts the code, fires webhooks and awards loyalty. Both the
      * live callback and the reconciliation sweep funnel through here, so a

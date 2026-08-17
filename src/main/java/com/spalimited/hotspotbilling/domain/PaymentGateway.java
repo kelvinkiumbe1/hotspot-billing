@@ -35,7 +35,17 @@ public class PaymentGateway {
         /** A Buy Goods till with no API access; reconciled by hand. */
         MPESA_TILL_MANUAL,
         /** Bank transfer; reconciled by hand. */
-        BANK_TRANSFER
+        BANK_TRANSFER,
+        /**
+         * Cards, bank transfer and mobile money across Nigeria, Ghana, Kenya and
+         * South Africa. Hosted checkout: the customer opens a URL rather than
+         * being prompted on their handset.
+         */
+        PAYSTACK,
+        /** Cards and mobile money across most of Africa. Hosted checkout. */
+        FLUTTERWAVE,
+        /** Cards worldwide, for operators billing outside mobile-money markets. */
+        STRIPE
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -73,6 +83,21 @@ public class PaymentGateway {
     /** Initiator password encrypted with Safaricom's public cert; long base64. */
     @Column(length = 2048)
     private String securityCredential;
+
+    // --- Card and pan-African processors ---
+
+    /** Server-side API key. Never leaves the backend. */
+    private String secretKey;
+
+    /** Safe for the browser; some checkout flows need it client-side. */
+    private String publicKey;
+
+    /**
+     * What their webhooks are signed with. Stripe issues a dedicated endpoint
+     * secret; Flutterwave compares a hash you choose; Paystack signs with the
+     * secret key and needs nothing here.
+     */
+    private String webhookSecret;
 
     // --- Manual gateways ---
 
@@ -113,6 +138,12 @@ public class PaymentGateway {
             case MPESA_PAYBILL_MANUAL -> filled(paybillNumber);
             case MPESA_TILL_MANUAL -> filled(tillNumber);
             case BANK_TRANSFER -> filled(bankName) && filled(accountNumber);
+            // Paystack signs its webhooks with the secret key, so one field is
+            // genuinely enough. Flutterwave and Stripe verify against a secret
+            // of their own, and without it the webhook cannot be trusted — so
+            // a gateway missing it is not configured, however valid the key is.
+            case PAYSTACK -> filled(secretKey);
+            case FLUTTERWAVE, STRIPE -> filled(secretKey) && filled(webhookSecret);
         };
     }
 
