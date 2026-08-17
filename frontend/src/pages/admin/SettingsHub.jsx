@@ -693,6 +693,35 @@ function WhatsappAssistantPanel({ auth }) {
   useEffect(() => { api('/admin/whatsapp/config', { auth }).then(setCfg).catch(() => {}) }, [auth])
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [msgs])
 
+  /**
+   * Messages the system pushes at this number arrive here on their own — the
+   * access code seconds after a payment confirms, an expiry warning, a
+   * receipt. On a real handset those simply appear in the thread; this panel
+   * is request/response and could never show them, which made the automatic
+   * delivery look broken when it was only invisible.
+   *
+   * Polls the outbox, so it shows what was actually sent — and, when no
+   * gateway is configured, what would have been.
+   */
+  useEffect(() => {
+    let since = Date.now()
+    let stopped = false
+    const tick = async () => {
+      try {
+        const pushed = await api(
+          `/admin/comms/outbox/for?phone=${encodeURIComponent(phone)}&sinceEpochMs=${since}`,
+          { auth })
+        if (stopped || !pushed.length) return
+        since = Math.max(since, ...pushed.map((m) => new Date(m.createdAt).getTime() + 1))
+        setMsgs((m) => [...m, ...pushed.map((p) => ({
+          who: 'bot', text: p.body, pushed: true, failed: p.status === 'FAILED', error: p.error,
+        }))])
+      } catch { /* the panel is a convenience; a failed poll is not worth showing */ }
+    }
+    const timer = setInterval(tick, 3000)
+    return () => { stopped = true; clearInterval(timer) }
+  }, [auth, phone])
+
   const webhookUrl = cfg ? window.location.origin + cfg.webhookPath : ''
   const copy = (v) => { try { navigator.clipboard.writeText(v) } catch { /* ignore */ } }
 
@@ -759,7 +788,22 @@ function WhatsappAssistantPanel({ auth }) {
         {msgs.length === 0 && <p className="text-xs text-on-surface-variant">Type <b>hi</b> to start. Try <b>1</b> to buy, <b>2</b> for status, <b>sw</b> for Kiswahili.</p>}
         {msgs.map((m, i) => (
           <div key={i} className={`flex ${m.who === 'you' ? 'justify-end' : 'justify-start'}`}>
-            <span className={`max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 text-sm ${m.who === 'you' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'}`}>{m.text}</span>
+            <span className={`max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 text-sm ${
+              m.who === 'you' ? 'bg-primary text-on-primary'
+                : m.pushed ? 'bg-secondary-container text-on-secondary-container border border-secondary/30'
+                  : 'bg-surface-container text-on-surface'}`}>
+              {/* Marked, because an operator has to be able to tell a reply to
+                  something they typed from a message the system sent by itself. */}
+              {m.pushed && (
+                <span className="block text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">
+                  {m.failed ? '⚠ sent automatically — delivery failed' : '✦ sent automatically'}
+                </span>
+              )}
+              {m.text}
+              {m.failed && m.error && (
+                <span className="block text-[10px] mt-1 opacity-80">{m.error}</span>
+              )}
+            </span>
           </div>
         ))}
       </div>

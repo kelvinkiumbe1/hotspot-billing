@@ -17,4 +17,8 @@ public interface OutboundMessageRepository extends JpaRepository<OutboundMessage
     long countByCreatedAtAfter(Instant since);
 
     List<OutboundMessage> findByCreatedAtAfter(Instant since);
+
+    /** What the system has tried to send one number lately, oldest first. */
+    List<OutboundMessage> findByRecipientAndCreatedAtAfterOrderByCreatedAtAsc(
+            String recipient, Instant since);
 }

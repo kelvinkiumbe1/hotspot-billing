@@ -44,6 +44,35 @@ public class OutboxService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * Messages pushed at one number since a moment, oldest first — the feed
+     * the WhatsApp preview watches so an automatic delivery shows up in the
+     * conversation the way it does on a real handset.
+     *
+     * <p>The number is matched however it was typed: what the preview has and
+     * what the sender stored can differ by a leading zero, and a feed that
+     * silently matches nothing is worse than no feed.
+     */
+    public List<Map<String, Object>> since(String phone, long sinceEpochMs) {
+        String normalised = SmsService.normalise(phone);
+        if (normalised == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (OutboundMessage m : messages.findByRecipientAndCreatedAtAfterOrderByCreatedAtAsc(
+                normalised, Instant.ofEpochMilli(Math.max(0, sinceEpochMs)))) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", m.getId());
+            row.put("channel", m.getChannel());
+            row.put("body", m.getBody());
+            row.put("status", m.getStatus());
+            row.put("error", m.getError());
+            row.put("createdAt", m.getCreatedAt());
+            out.add(row);
+        }
+        return out;
+    }
+
     public List<Map<String, Object>> list(OutboundMessage.Channel channel) {
         List<OutboundMessage> rows = channel == null
                 ? messages.findTop500ByOrderByCreatedAtDesc()

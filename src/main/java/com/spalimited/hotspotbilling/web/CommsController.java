@@ -55,6 +55,22 @@ public class CommsController {
         return outboxService.list(channel(channel));
     }
 
+    /**
+     * What the system has pushed at one number since a given moment.
+     *
+     * <p>Exists for the WhatsApp preview. In a real thread the code arrives on
+     * its own the instant the payment confirms — that is the whole point of it
+     * — but the preview is a request/response panel and nothing can arrive in
+     * it unprompted. Polling this lets the preview show those messages as they
+     * happen, so an operator can see the automatic delivery working (or, when
+     * no gateway is configured, see exactly what would have been sent).
+     */
+    @GetMapping("/outbox/for")
+    public List<Map<String, Object>> outboxFor(@RequestParam String phone,
+                                               @RequestParam(defaultValue = "0") long sinceEpochMs) {
+        return outboxService.since(phone, sinceEpochMs);
+    }
+
     @GetMapping("/outbox/stats")
     public Map<String, Object> stats(@RequestParam(required = false) String channel) {
         return outboxService.stats(channel(channel));

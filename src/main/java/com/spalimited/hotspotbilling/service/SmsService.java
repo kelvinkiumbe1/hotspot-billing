@@ -100,9 +100,12 @@ public class SmsService {
             // Fall through and try SMS rather than giving up on the customer.
         }
         if (!isEnabled()) {
-            log.info("SMS disabled — would have sent to {}: {}", phoneNumber, message);
+            log.info("No messaging channel configured — would have sent to {}: {}", phoneNumber, message);
+            // Naming only SMS here sent people to the wrong settings page. This
+            // path is reached when WhatsApp is unavailable *as well*, and for a
+            // code that should appear in a WhatsApp chat, WhatsApp is the fix.
             outboxService.record(OutboundMessage.Channel.SMS, phoneNumber, recipientName, message,
-                    false, "SMS is not configured", campaignRef, sentBy);
+                    false, "No WhatsApp or SMS gateway is configured", campaignRef, sentBy);
             return;
         }
         try {
