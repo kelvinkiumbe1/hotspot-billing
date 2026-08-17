@@ -30,6 +30,7 @@ public class C2bService {
     private final PaybillActivationService paybillActivation;
     private final SmsService smsService;
     private final AuditService audit;
+    private final MoneyService money;
 
     /** Handles a Safaricom confirmation payload. Idempotent by transactionId. */
     @Transactional
@@ -66,7 +67,7 @@ public class C2bService {
             payment.setStatus(C2bPayment.Status.UNMATCHED);
             payment.setNote(outcome.note() != null ? outcome.note()
                     : "No subscriber matched account '" + billRefNumber + "' or phone " + phoneNumber);
-            audit.system("c2b.unmatched", "Unmatched PayBill payment " + transactionId + " of KES " + amount);
+            audit.system("c2b.unmatched", "Unmatched PayBill payment " + transactionId + " of " + money.format(amount));
             log.warn("Unmatched C2B payment {} (ref '{}', phone {})", transactionId, billRefNumber, phoneNumber);
             return c2bPayments.save(payment);
         }
@@ -75,10 +76,10 @@ public class C2bService {
         if (months < 1) {
             payment.setStatus(C2bPayment.Status.UNMATCHED);
             payment.setSubscriberId(sub.getId());
-            payment.setNote("KES " + amount + " is less than one month (KES " + sub.getMonthlyFee() + ") for "
+            payment.setNote(money.format(amount) + " is less than one month (" + money.format(sub.getMonthlyFee()) + ") for "
                     + sub.getPppoeUsername());
             smsService.trySend(phoneNumber,
-                    "We received KES " + amount + " but your monthly fee is KES " + sub.getMonthlyFee()
+                    "We received " + money.format(amount) + " but your monthly fee is " + money.format(sub.getMonthlyFee())
                             + ". Please top up the balance or call support.");
             return c2bPayments.save(payment);
         }

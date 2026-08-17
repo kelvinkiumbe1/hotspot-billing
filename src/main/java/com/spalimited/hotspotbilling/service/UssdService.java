@@ -49,6 +49,8 @@ public class UssdService {
     private final VoucherRepository vouchers;
     private final PortalSettingsService portalSettings;
     private final PaymentGatewayService gateways;
+    /** Named cash rather than money, since money(Plan) already meant something here. */
+    private final MoneyService cash;
 
     /**
      * Handles one USSD request. {@code text} is everything the caller has
@@ -89,7 +91,7 @@ public class UssdService {
             for (int i = 0; i < live.size(); i++) {
                 Plan p = live.get(i);
                 sb.append("\n").append(i + 1).append(". ").append(p.getName())
-                        .append(" KES ").append(money(p));
+                        .append(" ").append(cash.format(price(p)));
             }
             return sb.toString();
         }
@@ -103,7 +105,7 @@ public class UssdService {
         // A confirmation screen before any money moves: one stray keypress on a
         // basic handset should not charge somebody's M-Pesa.
         if (steps.length == 2) {
-            return "CON " + plan.getName() + " for KES " + money(plan)
+            return "CON " + plan.getName() + " for " + cash.format(price(plan))
                     + "\n1. Send M-Pesa request to " + phone + "\n0. Cancel";
         }
         if (!"1".equals(steps[2])) {
@@ -152,7 +154,7 @@ public class UssdService {
 
         if (steps.length == 1) {
             return "CON " + (active ? "Active" : "Not active") + ", paid to " + until
-                    + "\n1. Renew 1 month (KES " + sub.getMonthlyFee().stripTrailingZeros().toPlainString() + ")"
+                    + "\n1. Renew 1 month (" + cash.format(sub.getMonthlyFee()) + ")"
                     + "\n0. Exit";
         }
         if (!"1".equals(steps[1])) {
@@ -188,7 +190,7 @@ public class UssdService {
     private List<Plan> livePlans() {
         return plans.findByActiveTrueOrderByPriceAsc().stream()
                 // "Custom Time" exists only to hang pay-per-minute payments off;
-                // it is a KES 1 one-minute row, never something to sell.
+                // it is a one-minute holder row, never something to sell.
                 .filter(p -> !CustomPlanService.SYSTEM_PLAN_NAME.equals(p.getName()))
                 .filter(p -> p.getEffectiveType() == Plan.Type.HOTSPOT)
                 .filter(Plan::isOnSale)
@@ -201,8 +203,8 @@ public class UssdService {
         return biz == null || biz.isBlank() ? "WiFi" : biz;
     }
 
-    private static String money(Plan p) {
-        return p.getPrice().stripTrailingZeros().toPlainString();
+    private static java.math.BigDecimal price(Plan p) {
+        return p.getPrice();
     }
 
     private static Integer asInt(String s) {

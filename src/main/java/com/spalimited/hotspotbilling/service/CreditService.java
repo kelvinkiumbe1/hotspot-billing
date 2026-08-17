@@ -52,6 +52,7 @@ public class CreditService {
     private final VoucherService voucherService;
     private final NotificationService notifications;
     private final SmsService smsService;
+    private final MoneyService money;
     private final PortalSettingsService portalSettings;
     private final AuditService audit;
 
@@ -106,7 +107,7 @@ public class CreditService {
         }
         if (outstanding.signum() > 0) {
             return new Eligibility(true, false,
-                    "You already have KES " + plain(outstanding) + " to settle", s.getMaxAdvance(), outstanding);
+                    "You already have " + money.format(outstanding) + " to settle", s.getMaxAdvance(), outstanding);
         }
         if (advances.countByPhoneNumberAndStatus(phone, CreditAdvance.Status.DEFAULTED) >= s.getMaxDefaults()) {
             return new Eligibility(true, false, "Not available on this number", s.getMaxAdvance(), outstanding);
@@ -161,7 +162,7 @@ public class CreditService {
             throw new IllegalStateException("That package isn't available");
         }
         if (plan.getPrice().compareTo(s.getMaxAdvance()) > 0) {
-            throw new IllegalStateException("Pay later covers packages up to KES " + plain(s.getMaxAdvance()));
+            throw new IllegalStateException("Pay later covers packages up to " + money.format(s.getMaxAdvance()));
         }
 
         BigDecimal fee = plan.getPrice()
@@ -189,10 +190,10 @@ public class CreditService {
         notifications.send(NotificationTemplate.Key.VOUCHER_ISSUED, phone, Map.of(
                 "business", business(),
                 "code", voucher.getCode()));
-        smsService.trySend(phone, "You have taken " + plan.getName() + " on credit. KES " + plain(totalDue)
+        smsService.trySend(phone, "You have taken " + plan.getName() + " on credit. " + money.format(totalDue)
                 + " will be added to your next purchase. Asante!");
 
-        audit.system("credit.advance", "Advanced " + plan.getName() + " (KES " + plain(totalDue)
+        audit.system("credit.advance", "Advanced " + plan.getName() + " (" + money.format(totalDue)
                 + ") to " + phone + " as " + voucher.getCode());
         log.info("Credit advance {} to {} for {}", advance.getId(), phone, plan.getName());
 
@@ -226,9 +227,9 @@ public class CreditService {
             cleared = cleared.add(a.getTotalDue());
         }
         if (cleared.signum() > 0) {
-            audit.system("credit.settle", "Settled KES " + plain(cleared) + " of credit for " + phone
+            audit.system("credit.settle", "Settled " + money.format(cleared) + " of credit for " + phone
                     + (note == null ? "" : " (" + note + ")"));
-            log.info("Settled KES {} of credit for {}", plain(cleared), phone);
+            log.info("Settled {} of credit for {}", money.format(cleared), phone);
         }
         return cleared;
     }
@@ -249,7 +250,7 @@ public class CreditService {
         Instant now = Instant.now();
         for (CreditAdvance a : advances.findByStatusAndDueAtBefore(CreditAdvance.Status.OUTSTANDING, now)) {
             if (a.getRemindedAt() == null) {
-                smsService.trySend(a.getPhoneNumber(), "Reminder: KES " + plain(a.getTotalDue())
+                smsService.trySend(a.getPhoneNumber(), "Reminder: " + money.format(a.getTotalDue())
                         + " for your " + business() + " pass will be added to your next purchase.");
                 a.setRemindedAt(now);
                 advances.save(a);
@@ -260,7 +261,7 @@ public class CreditService {
                 a.setStatus(CreditAdvance.Status.DEFAULTED);
                 a.setRepaidNote("Not settled within " + s.getRepayWithinHours() + " hours of the reminder");
                 advances.save(a);
-                audit.system("credit.default", "Wrote off KES " + plain(a.getTotalDue())
+                audit.system("credit.default", "Wrote off " + money.format(a.getTotalDue())
                         + " advanced to " + a.getPhoneNumber());
             }
         }
@@ -290,7 +291,7 @@ public class CreditService {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown advance: " + id));
         a.setStatus(CreditAdvance.Status.DEFAULTED);
         a.setRepaidNote("Written off by " + actor);
-        audit.record(actor, "credit.writeoff", "Wrote off KES " + plain(a.getTotalDue())
+        audit.record(actor, "credit.writeoff", "Wrote off " + money.format(a.getTotalDue())
                 + " advanced to " + a.getPhoneNumber());
         return advances.save(a);
     }

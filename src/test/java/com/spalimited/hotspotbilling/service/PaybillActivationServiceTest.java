@@ -50,6 +50,7 @@ class PaybillActivationServiceTest {
     @Mock private PaymentGatewayService gateways;
     @Mock private CreditService credit;
     @Mock private AuditService audit;
+    @Mock private MoneyService money;
 
     private PaybillActivationService service;
     private PaybillSettings settings;
@@ -62,7 +63,13 @@ class PaybillActivationServiceTest {
     @BeforeEach
     void setUp() {
         service = new PaybillActivationService(payCodes, settingsRepo, plans, routers, voucherService,
-                vouchers, mikrotik, notifications, smsService, portalSettings, gateways, credit, audit);
+                vouchers, mikrotik, notifications, smsService, portalSettings, money, gateways, credit, audit);
+        // The mock formats the way Kenya does, so the wording these tests
+        // assert on reads exactly as it did before currency became a setting.
+        when(money.format(org.mockito.ArgumentMatchers.any())).thenAnswer(
+                i -> "KES " + (i.getArgument(0) == null ? "0"
+                        : ((java.math.BigDecimal) i.getArgument(0)).stripTrailingZeros().toPlainString()));
+
 
         settings = PaybillSettings.builder()
                 .id(1L).enabled(true).autoLoginByMac(false)

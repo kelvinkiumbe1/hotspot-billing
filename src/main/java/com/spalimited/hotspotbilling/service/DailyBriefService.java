@@ -83,6 +83,7 @@ public class DailyBriefService {
     private final SmsService smsService;
     private final EmailService emailService;
     private final PortalSettingsService portalSettings;
+    private final MoneyService cash;
 
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
@@ -166,13 +167,13 @@ public class DailyBriefService {
                 .add(subscriptionPayments.sumAmountByStatusBetween(
                         SubscriptionPayment.Status.SUCCESS, lastWeekFrom, lastWeekTo));
 
-        lines.add("💰 KES " + money(total) + " today (" + (hotspotCount + subsCount) + " payments)"
+        lines.add("💰 " + cash.format(total) + " today (" + (hotspotCount + subsCount) + " payments)"
                 + comparison(total, lastWeek));
         detail.add("MONEY IN");
-        detail.add("  Today: KES " + money(total) + " from " + (hotspotCount + subsCount) + " payment(s)");
-        detail.add("    Hotspot: " + hotspotCount + " sale(s), KES " + money(hotspot));
-        detail.add("    Subscriptions: " + subsCount + " payment(s), KES " + money(subs));
-        detail.add("  Same time last " + DAY.format(lastWeekFrom).split(" ")[0] + ": KES " + money(lastWeek));
+        detail.add("  Today: " + cash.format(total) + " from " + (hotspotCount + subsCount) + " payment(s)");
+        detail.add("    Hotspot: " + hotspotCount + " sale(s), " + cash.format(hotspot));
+        detail.add("    Subscriptions: " + subsCount + " payment(s), " + cash.format(subs));
+        detail.add("  Same time last " + DAY.format(lastWeekFrom).split(" ")[0] + ": " + cash.format(lastWeek));
         detail.add("");
     }
 
@@ -257,21 +258,21 @@ public class DailyBriefService {
         List<String> bits = new ArrayList<>();
         if (!open.isEmpty()) {
             bits.add(open.size() + " audit finding(s)"
-                    + (findingTotal.signum() == 0 ? "" : " (KES " + money(findingTotal) + ")"));
+                    + (findingTotal.signum() == 0 ? "" : " (" + cash.format(findingTotal) + ")"));
         }
         if (!outstanding.isEmpty()) {
-            bits.add("KES " + money(lentOut) + " on credit");
+            bits.add("" + cash.format(lentOut) + " on credit");
         }
         lines.add("⚠️ " + String.join(", ", bits));
 
         detail.add("MONEY AT RISK");
         for (RevenueFinding f : open.stream().limit(10).toList()) {
             detail.add("    • " + f.getKind() + " — " + f.getSubject()
-                    + (f.getAmount() == null ? "" : " (KES " + money(f.getAmount()) + ")"));
+                    + (f.getAmount() == null ? "" : " (" + cash.format(f.getAmount()) + ")"));
         }
         if (!outstanding.isEmpty()) {
             detail.add("  Out on credit: " + outstanding.size()
-                    + " advance(s), KES " + money(lentOut));
+                    + " advance(s), " + cash.format(lentOut));
         }
         detail.add("");
     }

@@ -83,6 +83,7 @@ class SystemContextServiceTest {
     @Mock private LoyaltyService loyalty;
     @Mock private ReferralService referrals;
     @Mock private PortalSettingsService portalSettings;
+    @Mock private MoneyService money;
 
     private SystemContextService service;
     private MessagingSettings messaging;
@@ -95,7 +96,11 @@ class SystemContextServiceTest {
         service = new SystemContextService(health, backups, alerts, incidents, findings, tickets,
                 payouts, outbound, messagingSettings, emailService, gateways, mpesa, alertSettings,
                 fieldOps, agentPayouts, offPeak, capacity, credit, paybill, revenueAudit, aiSettings,
-                loyalty, referrals, portalSettings);
+                loyalty, referrals, portalSettings, money);
+        when(money.code()).thenReturn("KES");
+        when(money.format(org.mockito.ArgumentMatchers.any())).thenAnswer(
+                i -> "KES " + i.getArgument(0));
+
 
         // Every secret this system holds, set to something real-shaped.
         messaging = MessagingSettings.builder()

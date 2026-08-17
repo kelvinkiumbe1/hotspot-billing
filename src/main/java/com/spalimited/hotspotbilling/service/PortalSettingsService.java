@@ -46,6 +46,16 @@ public class PortalSettingsService {
         current.setAccentColor(updated.getAccentColor());
         current.setSupportPhone(updated.getSupportPhone());
         current.setTermsText(updated.getTermsText());
+        // Currency: a blank code means "leave it alone", so a screen that does
+        // not know about currency cannot silently reset an operator to
+        // shillings by saving a form without the field.
+        if (updated.getCurrencyCode() != null && !updated.getCurrencyCode().isBlank()) {
+            current.setCurrencyCode(updated.getCurrencyCode().trim().toUpperCase());
+            current.setCurrencySymbol(updated.getCurrencySymbol() == null
+                    || updated.getCurrencySymbol().isBlank() ? null : updated.getCurrencySymbol().trim());
+            current.setCurrencySuffix(updated.isCurrencySuffix());
+            current.setCurrencyDecimals(Math.max(0, Math.min(4, updated.getCurrencyDecimals())));
+        }
         current.setTrialEnabled(updated.isTrialEnabled());
         current.setTrialMinutes(updated.getTrialMinutes() > 0 ? updated.getTrialMinutes() : 15);
         if (updated.getLogoFilename() != null) {

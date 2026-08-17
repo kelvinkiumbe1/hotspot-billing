@@ -56,6 +56,7 @@ public class PaybillActivationService {
     private final NotificationService notifications;
     private final SmsService smsService;
     private final PortalSettingsService portalSettings;
+    private final MoneyService money;
     private final PaymentGatewayService gateways;
     private final CreditService credit;
     private final AuditService audit;
@@ -163,7 +164,7 @@ public class PaybillActivationService {
         }
         if (s.getMaxAmount() != null && s.getMaxAmount().signum() > 0
                 && amount.compareTo(s.getMaxAmount()) > 0) {
-            return new Outcome(false, null, null, "KES " + amount + " is above the auto-issue limit of KES "
+            return new Outcome(false, null, null, money.format(amount) + " is above the auto-issue limit of "
                     + s.getMaxAmount().stripTrailingZeros().toPlainString() + " — left for you to place");
         }
 
@@ -176,7 +177,7 @@ public class PaybillActivationService {
         // putting the payment in front of a human.
         BigDecimal owed = credit.outstandingFor(phoneNumber);
         if (owed.signum() > 0 && amount.compareTo(owed) < 0) {
-            return new Outcome(false, null, null, "KES " + amount + " received but KES " + owed
+            return new Outcome(false, null, null, money.format(amount) + " received but " + money.format(owed)
                     + " is owed on a pay-later pass — not enough to settle it");
         }
         BigDecimal spendable = amount.subtract(owed);
@@ -185,16 +186,16 @@ public class PaybillActivationService {
         if (plan == null && owed.signum() > 0) {
             // It cleared the debt and no more. Say so rather than leaving them
             // wondering where their money went.
-            credit.settle(phoneNumber, "PayBill payment of KES " + amount);
-            smsService.trySend(phoneNumber, "Thank you — KES " + owed
+            credit.settle(phoneNumber, "PayBill payment of " + money.format(amount));
+            smsService.trySend(phoneNumber, "Thank you — " + money.format(owed)
                     + " owed on your pay-later pass is now settled.");
-            return new Outcome(true, null, null, "Settled KES " + owed + " of pay-later credit; "
+            return new Outcome(true, null, null, "Settled " + money.format(owed) + " of pay-later credit; "
                     + "the remainder did not cover a package");
         }
         if (plan == null) {
-            String note = "KES " + amount + " does not cover any hotspot plan on sale";
+            String note = money.format(amount) + " does not cover any hotspot plan on sale";
             if (s.isNotifyOnShortfall()) {
-                smsService.trySend(phoneNumber, "We received KES " + amount + " but it is less than our "
+                smsService.trySend(phoneNumber, "We received " + money.format(amount) + " but it is less than our "
                         + "cheapest package. Please top up or call support and we will help.");
             }
             audit.system("paybill.shortfall", note + " (from " + phoneNumber + ")");
@@ -226,14 +227,14 @@ public class PaybillActivationService {
             payCodes.save(payCode);
         }
         if (owed.signum() > 0) {
-            credit.settle(phoneNumber, "PayBill payment of KES " + amount);
+            credit.settle(phoneNumber, "PayBill payment of " + money.format(amount));
         }
 
         notifications.send(NotificationTemplate.Key.VOUCHER_ISSUED, phoneNumber, Map.of(
                 "business", portalSettings.settings().getBusinessName(),
                 "code", voucher.getCode()));
 
-        String note = "Auto-issued " + plan.getName() + " (" + voucher.getCode() + ") for KES " + amount
+        String note = "Auto-issued " + plan.getName() + " (" + voucher.getCode() + ") for " + money.format(amount)
                 + (payCode != null ? " against pay code " + payCode.getCode() : " matched by phone")
                 + (letOn ? "; device " + mac + " let straight on" : "");
         audit.system("paybill.activate", note);

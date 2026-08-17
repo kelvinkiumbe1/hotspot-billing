@@ -85,12 +85,15 @@ public class SystemContextService {
     private final LoyaltyService loyalty;
     private final ReferralService referrals;
     private final PortalSettingsService portalSettings;
+    private final MoneyService money;
 
     /** Everything the assistant should know, ready to paste into a prompt. */
     @Transactional(readOnly = true)
     public String forAssistant() {
         StringBuilder sb = new StringBuilder();
-        sb.append(primer()).append('\n');
+        // The primer is a text block, so the currency is substituted rather
+        // than formatted — a stray %s in a prompt reads as a bug to the model.
+        sb.append(primer().replace("%CURRENCY%", money.code())).append('\n');
         sb.append(configuration()).append('\n');
         sb.append(healthReport());
         return redact(sb.toString());
@@ -107,10 +110,10 @@ public class SystemContextService {
     private String primer() {
         return """
                 HOW THIS SYSTEM WORKS
-                It is billing and control for a Kenyan ISP running two kinds of service:
+                It is billing and control for an ISP running two kinds of service:
                 hotspot (prepaid vouchers, captive portal) and PPPoE subscribers (monthly
                 home/office lines). Money is M-Pesa. Routers are MikroTik, driven over the
-                RouterOS API. Amounts are Kenyan Shillings (KES).
+                RouterOS API. Amounts are in %CURRENCY%.
 
                 HOW A CUSTOMER BUYS
                 - Captive portal: picks a plan, gets an M-Pesa STK prompt, voucher arrives by SMS/WhatsApp.
@@ -200,7 +203,7 @@ public class SystemContextService {
         sb.append("- Agent commission payouts: ").append(onOff(pay.isEnabled()))
                 .append(", ").append(pay.getFrequency())
                 .append(", auto-send ").append(onOff(pay.isAutoSend()))
-                .append(", minimum KES ").append(plain(pay.getMinimumAmount()))
+                .append(", minimum ").append(money.format(pay.getMinimumAmount()))
                 .append(", ceiling KES ").append(plain(pay.getMaxPerRun())).append('\n');
 
         var off = offPeak.settings();
@@ -217,7 +220,7 @@ public class SystemContextService {
 
         var cr = credit.settings();
         sb.append("- Pay later (Lipa Baadaye): ").append(onOff(cr.isEnabled()))
-                .append(cr.isEnabled() ? ", up to KES " + plain(cr.getMaxAdvance())
+                .append(cr.isEnabled() ? ", up to " + money.format(cr.getMaxAdvance())
                         + " after " + cr.getMinPurchases() + " paid purchases" : "")
                 .append('\n');
 
@@ -291,7 +294,7 @@ public class SystemContextService {
                     .map(f -> f.getAmount() == null ? BigDecimal.ZERO : f.getAmount())
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             sb.append("- Revenue audit: ").append(openFindings.size())
-                    .append(" open finding(s) worth KES ").append(plain(total)).append(". By kind: ")
+                    .append(" open finding(s) worth ").append(money.format(total)).append(". By kind: ")
                     .append(openFindings.stream()
                             .collect(java.util.stream.Collectors.groupingBy(
                                     f -> f.getKind().name(), java.util.stream.Collectors.counting()))

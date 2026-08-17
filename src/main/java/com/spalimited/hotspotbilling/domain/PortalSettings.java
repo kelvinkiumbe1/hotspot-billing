@@ -32,6 +32,35 @@ public class PortalSettings {
     @Column(nullable = false)
     private String businessName;
 
+    // --- Money ---
+
+    /**
+     * ISO 4217 code for everything this operator charges in. Kenyan Shillings
+     * by default, because that is what every existing deployment uses and a
+     * silent change of currency would be the worst possible upgrade.
+     */
+    @Builder.Default
+    @Column(nullable = false, length = 3)
+    private String currencyCode = "KES";
+
+    /**
+     * What the customer sees. Held separately from the code because "KES 500"
+     * is how Kenya writes it and "₦500" is how Nigeria does — the spacing and
+     * the position differ, not only the letters. Blank falls back to the code.
+     */
+    @Column(length = 8)
+    private String currencySymbol;
+
+    /** True where the symbol trails the amount, as in "500 FCFA". */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean currencySuffix = false;
+
+    /** Shillings and naira are quoted whole; dollars and euros are not. */
+    @Builder.Default
+    @Column(nullable = false)
+    private int currencyDecimals = 0;
+
     private String headline;
 
     private String subheadline;

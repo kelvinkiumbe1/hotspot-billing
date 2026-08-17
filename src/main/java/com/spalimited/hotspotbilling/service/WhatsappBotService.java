@@ -47,6 +47,7 @@ public class WhatsappBotService {
     private final CustomPlanService customPlanService;
     private final FieldOpsService fieldOps;
     private final com.spalimited.hotspotbilling.repository.LeadRepository leads;
+    private final MoneyService money;
 
     private enum Step {
         MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE, PASS,
@@ -91,14 +92,14 @@ public class WhatsappBotService {
                     "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — Time & data left\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n*7* — WiFi at my home or office\n\n_Reply *sw* for Kiswahili._",
                     "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Muda na data iliyobaki\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n*7* — WiFi nyumbani au ofisini\n\n_Reply *en* for English._"}),
             Map.entry("customAsk", new String[]{
-                    "How many minutes do you need? Reply with a number between *%d* and *%d*.\nIt works out at about KES %s an hour.",
-                    "Unahitaji dakika ngapi? Jibu nambari kati ya *%d* na *%d*.\nNi karibu KES %s kwa saa."}),
+                    "How many minutes do you need? Reply with a number between *%d* and *%d*.\nIt works out at about %s an hour.",
+                    "Unahitaji dakika ngapi? Jibu nambari kati ya *%d* na *%d*.\nNi karibu %s kwa saa."}),
             Map.entry("customBad", new String[]{
                     "Reply with a number of minutes between %d and %d.",
                     "Jibu nambari ya dakika kati ya %d na %d."}),
             Map.entry("customPrice", new String[]{
-                    "%d minutes costs *KES %s*.\n\n" ,
-                    "Dakika %d ni *KES %s*.\n\n"}),
+                    "%d minutes costs *%s*.\n\n",
+                    "Dakika %d ni *%s*.\n\n"}),
             Map.entry("leadName", new String[]{
                     "🏠 Great — let's get you connected at home or the office.\n\nWhat's your full name?",
                     "🏠 Vizuri — tukuunganishe nyumbani au ofisini.\n\nJina lako kamili ni nani?"}),
@@ -149,8 +150,8 @@ public class WhatsappBotService {
                     "That doesn't look like a valid M-Pesa number. Reply as 2547XXXXXXXX, or *me*.",
                     "Nambari si sahihi. Jibu kama 2547XXXXXXXX, au *me*."}),
             Map.entry("buySent", new String[]{
-                    "✅ M-Pesa request sent to %s for KES %s. Enter your PIN — your WiFi code arrives here once confirmed.",
-                    "✅ Ombi la M-Pesa limetumwa kwa %s la KES %s. Weka PIN yako — nambari ya WiFi itakuja hapa baada ya kuthibitishwa."}),
+                    "✅ M-Pesa request sent to %s for %s. Enter your PIN — your WiFi code arrives here once confirmed.",
+                    "✅ Ombi la M-Pesa limetumwa kwa %s la %s. Weka PIN yako — nambari ya WiFi itakuja hapa baada ya kuthibitishwa."}),
             Map.entry("payFail", new String[]{
                     "Sorry, we couldn't start the M-Pesa payment right now. Please try again shortly.",
                     "Samahani, hatukuweza kuanzisha malipo sasa. Jaribu tena baadaye."}),
@@ -268,14 +269,13 @@ public class WhatsappBotService {
                 Plan p = live.get(i);
                 s.planIds.add(p.getId());
                 sb.append(i + 1).append(") ").append(p.getName())
-                        .append(" — KES ").append(p.getPrice().stripTrailingZeros().toPlainString()).append("\n");
+                        .append(" — ").append(money.format(p.getPrice())).append("\n");
             }
             CustomPlanSettings custom = customPlanService.settings();
             if (custom.isEnabled()) {
                 s.planIds.add(CUSTOM_PLAN_CHOICE);
-                sb.append(s.planIds.size()).append(") Choose your own time — from KES ")
-                        .append(customPlanService.priceFor(custom.getMinMinutes(), custom)
-                                .stripTrailingZeros().toPlainString())
+                sb.append(s.planIds.size()).append(") Choose your own time — from ")
+                        .append(money.format(customPlanService.priceFor(custom.getMinMinutes(), custom)))
                         .append('\n');
             }
             s.step = Step.PLAN;
@@ -302,7 +302,7 @@ public class WhatsappBotService {
         s.planId = null;
         s.step = Step.PAY_PHONE;
         return t(s, "customPrice", minutes,
-                customPlanService.priceFor(minutes, cfg).stripTrailingZeros().toPlainString())
+                money.format(customPlanService.priceFor(minutes, cfg)))
                 + t(s, "payPrompt");
     }
 
@@ -339,7 +339,7 @@ public class WhatsappBotService {
             s.leadPlanIds.add(p.getId());
             sb.append(i + 1).append(") ").append(p.getName())
                     .append(p.getBandwidth() == null ? "" : " — " + p.getBandwidth())
-                    .append(" — KES ").append(p.getPrice().stripTrailingZeros().toPlainString())
+                    .append(" — ").append(money.format(p.getPrice()))
                     .append("/month\n");
         }
         return sb.append(t(s, "leadPackageAdvise")).toString();
@@ -353,7 +353,7 @@ public class WhatsappBotService {
             if (idx != null && idx >= 1 && idx <= s.leadPlanIds.size()) {
                 Plan chosen = plans.findById(s.leadPlanIds.get(idx - 1)).orElse(null);
                 answer = chosen == null ? answer : chosen.getName()
-                        + " (KES " + chosen.getPrice().stripTrailingZeros().toPlainString() + "/month)";
+                        + " (" + money.format(chosen.getPrice()) + "/month)";
             } else if (!answer.equalsIgnoreCase("advise")) {
                 return t(s, "leadPackageAgain", s.leadPlanIds.size());
             }
@@ -410,7 +410,7 @@ public class WhatsappBotService {
             CustomPlanSettings cfg = customPlanService.settings();
             s.step = Step.CUSTOM_MINUTES;
             return t(s, "customAsk", cfg.getMinMinutes(), cfg.getMaxMinutes(),
-                    cfg.getPricePerHour().stripTrailingZeros().toPlainString());
+                    money.format(cfg.getPricePerHour()));
         }
         s.planId = chosen;
         s.step = Step.PAY_PHONE;
@@ -425,9 +425,8 @@ public class WhatsappBotService {
         // from the minutes asked for rather than from a plan's price.
         if (s.customMinutes != null) {
             int minutes = s.customMinutes;
-            String price = customPlanService
-                    .priceFor(minutes, customPlanService.settings())
-                    .stripTrailingZeros().toPlainString();
+            String price = money.format(
+                    customPlanService.priceFor(minutes, customPlanService.settings()));
             reset(s);
             try {
                 payments.initiateCustomStkPush(phone, minutes);
@@ -448,7 +447,7 @@ public class WhatsappBotService {
             return t(s, "payFail");
         }
         reset(s);
-        return t(s, "buySent", phone, p.getPrice().stripTrailingZeros().toPlainString());
+        return t(s, "buySent", phone, money.format(p.getPrice()));
     }
 
     private String handleRenewMonths(Session s, String text) {

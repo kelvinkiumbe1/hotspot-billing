@@ -67,6 +67,7 @@ class DailyBriefServiceTest {
     @Mock private SmsService smsService;
     @Mock private EmailService emailService;
     @Mock private PortalSettingsService portalSettings;
+    @Mock private MoneyService cash;
 
     private DailyBriefService service;
 
@@ -74,7 +75,12 @@ class DailyBriefServiceTest {
     void setUp() {
         service = new DailyBriefService(payments, subscriptionPayments, subscribers, tickets,
                 findings, healthAlerts, incidents, routers, creditAdvances, alertSettings,
-                messagingSettings, emailSettings, smsService, emailService, portalSettings);
+                messagingSettings, emailSettings, smsService, emailService, portalSettings, cash);
+        when(cash.format(org.mockito.ArgumentMatchers.any())).thenAnswer(
+                i -> "KES " + (i.getArgument(0) == null ? "0"
+                        : ((java.math.BigDecimal) i.getArgument(0)).setScale(0,
+                                java.math.RoundingMode.HALF_UP).toPlainString()));
+
 
         when(portalSettings.settings()).thenReturn(PortalSettings.builder().businessName("SPA WiFi").build());
         // A quiet, healthy day unless a test says otherwise.

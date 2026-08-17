@@ -32,7 +32,7 @@ public class NotificationService {
                             + "Reply to top up and keep browsing at full speed."),
             Map.entry(NotificationTemplate.Key.DUNNING_RETRY,
                     "We couldn't complete your {business} renewal yet. We've sent a fresh M-Pesa request "
-                            + "for KES {amount} — enter your PIN to stay connected, or pay here: {payUrl}"),
+                            + "for {currency} {amount} — enter your PIN to stay connected, or pay here: {payUrl}"),
             Map.entry(NotificationTemplate.Key.VOUCHER_ISSUED,
                     "Your {business} access code is {code}. Use it as both WiFi username and password. Thank you!"),
             Map.entry(NotificationTemplate.Key.TRIAL_ISSUED,
@@ -40,24 +40,25 @@ public class NotificationService {
             Map.entry(NotificationTemplate.Key.SUBSCRIPTION_PAID,
                     "Payment received. Your {business} home internet is active until {date}. Thank you!"),
             Map.entry(NotificationTemplate.Key.EXPIRY_REMINDER,
-                    "Reminder: your {business} home internet expires on {date}. Pay KES {amount} to stay connected: {payUrl}"),
+                    "Reminder: your {business} home internet expires on {date}. Pay {currency} {amount} to stay connected: {payUrl}"),
             Map.entry(NotificationTemplate.Key.SUBSCRIPTION_SUSPENDED,
                     "Your {business} home internet has been suspended because the subscription expired. "
-                            + "Pay KES {amount} to reconnect instantly: {payUrl}"),
+                            + "Pay {currency} {amount} to reconnect instantly: {payUrl}"),
             Map.entry(NotificationTemplate.Key.SUBSCRIPTION_EXTENDED,
                     "Good news! Your {business} home internet has been extended until {date}."),
             Map.entry(NotificationTemplate.Key.WINBACK_FIRST,
                     "We miss you at {business}! Your internet's been off since {date}. "
-                            + "Come back today — pay KES {amount} here: {payUrl}"),
+                            + "Come back today — pay {currency} {amount} here: {payUrl}"),
             Map.entry(NotificationTemplate.Key.WINBACK_SECOND,
                     "Still saving your spot at {business}. Reconnect now and stay online — "
-                            + "pay KES {amount}: {payUrl}"),
+                            + "pay {currency} {amount}: {payUrl}"),
             Map.entry(NotificationTemplate.Key.WINBACK_FINAL,
                     "Last call from {business} — we'd love to have you back. "
                             + "Reconnect today: {payUrl}"));
 
     private final NotificationTemplateRepository templates;
     private final SmsService smsService;
+    private final MoneyService money;
 
     @Transactional
     public List<NotificationTemplate> all() {
@@ -89,6 +90,14 @@ public class NotificationService {
         }
         if (body == null) {
             return;
+        }
+        // Every template gets {currency} for free, so an operator can localise
+        // the wording without the caller knowing anything about money. Templates
+        // already stored keep whatever they say — an operator in Nairobi wrote
+        // "KES" and is right; only the shipped defaults changed.
+        if (!values.containsKey("currency")) {
+            values = new java.util.LinkedHashMap<>(values);
+            values.put("currency", money.code());
         }
         for (Map.Entry<String, String> entry : values.entrySet()) {
             body = body.replace("{" + entry.getKey() + "}", entry.getValue() == null ? "" : entry.getValue());
