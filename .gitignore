@@ -60,3 +60,6 @@ Logo maker project*
 # LOCAL provisioner per-tenant runtime (logs, launched app instances)
 /control-plane/local-tenants/
 local-tenants/
+
+# Playwright MCP scratch output (page snapshots, console logs)
+.playwright-mcp/
