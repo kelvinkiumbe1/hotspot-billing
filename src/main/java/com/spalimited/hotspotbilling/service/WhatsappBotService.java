@@ -1,5 +1,7 @@
 package com.spalimited.hotspotbilling.service;
 
+import com.spalimited.hotspotbilling.domain.CustomPlanSettings;
+import com.spalimited.hotspotbilling.domain.Lead;
 import com.spalimited.hotspotbilling.domain.Plan;
 import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.domain.SupportTicket;
@@ -42,8 +44,19 @@ public class WhatsappBotService {
     private final PortalSettingsService portalSettings;
     private final ReferralService referralService;
     private final VoucherService voucherService;
+    private final CustomPlanService customPlanService;
+    private final com.spalimited.hotspotbilling.repository.LeadRepository leads;
 
-    private enum Step { MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE, PASS }
+    private enum Step {
+        MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE, PASS,
+        /** Pay-per-minute: they type how long they want. */
+        CUSTOM_MINUTES,
+        /** Asking for a line at home or the office. */
+        LEAD_NAME, LEAD_LOCATION
+    }
+
+    /** Marks the "choose your own time" row in a plan list. */
+    private static final long CUSTOM_PLAN_CHOICE = -1L;
 
     private static final class Session {
         Step step = Step.MENU;
@@ -52,6 +65,8 @@ public class WhatsappBotService {
         Long subscriberId;
         /** The hotspot pass being looked at, for the sign-out and reissue actions. */
         Long voucherId;
+        Integer customMinutes;
+        String leadName;
         List<Long> planIds = new ArrayList<>();
         Instant touched = Instant.now();
     }
@@ -64,8 +79,26 @@ public class WhatsappBotService {
     // EN / SW message pairs. %s / %d are filled per call.
     private static final Map<String, String[]> M = Map.ofEntries(
             Map.entry("menu", new String[]{
-                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — Time & data left\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n\n_Reply *sw* for Kiswahili._",
-                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Muda na data iliyobaki\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n\n_Reply *en* for English._"}),
+                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — Time & data left\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n*7* — WiFi at my home or office\n\n_Reply *sw* for Kiswahili._",
+                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Muda na data iliyobaki\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n*7* — WiFi nyumbani au ofisini\n\n_Reply *en* for English._"}),
+            Map.entry("customAsk", new String[]{
+                    "How many minutes do you need? Reply with a number between *%d* and *%d*.\nIt works out at about KES %s an hour.",
+                    "Unahitaji dakika ngapi? Jibu nambari kati ya *%d* na *%d*.\nNi karibu KES %s kwa saa."}),
+            Map.entry("customBad", new String[]{
+                    "Reply with a number of minutes between %d and %d.",
+                    "Jibu nambari ya dakika kati ya %d na %d."}),
+            Map.entry("customPrice", new String[]{
+                    "%d minutes costs *KES %s*.\n\n" ,
+                    "Dakika %d ni *KES %s*.\n\n"}),
+            Map.entry("leadName", new String[]{
+                    "🏠 Great — let's get you connected at home or the office.\n\nWhat's your full name?",
+                    "🏠 Vizuri — tukuunganishe nyumbani au ofisini.\n\nJina lako kamili ni nani?"}),
+            Map.entry("leadWhere", new String[]{
+                    "Thanks %s. Where should we come to? Give the estate, street or a nearby landmark.",
+                    "Asante %s. Tuje wapi? Taja mtaa, barabara au alama iliyo karibu."}),
+            Map.entry("leadDone", new String[]{
+                    "✅ Got it. Our team will call you on this number to arrange a site visit and quote you for installation.\n\nReply *menu* for anything else.",
+                    "✅ Tumepokea. Timu yetu itakupigia kwa nambari hii kupanga ziara na kukupa bei ya usakinishaji.\n\nJibu *menu* kwa lolote lingine."}),
             Map.entry("refShare", new String[]{
                     "🎁 *Refer a friend & earn!*\nYour code: *%s*\nShare it — when a friend joins with it and makes their first purchase, you get *%d* free WiFi minutes and they get *%d*.\n\nHave a code from a friend? Reply with it now to claim, or *menu*.",
                     "🎁 *Mpe rafiki upate bonasi!*\nNambari yako: *%s*\nMtumie — rafiki akijiunga na kununua kwa mara ya kwanza, wewe utapata dakika *%d* za WiFi bure na yeye dakika *%d*.\n\nUna nambari kutoka kwa rafiki? Ijibu sasa, au *menu*."}),
@@ -188,6 +221,9 @@ public class WhatsappBotService {
             case SUPPORT_MSG -> handleSupport(s, fromPhone, text);
             case REFERRAL_CODE -> handleReferralCode(s, fromPhone, text);
             case PASS -> handlePassAction(s, text);
+            case CUSTOM_MINUTES -> handleCustomMinutes(s, text);
+            case LEAD_NAME -> handleLeadName(s, text);
+            case LEAD_LOCATION -> handleLeadLocation(s, fromPhone, text);
         };
     }
 
@@ -203,17 +239,86 @@ public class WhatsappBotService {
                 sb.append(i + 1).append(") ").append(p.getName())
                         .append(" — KES ").append(p.getPrice().stripTrailingZeros().toPlainString()).append("\n");
             }
+            CustomPlanSettings custom = customPlanService.settings();
+            if (custom.isEnabled()) {
+                s.planIds.add(CUSTOM_PLAN_CHOICE);
+                sb.append(s.planIds.size()).append(") Choose your own time — from KES ")
+                        .append(customPlanService.priceFor(custom.getMinMinutes(), custom)
+                                .stripTrailingZeros().toPlainString())
+                        .append('\n');
+            }
             s.step = Step.PLAN;
             return sb.append(t(s, "back")).toString();
         }
         if ("4".equals(text.trim())) { s.step = Step.SUPPORT_MSG; return t(s, "supportPrompt"); }
+        if ("7".equals(text.trim())) { s.step = Step.LEAD_NAME; return t(s, "leadName"); }
         return t(s, "unknown", menu(s));
+    }
+
+    /**
+     * Pay-per-minute. Offered as the last row of the plan list rather than a
+     * menu entry of its own, because from the customer's side it is another way
+     * of answering "which package" — and it only appears when the operator has
+     * switched it on and priced it.
+     */
+    private String handleCustomMinutes(Session s, String text) {
+        CustomPlanSettings cfg = customPlanService.settings();
+        Integer minutes = asInt(text);
+        if (minutes == null || minutes < cfg.getMinMinutes() || minutes > cfg.getMaxMinutes()) {
+            return t(s, "customBad", cfg.getMinMinutes(), cfg.getMaxMinutes());
+        }
+        s.customMinutes = minutes;
+        s.planId = null;
+        s.step = Step.PAY_PHONE;
+        return t(s, "customPrice", minutes,
+                customPlanService.priceFor(minutes, cfg).stripTrailingZeros().toPlainString())
+                + t(s, "payPrompt");
+    }
+
+    // --- A line at home or the office ---
+
+    private String handleLeadName(Session s, String text) {
+        String name = text.trim();
+        if (name.length() < 2) {
+            return t(s, "leadName");
+        }
+        s.leadName = name;
+        s.step = Step.LEAD_LOCATION;
+        return t(s, "leadWhere", name.split("\\s+")[0]);
+    }
+
+    /**
+     * Turns the request into a Lead, which is where the sales pipeline already
+     * lives — the office sees it beside walk-ins and phone enquiries rather
+     * than in a separate inbox nobody checks.
+     */
+    private String handleLeadLocation(Session s, String fromPhone, String text) {
+        String name = s.leadName;
+        reset(s);
+        Lead lead = leads.save(Lead.builder()
+                .fullName(name == null ? "WhatsApp enquiry" : name)
+                .phoneNumber(loose(fromPhone))
+                .location(text.trim())
+                .interestedIn("Home/office internet (PPPoE)")
+                .source(Lead.Source.ONLINE)
+                .status(Lead.Status.NEW)
+                .createdBy("whatsapp")
+                .build());
+        log.info("WhatsApp connection request from {} became lead {}", fromPhone, lead.getId());
+        return t(s, "leadDone");
     }
 
     private String handlePlan(Session s, String text) {
         Integer idx = asInt(text);
         if (idx == null || idx < 1 || idx > s.planIds.size()) return t(s, "planNo");
-        s.planId = s.planIds.get(idx - 1);
+        Long chosen = s.planIds.get(idx - 1);
+        if (chosen == CUSTOM_PLAN_CHOICE) {
+            CustomPlanSettings cfg = customPlanService.settings();
+            s.step = Step.CUSTOM_MINUTES;
+            return t(s, "customAsk", cfg.getMinMinutes(), cfg.getMaxMinutes(),
+                    cfg.getPricePerHour().stripTrailingZeros().toPlainString());
+        }
+        s.planId = chosen;
         s.step = Step.PAY_PHONE;
         return t(s, "payPrompt");
     }
@@ -221,6 +326,24 @@ public class WhatsappBotService {
     private String handleBuyPhone(Session s, String fromPhone, String text) {
         String phone = "me".equalsIgnoreCase(text.trim()) ? normalize(fromPhone) : normalize(text);
         if (phone == null) return t(s, "badPhone");
+
+        // Pay-per-minute takes a different STK call, since the amount comes
+        // from the minutes asked for rather than from a plan's price.
+        if (s.customMinutes != null) {
+            int minutes = s.customMinutes;
+            String price = customPlanService
+                    .priceFor(minutes, customPlanService.settings())
+                    .stripTrailingZeros().toPlainString();
+            reset(s);
+            try {
+                payments.initiateCustomStkPush(phone, minutes);
+            } catch (Exception e) {
+                log.warn("WhatsApp custom buy STK failed for {}: {}", phone, e.getMessage());
+                return t(s, "payFail");
+            }
+            return t(s, "buySent", phone, price);
+        }
+
         Plan p = plans.findById(s.planId).orElse(null);
         if (p == null) { reset(s); return t(s, "unknown", menu(s)); }
         try {
@@ -396,7 +519,7 @@ public class WhatsappBotService {
      */
     private String voucherState(Voucher v) {
         if (voucherService.statusOf(v).minutesLeft() <= 0) {
-            return "finished";
+            return "expired";
         }
         return switch (v.getStatus()) {
             case UNUSED -> "ready to use";
@@ -438,6 +561,8 @@ public class WhatsappBotService {
         s.planId = null;
         s.subscriberId = null;
         s.voucherId = null;
+        s.customMinutes = null;
+        s.leadName = null;
         s.planIds.clear();
     }
 
