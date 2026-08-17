@@ -690,7 +690,14 @@ function WhatsappAssistantPanel({ auth }) {
   const [phone, setPhone] = useState(
     () => '2547' + Math.floor(10000000 + Math.random() * 89999999))
 
-  useEffect(() => { api('/admin/whatsapp/config', { auth }).then(setCfg).catch(() => {}) }, [auth])
+  useEffect(() => {
+    api('/admin/whatsapp/config', { auth }).then((c) => {
+      setCfg(c)
+      // Start as somebody who actually exists, so the menu answers properly
+      // and the message feed watches a real thread from the first second.
+      if (c.suggestedPhone) setPhone(c.suggestedPhone)
+    }).catch(() => {})
+  }, [auth])
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [msgs])
 
   /**
@@ -704,7 +711,11 @@ function WhatsappAssistantPanel({ auth }) {
    * gateway is configured, what would have been.
    */
   useEffect(() => {
-    let since = Date.now()
+    // Reach back a little on open. A payment confirms and the code is pushed
+    // within a minute or so; somebody who opens the panel just after paying
+    // should see what already happened, not an empty box and the impression
+    // that nothing was sent.
+    let since = Date.now() - 15 * 60 * 1000
     let stopped = false
     const tick = async () => {
       try {

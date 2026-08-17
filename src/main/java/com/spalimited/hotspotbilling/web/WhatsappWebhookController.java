@@ -30,6 +30,7 @@ public class WhatsappWebhookController {
     private final WhatsappService whatsapp;
     private final WhatsappSignatureGuard signatureGuard;
     private final ObjectMapper mapper;
+    private final com.spalimited.hotspotbilling.repository.PaymentRepository payments;
 
     @Value("${whatsapp.webhook-verify-token:}")
     private String verifyToken;
@@ -112,10 +113,25 @@ public class WhatsappWebhookController {
     @GetMapping("/api/admin/whatsapp/config")
     public Map<String, Object> config() {
         boolean set = verifyToken != null && !verifyToken.isBlank();
-        return Map.of(
-                "webhookPath", "/api/whatsapp/webhook",
-                "verifyToken", set ? verifyToken : "",
-                "configured", set);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("webhookPath", "/api/whatsapp/webhook");
+        out.put("verifyToken", set ? verifyToken : "");
+        out.put("configured", set);
+        // The preview needs somebody to be. Defaulting it to an invented
+        // number made every lookup answer "we can't find you" and the message
+        // feed watch a phone that has never existed — so the last customer who
+        // actually bought something is a far better starting point.
+        out.put("suggestedPhone", lastCustomerPhone());
+        return out;
+    }
+
+    private String lastCustomerPhone() {
+        return payments.findTop100ByOrderByCreatedAtDesc().stream()
+                .filter(p -> p.getStatus() == com.spalimited.hotspotbilling.domain.Payment.Status.SUCCESS)
+                .map(com.spalimited.hotspotbilling.domain.Payment::getPhoneNumber)
+                .filter(p -> p != null && !p.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     @SuppressWarnings("unchecked")
