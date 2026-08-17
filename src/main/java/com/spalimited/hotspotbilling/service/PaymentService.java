@@ -554,7 +554,7 @@ public class PaymentService {
     private Plan matchPlanByAmount(BigDecimal amount) {
         return planRepository.findAll().stream()
                 .filter(Plan::isActive)
-                .filter(p -> p.getType() == null || p.getType() == Plan.Type.HOTSPOT)
+                .filter(p -> p.getEffectiveType() == Plan.Type.HOTSPOT)
                 .filter(p -> p.getPrice() != null && p.getPrice().compareTo(amount) == 0)
                 .findFirst()
                 .orElse(null);

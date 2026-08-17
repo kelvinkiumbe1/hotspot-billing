@@ -415,7 +415,11 @@ public class WhatsappBotService {
         return plans.findByActiveTrueOrderByPriceAsc().stream()
                 // The pay-per-minute holder row is not a package anybody buys.
                 .filter(p -> !CustomPlanService.SYSTEM_PLAN_NAME.equals(p.getName()))
-                .filter(p -> p.getType() == Plan.Type.HOTSPOT)
+                // getEffectiveType, not getType: a plan created before the
+                // column existed has no type, and hotspot is what that means.
+                // Reading it raw hid nine of this operator's eleven packages
+                // from the bot while the portal and USSD sold them happily.
+                .filter(p -> p.getEffectiveType() == Plan.Type.HOTSPOT)
                 .filter(p -> p.getAvailability() == null || p.getAvailability() == Plan.Availability.LIVE)
                 .toList();
     }
