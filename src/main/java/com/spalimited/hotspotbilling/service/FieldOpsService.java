@@ -73,6 +73,7 @@ public class FieldOpsService {
         s.setWhatsappEnabled(in.isWhatsappEnabled());
         s.setStaleJobHours(clamp(in.getStaleJobHours(), 1, 168));
         s.setUnassignedAlertMinutes(clamp(in.getUnassignedAlertMinutes(), 5, 1440));
+        s.setNotifyTechniciansOnNewTicket(in.isNotifyTechniciansOnNewTicket());
         s.setDailySummaryEnabled(in.isDailySummaryEnabled());
         s.setDailySummaryHour(clamp(in.getDailySummaryHour(), 0, 23));
         s.setNotifyCustomerOnClose(in.isNotifyCustomerOnClose());
@@ -151,6 +152,54 @@ public class FieldOpsService {
             return;
         }
         smsService.trySend(to, message);
+    }
+
+    /**
+     * Tells the technicians a job has arrived and nobody is on it yet.
+     *
+     * <p>The rest of this class notifies whoever a job was *assigned* to, which
+     * is no use for a ticket a customer raised: it has no assignee, so the
+     * notification never fired and the ticket waited for an operator to open
+     * the dashboard. Anyone active can claim it from the queue.
+     *
+     * <p>Returns how many technicians could actually be reached, which is not
+     * the same as how many exist — a technician whose record holds something
+     * that is not a phone number cannot be told anything, and the caller should
+     * be able to notice that rather than assume it worked.
+     */
+    @Transactional(readOnly = true)
+    public int notifyNewTicket(SupportTicket ticket) {
+        FieldSettings s = settings();
+        if (!s.isNotifyTechniciansOnNewTicket()) {
+            return 0;
+        }
+        String body = "🆕 New job in the queue — *" + ticket.getSubject() + "*\n"
+                + ticket.getCustomerName() + " · " + ticket.getPhoneNumber() + "\n"
+                + "Priority: " + ticket.getPriority()
+                + (s.isWhatsappEnabled() ? "\n\nReply *jobs* to take it." : "");
+
+        int reached = 0;
+        int unreachable = 0;
+        for (Technician t : technicians.findAllByOrderByCreatedAtAsc()) {
+            if (!t.isActive()) {
+                continue;
+            }
+            if (normalize(t.getPhoneNumber()) == null) {
+                unreachable++;
+                continue;
+            }
+            textTechnician(t, body);
+            reached++;
+        }
+        if (unreachable > 0) {
+            log.warn("{} active technician(s) could not be told about job #{} — their record has no "
+                    + "usable phone number", unreachable, ticket.getId());
+        }
+        if (reached == 0) {
+            log.warn("Nobody was told about job #{}: no active technician has a usable phone number",
+                    ticket.getId());
+        }
+        return reached;
     }
 
     /**

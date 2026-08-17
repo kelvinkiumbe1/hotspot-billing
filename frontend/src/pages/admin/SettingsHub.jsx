@@ -1619,6 +1619,24 @@ function FieldSection({ auth }) {
         </p>
       </section>
 
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm font-semibold block">Tell technicians as soon as a ticket arrives</span>
+            <span className="text-sm text-on-surface-variant">
+              A ticket a customer raises has nobody assigned to it, so without this the team only
+              finds out when somebody opens the dashboard. Any of them can claim it from the queue.
+            </span>
+          </div>
+          <Toggle checked={form.notifyTechniciansOnNewTicket}
+            onChange={(e) => set({ notifyTechniciansOnNewTicket: e.target.checked })} />
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          Only reaches technicians whose record has a real phone number — check Team if somebody
+          never hears anything.
+        </p>
+      </section>
+
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <p className="text-sm font-semibold mb-1">Chasing quiet work</p>
         <p className="text-xs text-on-surface-variant mb-3">

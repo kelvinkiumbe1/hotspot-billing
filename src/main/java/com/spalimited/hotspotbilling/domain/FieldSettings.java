@@ -49,6 +49,16 @@ public class FieldSettings {
     @Column(nullable = false)
     private int staleJobHours = 4;
 
+    /**
+     * Tell the technicians as soon as a customer opens a ticket, rather than
+     * only once somebody has been assigned to it. Without this, a ticket
+     * raised out of hours waits for an operator to notice it — the technicians
+     * could always pull it from the queue, but nothing told them it was there.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean notifyTechniciansOnNewTicket = true;
+
     /** Open with nobody on it for this long, and the operator hears about it. */
     @Builder.Default
     @Column(nullable = false)

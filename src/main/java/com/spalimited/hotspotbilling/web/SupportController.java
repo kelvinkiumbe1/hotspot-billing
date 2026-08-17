@@ -71,7 +71,16 @@ public class SupportController {
                 .fromAdmin(false)
                 .body(request.message())
                 .build());
-        return tickets.save(ticket);
+        SupportTicket saved = tickets.save(ticket);
+        // A ticket a customer opened has no assignee, so the assignment
+        // notification never fires and the technicians hear nothing. They can
+        // claim it from the queue — they just have to know it is there.
+        try {
+            fieldOps.notifyNewTicket(saved);
+        } catch (Exception e) {
+            log.warn("Could not tell the technicians about ticket {}: {}", saved.getId(), e.getMessage());
+        }
+        return saved;
     }
 
     // --- Admin: manage tickets ---

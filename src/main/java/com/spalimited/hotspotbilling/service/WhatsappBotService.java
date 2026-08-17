@@ -45,6 +45,7 @@ public class WhatsappBotService {
     private final ReferralService referralService;
     private final VoucherService voucherService;
     private final CustomPlanService customPlanService;
+    private final FieldOpsService fieldOps;
     private final com.spalimited.hotspotbilling.repository.LeadRepository leads;
 
     private enum Step {
@@ -52,8 +53,13 @@ public class WhatsappBotService {
         /** Pay-per-minute: they type how long they want. */
         CUSTOM_MINUTES,
         /** Asking for a line at home or the office. */
-        LEAD_NAME, LEAD_LOCATION
+        LEAD_NAME, LEAD_LOCATION, LEAD_PACKAGE, LEAD_WHEN
     }
+
+    /** When a customer would rather be called, offered as a short list. */
+    private static final String[] CALLBACK_SLOTS = {
+            "Morning (8am – 12pm)", "Afternoon (12pm – 5pm)", "Evening (5pm – 8pm)", "Any time"
+    };
 
     /** Marks the "choose your own time" row in a plan list. */
     private static final long CUSTOM_PLAN_CHOICE = -1L;
@@ -67,6 +73,9 @@ public class WhatsappBotService {
         Long voucherId;
         Integer customMinutes;
         String leadName;
+        String leadLocation;
+        String leadPackage;
+        List<Long> leadPlanIds = new ArrayList<>();
         List<Long> planIds = new ArrayList<>();
         Instant touched = Instant.now();
     }
@@ -96,9 +105,29 @@ public class WhatsappBotService {
             Map.entry("leadWhere", new String[]{
                     "Thanks %s. Where should we come to? Give the estate, street or a nearby landmark.",
                     "Asante %s. Tuje wapi? Taja mtaa, barabara au alama iliyo karibu."}),
+            Map.entry("leadPackageList", new String[]{
+                    "Which package are you after? Reply with its number:\n",
+                    "Unahitaji kifurushi kipi? Jibu na nambari yake:\n"}),
+            Map.entry("leadPackageAdvise", new String[]{
+                    "\nNot sure? Reply *advise* and we'll recommend one when we call.",
+                    "\nHujui? Jibu *advise* tukupendekeze tukikupigia."}),
+            Map.entry("leadPackageAgain", new String[]{
+                    "Reply with a number from 1 to %d, or *advise* if you're not sure.",
+                    "Jibu nambari kutoka 1 hadi %d, au *advise* kama hujui."}),
+            Map.entry("leadPackageOpen", new String[]{
+                    "What speed do you need? Something like *10 Mbps*, or how you'd use it — "
+                            + "\"streaming for four people\".\n\nNot sure? Reply *advise*.",
+                    "Unahitaji spidi gani? Kama *10 Mbps*, au utaitumiaje — "
+                            + "\"kutazama video watu wanne\".\n\nHujui? Jibu *advise*."}),
+            Map.entry("leadWhen", new String[]{
+                    "When suits you for a call? Reply with a number, or tell us in your own words.\n\n",
+                    "Tukupigie saa ngapi? Jibu na nambari, au tuambie kwa maneno yako.\n\n"}),
+            // The time goes on its own line rather than inside the sentence:
+            // the customer may have answered in their own words, and "we'll
+            // call you in the after 7pm on weekends only" is not English.
             Map.entry("leadDone", new String[]{
-                    "✅ Got it. Our team will call you on this number to arrange a site visit and quote you for installation.\n\nReply *menu* for anything else.",
-                    "✅ Tumepokea. Timu yetu itakupigia kwa nambari hii kupanga ziara na kukupa bei ya usakinishaji.\n\nJibu *menu* kwa lolote lingine."}),
+                    "✅ Got it. We'll call you on this number to arrange a site visit and quote you for installation.\n🕐 When: %s\n\nReply *menu* for anything else.",
+                    "✅ Tumepokea. Tutakupigia kwa nambari hii kupanga ziara na kukupa bei ya usakinishaji.\n🕐 Wakati: %s\n\nJibu *menu* kwa lolote lingine."}),
             Map.entry("refShare", new String[]{
                     "🎁 *Refer a friend & earn!*\nYour code: *%s*\nShare it — when a friend joins with it and makes their first purchase, you get *%d* free WiFi minutes and they get *%d*.\n\nHave a code from a friend? Reply with it now to claim, or *menu*.",
                     "🎁 *Mpe rafiki upate bonasi!*\nNambari yako: *%s*\nMtumie — rafiki akijiunga na kununua kwa mara ya kwanza, wewe utapata dakika *%d* za WiFi bure na yeye dakika *%d*.\n\nUna nambari kutoka kwa rafiki? Ijibu sasa, au *menu*."}),
@@ -223,7 +252,9 @@ public class WhatsappBotService {
             case PASS -> handlePassAction(s, text);
             case CUSTOM_MINUTES -> handleCustomMinutes(s, text);
             case LEAD_NAME -> handleLeadName(s, text);
-            case LEAD_LOCATION -> handleLeadLocation(s, fromPhone, text);
+            case LEAD_LOCATION -> handleLeadLocation(s, text);
+            case LEAD_PACKAGE -> handleLeadPackage(s, text);
+            case LEAD_WHEN -> handleLeadWhen(s, fromPhone, text);
         };
     }
 
@@ -287,25 +318,88 @@ public class WhatsappBotService {
         return t(s, "leadWhere", name.split("\\s+")[0]);
     }
 
+    private String handleLeadLocation(Session s, String text) {
+        s.leadLocation = text.trim();
+        s.step = Step.LEAD_PACKAGE;
+
+        // Offer the real packages where the operator has defined them. Until
+        // they have, asking is better than presenting an empty list or
+        // inventing tiers from whatever existing subscribers happen to be on.
+        List<Plan> pppoe = plans.findByActiveTrueOrderByPriceAsc().stream()
+                .filter(p -> p.getEffectiveType() == Plan.Type.PPPOE)
+                .filter(p -> p.getAvailability() == null || p.getAvailability() == Plan.Availability.LIVE)
+                .toList();
+        s.leadPlanIds.clear();
+        if (pppoe.isEmpty()) {
+            return t(s, "leadPackageOpen");
+        }
+        StringBuilder sb = new StringBuilder(t(s, "leadPackageList"));
+        for (int i = 0; i < pppoe.size(); i++) {
+            Plan p = pppoe.get(i);
+            s.leadPlanIds.add(p.getId());
+            sb.append(i + 1).append(") ").append(p.getName())
+                    .append(p.getBandwidth() == null ? "" : " — " + p.getBandwidth())
+                    .append(" — KES ").append(p.getPrice().stripTrailingZeros().toPlainString())
+                    .append("/month\n");
+        }
+        return sb.append(t(s, "leadPackageAdvise")).toString();
+    }
+
+    /** Either a number from the list, or their own words when there is no list. */
+    private String handleLeadPackage(Session s, String text) {
+        String answer = text.trim();
+        if (!s.leadPlanIds.isEmpty()) {
+            Integer idx = asInt(answer);
+            if (idx != null && idx >= 1 && idx <= s.leadPlanIds.size()) {
+                Plan chosen = plans.findById(s.leadPlanIds.get(idx - 1)).orElse(null);
+                answer = chosen == null ? answer : chosen.getName()
+                        + " (KES " + chosen.getPrice().stripTrailingZeros().toPlainString() + "/month)";
+            } else if (!answer.equalsIgnoreCase("advise")) {
+                return t(s, "leadPackageAgain", s.leadPlanIds.size());
+            }
+        }
+        s.leadPackage = answer.equalsIgnoreCase("advise")
+                ? "Wants a recommendation" : answer;
+        s.step = Step.LEAD_WHEN;
+        StringBuilder sb = new StringBuilder(t(s, "leadWhen"));
+        for (int i = 0; i < CALLBACK_SLOTS.length; i++) {
+            sb.append('*').append(i + 1).append("* — ").append(CALLBACK_SLOTS[i]).append('\n');
+        }
+        return sb.toString();
+    }
+
     /**
      * Turns the request into a Lead, which is where the sales pipeline already
      * lives — the office sees it beside walk-ins and phone enquiries rather
      * than in a separate inbox nobody checks.
      */
-    private String handleLeadLocation(Session s, String fromPhone, String text) {
+    private String handleLeadWhen(Session s, String fromPhone, String text) {
+        Integer pick = asInt(text);
+        String when = pick != null && pick >= 1 && pick <= CALLBACK_SLOTS.length
+                ? CALLBACK_SLOTS[pick - 1]
+                // Anything else is taken at their word: "after 6", "weekends
+                // only" and "call my wife on 0722…" are all more useful to the
+                // person making the call than a rejected reply would be.
+                : text.trim();
+
         String name = s.leadName;
+        String location = s.leadLocation;
+        String wanted = s.leadPackage;
         reset(s);
+
         Lead lead = leads.save(Lead.builder()
                 .fullName(name == null ? "WhatsApp enquiry" : name)
                 .phoneNumber(loose(fromPhone))
-                .location(text.trim())
-                .interestedIn("Home/office internet (PPPoE)")
+                .location(location)
+                .interestedIn(wanted == null || wanted.isBlank()
+                        ? "Home/office internet (PPPoE)" : wanted)
+                .notes("Asked over WhatsApp. Prefers a call: " + when)
                 .source(Lead.Source.ONLINE)
                 .status(Lead.Status.NEW)
                 .createdBy("whatsapp")
                 .build());
         log.info("WhatsApp connection request from {} became lead {}", fromPhone, lead.getId());
-        return t(s, "leadDone");
+        return t(s, "leadDone", when);
     }
 
     private String handlePlan(Session s, String text) {
@@ -382,6 +476,13 @@ public class WhatsappBotService {
                 .status(SupportTicket.Status.OPEN)
                 .createdBy("whatsapp")
                 .build());
+        // Nobody is assigned to a ticket a customer opened, so without this the
+        // technicians never hear it exists.
+        try {
+            fieldOps.notifyNewTicket(ticket);
+        } catch (Exception e) {
+            log.warn("Could not tell the technicians about ticket {}: {}", ticket.getId(), e.getMessage());
+        }
         reset(s);
         return t(s, "supportDone", ticket.getId());
     }
@@ -563,6 +664,9 @@ public class WhatsappBotService {
         s.voucherId = null;
         s.customMinutes = null;
         s.leadName = null;
+        s.leadLocation = null;
+        s.leadPackage = null;
+        s.leadPlanIds.clear();
         s.planIds.clear();
     }
 
