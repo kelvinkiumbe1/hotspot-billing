@@ -13,6 +13,18 @@ import '@fontsource/fira-code/600.css'
 import './index.css'
 import './pwa.js'
 import App from './App.jsx'
+import { setCurrency } from './money.js'
+
+// Learn how this operator writes money before the first screen paints. Done
+// here rather than per page because prices appear on nearly all of them, and
+// the endpoint is public — the captive portal has to reach it before anyone
+// has paid for anything. A failure leaves the shillings default in place,
+// which is right for every deployment that existed before currency was a
+// setting.
+fetch('/api/portal-settings')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((s) => setCurrency(s?.currency))
+  .catch(() => {})
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

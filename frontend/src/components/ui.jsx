@@ -8,6 +8,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 // `import { Icon } from '../components/ui.jsx'` call sites keep working.
 export { Icon } from './icons.jsx'
 import { Icon } from './icons.jsx'
+import { money } from '../money.js'
 
 export function Skeleton({ className = '' }) {
   return <div className={`animate-pulse bg-surface-container-high rounded-xl ${className}`}></div>
@@ -26,9 +27,18 @@ export function Toggle({ checked, onChange }) {
   )
 }
 
+/**
+ * Kept under its original name because eighty-eight call sites use it, and
+ * renaming them all would be a large diff that changes no behaviour. What it
+ * does has changed: it now writes whatever currency the operator is set to,
+ * not shillings.
+ */
 export function fmtKES(n) {
-  return `KES ${Number(n || 0).toLocaleString()}`
+  return money(n)
 }
+
+// Preferred name for anything written from here on.
+export { money, currencyUnit, currencyCode } from '../money.js'
 
 export function fmtDate(d) {
   if (!d) return '—'

@@ -65,6 +65,15 @@ public class PortalSettingsController {
         out.put("defaultLanguage", hotspotSettings.defaultLanguage());
         out.put("loyaltyEnabled", loyaltyService.settings().isEnabled());
         out.put("codeVerifyEnabled", paymentGatewayService.transactionStatusAvailable());
+        // How to write money. The portal prints prices on every screen, so it
+        // needs this as early as it needs the business name — otherwise it
+        // renders a Nigerian operator's plans in shillings for a moment and
+        // then corrects itself, which is worse than either.
+        out.put("currency", Map.of(
+                "code", s.getCurrencyCode() == null ? "KES" : s.getCurrencyCode(),
+                "symbol", s.getCurrencySymbol() == null ? "" : s.getCurrencySymbol(),
+                "suffix", s.isCurrencySuffix(),
+                "decimals", s.getCurrencyDecimals()));
         return out;
     }
 

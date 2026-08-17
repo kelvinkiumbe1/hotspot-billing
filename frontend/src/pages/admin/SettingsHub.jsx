@@ -10,6 +10,7 @@ import TaxSettingsPage from './TaxSettings.jsx'
 import BrandingPage from './Branding.jsx'
 import { PORTAL_DESIGNS, normalizeDesignKey } from '../../portalDesigns.js'
 import { enrollPasskey, passkeySupported } from '../../passkey.js'
+import { money, currencyUnit } from '../../money.js'
 
 /**
  * The settings sections, grouped the way an operator thinks about them
@@ -168,7 +169,7 @@ function DesignMockBody({ d }) {
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex items-center justify-between" style={{ padding: 4, borderBottom: i < 2 ? `1px dashed ${pv.outline}` : 'none' }}>
                 <Bar w="40%" c={pv.text} h={3} />
-                <span style={{ color: pv.accent, fontSize: 5.5 }}>[KES 50]</span>
+                <span style={{ color: pv.accent, fontSize: 5.5 }}>[{currencyUnit()} 50]</span>
               </div>
             ))}
           </div>
@@ -1081,7 +1082,7 @@ function LoyaltySection({ auth }) {
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={LABEL_CLS}>Points earned per KES 100 spent</label>
+              <label className={LABEL_CLS}>Points earned per {currencyUnit()} 100 spent</label>
               <input type="number" min="0" max="1000" className={INPUT_CLS} value={form.pointsPerHundredKes}
                 onChange={(e) => set({ pointsPerHundredKes: Number(e.target.value) })} />
             </div>
@@ -1102,7 +1103,7 @@ function LoyaltySection({ auth }) {
             </div>
           </section>
           <div className="rounded-lg bg-surface-container/60 border border-outline-variant/40 p-3 text-sm text-on-surface-variant">
-            <span className="font-medium text-on-surface">In practice:</span> spending KES {exampleSpend} earns{' '}
+            <span className="font-medium text-on-surface">In practice:</span> spending {money(exampleSpend)} earns{' '}
             <span className="font-mono">{exampleEarn}</span> point(s). A {exampleMinutes}-minute reward costs{' '}
             <span className="font-mono">{exampleCost}</span> point(s), delivered by SMS.
           </div>
@@ -1512,10 +1513,10 @@ function CreditSection({ auth }) {
       {data && (
         <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
           <p className="text-sm font-semibold mb-1">
-            Out on loan: KES {Number(data.outstandingTotal || 0)} across {data.outstanding.length} customer(s)
+            Out on loan: {money(data.outstandingTotal || 0)} across {data.outstanding.length} customer(s)
           </p>
           <p className="text-xs text-on-surface-variant mb-3">
-            Written off so far: {data.defaultedCount} for KES {Number(data.defaultedTotal || 0)}.
+            Written off so far: {data.defaultedCount} for {money(data.defaultedTotal || 0)}.
           </p>
           {data.outstanding.length > 0 && (
             <div className="overflow-x-auto table-scroll">
@@ -1528,7 +1529,7 @@ function CreditSection({ auth }) {
                     <tr key={a.id}>
                       <td className="font-mono text-xs">{a.phoneNumber}</td>
                       <td className="font-mono text-xs">{a.voucherCode}</td>
-                      <td className="text-right tabular-nums">KES {Number(a.totalDue)}</td>
+                      <td className="text-right tabular-nums">{money(a.totalDue)}</td>
                       <td className="text-xs">{new Date(a.dueAt).toLocaleDateString()}</td>
                       <td className="text-right">
                         <button type="button" onClick={() => writeOff(a.id)}
@@ -2084,7 +2085,7 @@ function OffPeakSection({ auth }) {
             <input type="number" min="1" max="90" className={INPUT_CLS} value={form.discountPercent}
               onChange={(e) => set({ discountPercent: Number(e.target.value) })} />
             <p className="text-xs text-on-surface-variant mt-1">
-              A KES 100 pass becomes KES {data?.exampleHundred ?? '—'}.
+              A {money(100)} pass becomes {money(data?.exampleHundred ?? 0)}.
             </p>
           </div>
         </div>
@@ -2280,7 +2281,7 @@ function AgentPayoutSection({ auth }) {
 
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
         <p className="text-sm font-semibold mb-1">
-          Owed right now: KES {dueTotal.toLocaleString()} across {(data?.due || []).filter((d) => !d.blockedBecause).length} agent(s)
+          Owed right now: {money(dueTotal)} across {(data?.due || []).filter((d) => !d.blockedBecause).length} agent(s)
         </p>
         {(data?.due || []).length === 0 ? (
           <p className="text-xs text-on-surface-variant">Nobody is over the minimum yet.</p>
@@ -2295,7 +2296,7 @@ function AgentPayoutSection({ auth }) {
                   <tr key={d.agentId}>
                     <td>{d.agentName} <span className="text-xs text-on-surface-variant">{d.code}</span></td>
                     <td className="font-mono text-xs">{d.phoneNumber || '—'}</td>
-                    <td className="text-right tabular-nums">KES {Number(d.owed).toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{money(d.owed)}</td>
                     <td className="text-xs text-[#b45309]">{d.blockedBecause}</td>
                   </tr>
                 ))}
@@ -2317,7 +2318,7 @@ function AgentPayoutSection({ auth }) {
                 {data.history.slice(0, 25).map((p) => (
                   <tr key={p.id}>
                     <td>{p.agentName}</td>
-                    <td className="text-right tabular-nums">KES {Number(p.amount).toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{money(p.amount)}</td>
                     <td>
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${PAYOUT_STATUS_TONE[p.status] || ''}`}>
                         {p.status}
@@ -2353,7 +2354,7 @@ function AgentPayoutSection({ auth }) {
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
         <button type="button" disabled={busy}
           onClick={() => act('/admin/agents/payouts/run',
-            (r) => `Prepared ${r.queued} payout(s) totalling KES ${Number(r.total).toLocaleString()}${r.sent ? `, ${r.sent} sent` : ''}.`)}
+            (r) => `Prepared ${r.queued} payout(s) totalling ${money(r.total)}${r.sent ? `, ${r.sent} sent` : ''}.`)}
           className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-semibold cursor-pointer disabled:opacity-50">
           Work out this round now
         </button>

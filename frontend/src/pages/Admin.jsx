@@ -36,6 +36,7 @@ import loginFiber from '../assets/login-fiber.jpg'
 /* ------------------------------------------------------------------ */
 
 import { Icon } from '../components/icons.jsx'
+import { money } from '../money.js'
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes} min`
@@ -66,7 +67,7 @@ function speedLabel(bandwidth) {
 }
 
 function fmtKES(n) {
-  return `KES ${Number(n || 0).toLocaleString()}`
+  return `${money(n || 0)}`
 }
 
 function fmtNum(n) {
@@ -802,7 +803,7 @@ function SubscriptionPage({ auth }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card label="This month's earnings" value={fmtKES(b.totalEarnings)} sub={`Hotspot ${fmtKES(b.hotspotRevenue)} · PPPoE ${fmtKES(b.pppoeRevenue)}`} />
-        <Card label="Fixed-line customers" value={fmtNum(b.activePppoeUsers)} sub={`Billed KES ${b.pppoePerUser} each`} />
+        <Card label="Fixed-line customers" value={fmtNum(b.activePppoeUsers)} sub={`Billed ${money(b.pppoePerUser)} each`} />
         <Card
           label="Amount due"
           value={b.free ? 'Free' : fmtKES(b.amountDue)}
@@ -811,7 +812,7 @@ function SubscriptionPage({ auth }) {
             b.free
               ? (b.inTrial
                   ? `${b.trialDaysLeft} day${b.trialDaysLeft === 1 ? '' : 's'} left in your free trial`
-                  : `Under KES ${Number(b.freeThreshold).toLocaleString()} this month`)
+                  : `Under ${money(b.freeThreshold)} this month`)
               : `${b.daysLeftInMonth} days left in the month`
           }
         />
@@ -824,11 +825,11 @@ function SubscriptionPage({ auth }) {
             <p className="text-sm text-on-surface-variant mt-2">
               You're in your first <strong className="text-on-surface">{b.trialDays} days</strong> — the platform is{' '}
               <strong className="text-secondary">free for {b.trialDaysLeft} more day{b.trialDaysLeft === 1 ? '' : 's'}</strong>,
-              whatever you earn. After that, only months where you earn KES {Number(b.freeThreshold).toLocaleString()} or more are charged.
+              whatever you earn. After that, only months where you earn {money(b.freeThreshold)} or more are charged.
             </p>
           ) : (
             <p className="text-sm text-on-surface-variant mt-2">
-              You earned less than <strong className="text-on-surface">KES {Number(b.freeThreshold).toLocaleString()}</strong> this
+              You earned less than <strong className="text-on-surface">{money(b.freeThreshold)}</strong> this
               month, so the platform is <strong className="text-secondary">free</strong>. Zidi only charges once you're earning.
             </p>
           )
@@ -839,7 +840,7 @@ function SubscriptionPage({ auth }) {
               <dd className="text-sm font-semibold tabular-nums">{fmtKES(b.hotspotFee)}</dd>
             </div>
             <div className="flex justify-between items-baseline gap-3">
-              <dt className="text-sm text-on-surface-variant">Fixed-line — KES {b.pppoePerUser} × {fmtNum(b.activePppoeUsers)} customers</dt>
+              <dt className="text-sm text-on-surface-variant">Fixed-line — {money(b.pppoePerUser)} × {fmtNum(b.activePppoeUsers)} customers</dt>
               <dd className="text-sm font-semibold tabular-nums">{fmtKES(b.pppoeFee)}</dd>
             </div>
             <div className="flex justify-between items-baseline gap-3 pt-2.5 border-t border-outline-variant">
@@ -850,7 +851,10 @@ function SubscriptionPage({ auth }) {
         )}
         <p className="text-xs text-on-surface-variant mt-4">
           Your first {b.trialDays} days are free. After that, billing runs monthly: hotspot is 2.5% of what you collect,
-          fixed-line is a flat KES 25 per active customer, and any month you earn under KES {Number(b.freeThreshold).toLocaleString()} is free.
+          {/* Deliberately still KES: this is what Zidi charges the ISP, not what
+              the ISP charges its own customers. Converting it to the operator's
+              currency would misquote the platform's own price. */}
+          fixed-line is a flat KES 25 per active customer, and any month you earn under {money(b.freeThreshold)} is free.
         </p>
       </div>
 
@@ -5064,7 +5068,7 @@ function CustomPlanCard({ auth }) {
       </div>
       <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between border-t border-outline-variant pt-4">
         <p className="text-sm text-on-surface-variant">
-          Example: {previewMinutes} minutes would cost <strong className="text-primary">KES {previewPrice}</strong> at this rate.
+          Example: {previewMinutes} minutes would cost <strong className="text-primary">{money(previewPrice)}</strong> at this rate.
         </p>
         <div className="flex items-center gap-3">
           {msg && <span className={`text-sm font-semibold ${msg.ok ? 'text-surface-tint' : 'text-error'}`}>{msg.text}</span>}

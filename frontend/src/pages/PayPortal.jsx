@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import loginFiber from '../assets/login-fiber.jpg'
 
 import { Icon } from '../components/icons.jsx'
+import { money } from '../money.js'
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -174,7 +175,7 @@ export default function PayPortal() {
                 </div>
                 <div className="flex-1 text-right pb-1">
                   <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">You pay</p>
-                  <p className="font-mono text-2xl font-bold text-primary tabular-nums">KES {total.toLocaleString()}</p>
+                  <p className="font-mono text-2xl font-bold text-primary tabular-nums">{money(total)}</p>
                 </div>
               </div>
               {error && <p className="text-sm text-error">{error}</p>}
@@ -196,7 +197,7 @@ export default function PayPortal() {
                 </div>
               </div>
               <h2 className="text-xl font-bold text-on-surface">Check your phone</h2>
-              <p className="text-sm text-on-surface-variant">Enter your M-Pesa PIN to complete the payment of <span className="font-mono font-semibold text-on-surface">KES {total.toLocaleString()}</span>.</p>
+              <p className="text-sm text-on-surface-variant">Enter your M-Pesa PIN to complete the payment of <span className="font-mono font-semibold text-on-surface">{money(total)}</span>.</p>
             </div>
           )}
 

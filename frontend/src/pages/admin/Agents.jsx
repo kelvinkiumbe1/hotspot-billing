@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api.js'
 import { Icon, Skeleton, PageHeader, PrimaryButton, StatCard, fmtKES, fmtDate, INPUT_CLS, LABEL_CLS } from '../../components/ui.jsx'
+import { money } from '../../money.js'
 
 function printBatch(vouchers, label, business) {
   const cards = vouchers.map((v) => `
@@ -309,7 +310,7 @@ export default function Agents({ auth }) {
             <label className={LABEL_CLS}>Plan</label>
             <select className={INPUT_CLS} value={batchForm.planId} onChange={(e) => setBatchForm({ ...batchForm, planId: e.target.value })}>
               {plans.filter((p) => p.name !== 'Custom Time').map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — KES {p.price}</option>
+                <option key={p.id} value={p.id}>{p.name} — {money(p.price)}</option>
               ))}
               <option value="custom">Custom time…</option>
             </select>

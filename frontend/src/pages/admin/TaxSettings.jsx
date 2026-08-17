@@ -3,6 +3,7 @@ import { api } from '../../api.js'
 import {
   Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS, fmtKES,
 } from '../../components/ui.jsx'
+import { money } from '../../money.js'
 
 export default function TaxSettingsPage({ auth }) {
   const [form, setForm] = useState(null)
@@ -135,7 +136,7 @@ export default function TaxSettingsPage({ auth }) {
               {example && (
                 <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant">
                   <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">
-                    A KES 3,500 package would invoice as
+                    A {money(3500)} package would invoice as
                   </p>
                   <dl className="text-sm space-y-1">
                     <div className="flex justify-between"><dt>Subtotal (net)</dt><dd className="tabular-nums">{fmtKES(example.net)}</dd></div>

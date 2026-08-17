@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
 import heroCity from '../assets/hero-city.jpg'
 import customerPhoto from '../assets/customer.jpg'
+import { money } from '../money.js'
 
 /* ------------------------------------------------------------------ */
 /* Localization — English + Kiswahili for the customer captive portal  */
@@ -30,7 +31,7 @@ const STRINGS = {
     'card.buyShort': 'Buy',
     'pay.checkout': 'Secure M-Pesa checkout',
     'pay.total': 'Total',
-    'pay.payNow': 'Pay KES {n}',
+    'pay.payNow': 'Pay {n}',
     'ok.granted': 'Access granted',
     'wait.printing': 'Preparing your pass',
     'poster.paid': 'PAID',
@@ -67,7 +68,7 @@ const STRINGS = {
     'card.devices_plural': 'devices',
     'custom.heading': 'Custom Pass',
     'custom.title': 'Only need a little time?',
-    'custom.perHour': 'KES {n}/hour, billed per minute',
+    'custom.perHour': '{n}/hour, billed per minute',
     'custom.minutes': 'Minutes you need',
     'custom.youPay': 'You pay',
     'custom.range': 'Choose between {min} and {max} minutes.',
@@ -141,7 +142,7 @@ const STRINGS = {
     'card.buyShort': 'Nunua',
     'pay.checkout': 'Malipo salama ya M-Pesa',
     'pay.total': 'Jumla',
-    'pay.payNow': 'Lipa KES {n}',
+    'pay.payNow': 'Lipa {n}',
     'ok.granted': 'Ufikiaji umeruhusiwa',
     'wait.printing': 'Kifurushi chako kinaandaliwa',
     'poster.paid': 'IMELIPWA',
@@ -178,7 +179,7 @@ const STRINGS = {
     'card.devices_plural': 'vifaa',
     'custom.heading': 'Kifurushi Maalum',
     'custom.title': 'Unahitaji muda kidogo tu?',
-    'custom.perHour': 'KES {n}/saa, hulipwa kwa dakika',
+    'custom.perHour': '{n}/saa, hulipwa kwa dakika',
     'custom.minutes': 'Dakika unazohitaji',
     'custom.youPay': 'Unalipa',
     'custom.range': 'Chagua kati ya dakika {min} na {max}.',
@@ -619,11 +620,11 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
           <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('card.price')}</p>
           {discounted != null && discounted < plan.price ? (
             <>
-              <p className="font-mono text-sm text-on-surface-variant line-through">KES {plan.price}</p>
-              <p className={`font-mono font-semibold text-[#ffd479] ${popular ? 'text-2xl' : 'text-lg'}`}>KES {discounted}</p>
+              <p className="font-mono text-sm text-on-surface-variant line-through">{money(plan.price)}</p>
+              <p className={`font-mono font-semibold text-[#ffd479] ${popular ? 'text-2xl' : 'text-lg'}`}>{money(discounted)}</p>
             </>
           ) : (
-            <p className={`font-mono font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>KES {plan.price}</p>
+            <p className={`font-mono font-semibold text-primary ${popular ? 'text-2xl' : 'text-lg'}`}>{money(plan.price)}</p>
           )}
         </div>
       </div>
@@ -658,7 +659,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
             <h3 className="text-lg font-semibold text-on-background">{t('custom.title')}</h3>
             <p className="text-sm text-on-surface-variant flex items-center gap-1 mt-1">
               {speed && (<><Icon name="speed" className="text-[16px]!" /> {speed} · </>)}
-              {t('custom.perHour', { n: custom.pricePerHour })}
+              {t('custom.perHour', { n: money(custom.pricePerHour) })}
             </p>
           </div>
         </div>
@@ -679,9 +680,9 @@ function CustomTimeCard({ custom, promo, onBuy }) {
           </div>
           <div className="text-right pb-1">
             <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('custom.youPay')}</p>
-            {valid && price < basePrice && <p className="font-mono text-sm text-on-surface-variant line-through">KES {basePrice}</p>}
+            {valid && price < basePrice && <p className="font-mono text-sm text-on-surface-variant line-through">{money(basePrice)}</p>}
             <p className={`font-mono text-2xl font-bold tabular-nums ${valid ? 'text-primary' : 'text-outline'}`}>
-              KES {valid ? price : '—'}
+              {money(valid ? price : '—')}
             </p>
           </div>
         </div>
@@ -1149,8 +1150,8 @@ function BreezeRow({ plan, promo, onBuy, index = 0 }) {
         <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
       </div>
       <div className="text-right">
-        {deal.old && <p className="text-xs text-on-surface-variant line-through">KES {deal.old}</p>}
-        <p className="font-mono font-bold text-primary">KES {deal.price}</p>
+        {deal.old && <p className="text-xs text-on-surface-variant line-through">{money(deal.old)}</p>}
+        <p className="font-mono font-bold text-primary">{money(deal.price)}</p>
       </div>
       <span className="h-9 px-4 rounded-full bg-primary text-on-primary text-sm font-semibold flex items-center">{t('card.buyShort')}</span>
     </button>
@@ -1207,7 +1208,7 @@ function PosterTag({ plan, promo, onBuy, index = 0 }) {
       style={{ animationDelay: `${80 + index * 60}ms` }}
     >
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant w-full truncate">{plan.name}</p>
-      {deal.old && <p className="text-xs text-on-surface-variant line-through">KES {deal.old}</p>}
+      {deal.old && <p className="text-xs text-on-surface-variant line-through">{money(deal.old)}</p>}
       <p className="text-3xl font-bold text-primary" style={{ fontFamily: 'var(--portal-heading-font)' }}>
         {deal.price}<span className="text-sm align-top ml-0.5">KES</span>
       </p>
@@ -1272,7 +1273,7 @@ function MatrixTile({ plan, promo, onBuy, index = 0 }) {
       <p className="text-sm font-bold text-on-background leading-tight">{formatDuration(plan.durationMinutes)}</p>
       <p className="font-mono text-primary font-semibold text-sm">
         {deal.old && <span className="text-[10px] text-on-surface-variant line-through mr-1">{deal.old}</span>}
-        KES {deal.price}
+        {money(deal.price)}
       </p>
       <p className="text-[10px] text-on-surface-variant truncate w-full">{plan.name}</p>
     </button>
@@ -1335,8 +1336,8 @@ function StepsRow({ plan, promo, onBuy, index = 0 }) {
         <p className="font-semibold truncate">{plan.name}</p>
         <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
         <p className="font-mono text-sm font-bold text-on-background mt-1">
-          {deal.old && <span className="text-xs text-on-surface-variant line-through mr-1.5">KES {deal.old}</span>}
-          KES {deal.price}
+          {deal.old && <span className="text-xs text-on-surface-variant line-through mr-1.5">{money(deal.old)}</span>}
+          {money(deal.price)}
         </p>
       </div>
       <button
@@ -1411,7 +1412,7 @@ function NeonRow({ plan, promo, onBuy, index = 0 }) {
         <span className="block text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}</span>
       </span>
       {deal.old && <span className="text-xs text-on-surface-variant line-through">{deal.old}</span>}
-      <span className="text-primary font-semibold whitespace-nowrap">[ KES {deal.price} ]</span>
+      <span className="text-primary font-semibold whitespace-nowrap">[ {money(deal.price)} ]</span>
       <span className="border border-primary text-primary text-xs font-bold px-2.5 py-1.5 rounded">{t('card.buyShort').toUpperCase()}</span>
     </button>
   )
@@ -1487,7 +1488,7 @@ function PayBillPanel({ plan }) {
               3. Account number: <span className="font-mono font-bold text-on-surface tracking-widest">{info.payCode}</span>
             </li>
           )}
-          <li>{info.payCode ? '4' : '3'}. Amount: <span className="font-mono font-bold text-on-surface">KES {plan.price}</span></li>
+          <li>{info.payCode ? '4' : '3'}. Amount: <span className="font-mono font-bold text-on-surface">{money(plan.price)}</span></li>
         </ol>
         <p className="mt-3 text-xs text-on-surface-variant">
           {info.autoLogin
@@ -1545,7 +1546,7 @@ function CreditPanel({ plan, phone }) {
         </p>
         <p className="mt-1 text-sm">Your access code is <span className="font-mono font-bold text-lg">{taken.code}</span></p>
         <p className="mt-1 text-xs text-on-surface-variant">
-          KES {taken.dueAmount} will be added to your next purchase.
+          {money(taken.dueAmount)} will be added to your next purchase.
         </p>
       </div>
     )
@@ -1556,8 +1557,8 @@ function CreditPanel({ plan, phone }) {
     return (
       <p className="w-full mt-6 text-xs text-on-surface-variant flex items-start gap-2">
         <Icon name="info" className="text-[15px]! mt-px" />
-        KES {owed} from your earlier pay-later pass is added to this payment — you'll be asked for
-        KES {owed + Number(plan.price)} in total.
+        {money(owed)} from your earlier pay-later pass is added to this payment — you'll be asked for
+        {money(owed + Number(plan.price))} in total.
       </p>
     )
   }
@@ -1612,12 +1613,12 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         <div className="w-full mb-8 fade-up" style={{ animationDelay: '140ms' }}>
           <div className="flex justify-between items-baseline pb-3 gap-4">
             <span className="text-base font-semibold min-w-0 truncate">{t('pay.access', { name: plan.name })}</span>
-            <span className="font-mono text-base tabular-nums text-on-surface-variant whitespace-nowrap">KES {plan.price}</span>
+            <span className="font-mono text-base tabular-nums text-on-surface-variant whitespace-nowrap">{money(plan.price)}</span>
           </div>
           <div className="h-px bg-outline-variant"></div>
           <div className="flex justify-between items-baseline pt-3">
             <span className="text-xs font-semibold tracking-[0.2em] uppercase text-on-surface-variant">{t('pay.total')}</span>
-            <span className="font-mono text-2xl font-bold tabular-nums text-primary">KES {plan.price}</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-primary">{money(plan.price)}</span>
           </div>
         </div>
 
@@ -1656,7 +1657,7 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
             style={{ animationDelay: '300ms' }}
           >
             <Icon name={sending ? 'progress_activity' : 'send_money'} className={sending ? 'animate-spin' : ''} />
-            {sending ? t('pay.sending') : t('pay.payNow', { n: plan.price })}
+            {sending ? t('pay.sending') : t('pay.payNow', { n: money(plan.price) })}
           </button>
         </form>
 
