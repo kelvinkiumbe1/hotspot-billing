@@ -144,12 +144,21 @@ public class MikrotikService {
     // --- Hotspot vouchers ---
 
     public void provisionVoucher(Voucher voucher) {
+        provisionVoucher(voucher, voucher.getEffectiveDurationMinutes());
+    }
+
+    /**
+     * As above, but with the connect-time to allow stated explicitly. Used when
+     * a pass is reissued under a new code: the replacement must carry only what
+     * is left of the original, not a fresh full allowance.
+     */
+    public void provisionVoucher(Voucher voucher, int limitMinutes) {
         Router router = defaultRouter();
         if (!live(router)) {
             log.info("MikroTik disabled — skipping provisioning of voucher {}", voucher.getCode());
             return;
         }
-        String limitUptime = voucher.getEffectiveDurationMinutes() + "m";
+        String limitUptime = Math.max(1, limitMinutes) + "m";
         try (ApiConnection connection = login(router)) {
             String profile = ensureHotspotProfile(connection, voucher.getPlan());
             connection.execute(String.format(
@@ -309,6 +318,31 @@ public class MikrotikService {
                     restored, router.getName());
         }
         return restored;
+    }
+
+    /**
+     * Drops whatever device is currently signed in on this code, leaving the
+     * code itself valid. What a customer means by "log me out of the other
+     * phone" — the pass survives, the session does not, and the remaining
+     * time is untouched because the router counts uptime, not sessions.
+     *
+     * @return true when the router was reachable and the instruction landed
+     */
+    public boolean kickSessions(Voucher voucher) {
+        Router router = defaultRouter();
+        if (!live(router)) {
+            return false;
+        }
+        try (ApiConnection connection = login(router)) {
+            connection.execute("/ip/hotspot/active/remove [find user=" + voucher.getCode() + "]");
+            log.info("Signed out any device using voucher {}", voucher.getCode());
+            return true;
+        } catch (Exception e) {
+            // No active session is the ordinary case, not a failure: nobody is
+            // signed in, which is exactly the state being asked for.
+            log.debug("Nothing to sign out for {}: {}", voucher.getCode(), e.getMessage());
+            return true;
+        }
     }
 
     public void removeVoucher(Voucher voucher) {

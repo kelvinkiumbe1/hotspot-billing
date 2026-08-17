@@ -194,6 +194,104 @@ public class VoucherService {
     }
 
     /**
+     * What is left on a pass, from the customer's point of view.
+     *
+     * <p>Two separate limits run at once and either can end the pass, so the
+     * honest answer is whichever runs out first: the connect-time the router
+     * counts, and the wall-clock deadline set when they paid. Reporting only
+     * one of them would tell somebody they had four hours left an hour before
+     * their pass died.
+     */
+    public record PassStatus(String code, String planName, String status,
+                             long minutesLeft, Instant expiresAt,
+                             long usedMb, Integer capMb, Long mbLeft) {
+    }
+
+    @Transactional(readOnly = true)
+    public Voucher byCode(String code) {
+        return voucherRepository.findByCode(code == null ? "" : code.trim().toUpperCase())
+                .orElseThrow(() -> new IllegalArgumentException("Unknown voucher code"));
+    }
+
+    @Transactional(readOnly = true)
+    public PassStatus statusOf(Voucher v) {
+        long byUptime = v.getRemainingSeconds() / 60;
+        long minutesLeft = byUptime;
+        if (v.getExpiresAt() != null) {
+            long byClock = Math.max(0, ChronoUnit.MINUTES.between(Instant.now(), v.getExpiresAt()));
+            minutesLeft = Math.min(byUptime, byClock);
+        }
+        if (v.getStatus() == Voucher.Status.EXPIRED) {
+            minutesLeft = 0;
+        }
+
+        long usedMb = v.getUsedBytes() / 1_048_576L;
+        Integer capMb = v.getPlan() == null ? null : v.getPlan().getDataLimitMb();
+        Long mbLeft = capMb == null || capMb <= 0 ? null : Math.max(0, capMb - usedMb);
+
+        return new PassStatus(v.getCode(),
+                v.getPlan() == null ? null : v.getPlan().getName(),
+                v.getStatus().name(), minutesLeft, v.getExpiresAt(), usedMb, capMb, mbLeft);
+    }
+
+    /**
+     * Signs out whatever device is on the code, so it can be used on another.
+     * The pass keeps its remaining time — the router bills uptime, not logins.
+     */
+    @Transactional
+    public boolean signOutDevices(Voucher v) {
+        if (v.getStatus() == Voucher.Status.EXPIRED) {
+            throw new IllegalStateException("That pass has already finished");
+        }
+        return mikrotikService.kickSessions(v);
+    }
+
+    /**
+     * Reissues a pass under a fresh code, carrying over what is left of it.
+     *
+     * <p>This is what a customer needs when their code has got out — shared
+     * around a hostel, read over someone's shoulder, sent to the wrong person.
+     * The old code is removed from the router and stops working immediately,
+     * including for whoever is using it at that moment; the new one continues
+     * with exactly the time and data already paid for.
+     *
+     * <p>The same row is kept rather than issuing a second voucher, so the
+     * payment it came from, the usage recorded against it and the audit trail
+     * all stay attached to one pass. What changes is the code.
+     */
+    @Transactional
+    public Voucher reissueUnderNewCode(Voucher v) {
+        if (v.getStatus() == Voucher.Status.EXPIRED || v.isExhausted()) {
+            throw new IllegalStateException("That pass has already finished — buy a new one");
+        }
+        String oldCode = v.getCode();
+        int minutesLeft = (int) statusOf(v).minutesLeft();
+        if (minutesLeft <= 0) {
+            throw new IllegalStateException("That pass has no time left on it");
+        }
+
+        // Remove the old one first. If the new code were added first and the
+        // removal then failed, both codes would work at once — which is the
+        // exact problem the customer came here to fix.
+        try {
+            mikrotikService.removeVoucher(v);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Could not reach the router to cancel the old code, so nothing has changed. "
+                            + "Try again in a moment.", e);
+        }
+
+        v.setCode(uniqueCode("", oldCode.length()));
+        // The replacement starts from zero on the router, so its allowance is
+        // what remains — and the usage already recorded stays on the row.
+        v.setRouterUptimeSeconds(0);
+        Voucher saved = voucherRepository.save(v);
+        mikrotikService.provisionVoucher(saved, minutesLeft);
+        log.info("Reissued pass {} as {} with {} minute(s) remaining", oldCode, saved.getCode(), minutesLeft);
+        return saved;
+    }
+
+    /**
      * Cuts off passes whose wall-clock deadline has gone by.
      *
      * <p>This has to exist for the deadline to mean anything. The router is

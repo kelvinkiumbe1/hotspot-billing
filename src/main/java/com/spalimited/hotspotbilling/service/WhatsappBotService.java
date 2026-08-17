@@ -41,27 +41,31 @@ public class WhatsappBotService {
     private final VoucherRepository vouchers;
     private final PortalSettingsService portalSettings;
     private final ReferralService referralService;
+    private final VoucherService voucherService;
 
-    private enum Step { MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE }
+    private enum Step { MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE, PASS }
 
     private static final class Session {
         Step step = Step.MENU;
         String lang = "EN";
         Long planId;
         Long subscriberId;
+        /** The hotspot pass being looked at, for the sign-out and reissue actions. */
+        Long voucherId;
         List<Long> planIds = new ArrayList<>();
         Instant touched = Instant.now();
     }
 
     private static final Duration TTL = Duration.ofMinutes(20);
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     // EN / SW message pairs. %s / %d are filled per call.
     private static final Map<String, String[]> M = Map.ofEntries(
             Map.entry("menu", new String[]{
-                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — My status\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n\n_Reply *sw* for Kiswahili._",
-                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Hali yangu\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n\n_Reply *en* for English._"}),
+                    "👋 Welcome to *%s*!\n\nReply with a number:\n*1* — Buy WiFi\n*2* — Time & data left\n*3* — Renew my internet\n*4* — Talk to support\n*5* — Resend my last code\n*6* — Refer a friend & earn\n\n_Reply *sw* for Kiswahili._",
+                    "👋 Karibu *%s*!\n\nJibu na nambari:\n*1* — Nunua WiFi\n*2* — Muda na data iliyobaki\n*3* — Ongeza intaneti\n*4* — Ongea na msaada\n*5* — Nitumie nambari yangu tena\n*6* — Mpe rafiki upate bonasi\n\n_Reply *en* for English._"}),
             Map.entry("refShare", new String[]{
                     "🎁 *Refer a friend & earn!*\nYour code: *%s*\nShare it — when a friend joins with it and makes their first purchase, you get *%d* free WiFi minutes and they get *%d*.\n\nHave a code from a friend? Reply with it now to claim, or *menu*.",
                     "🎁 *Mpe rafiki upate bonasi!*\nNambari yako: *%s*\nMtumie — rafiki akijiunga na kununua kwa mara ya kwanza, wewe utapata dakika *%d* za WiFi bure na yeye dakika *%d*.\n\nUna nambari kutoka kwa rafiki? Ijibu sasa, au *menu*."}),
@@ -116,6 +120,25 @@ public class WhatsappBotService {
             Map.entry("resendNone", new String[]{
                     "We couldn't find a voucher for this number. Reply *1* to buy one.",
                     "Hatukupata nambari ya WiFi kwa hii. Jibu *1* kununua."}),
+            Map.entry("passActions", new String[]{
+                    "\n*1* Log out my other device\n*2* Change my code\n*0* Back",
+                    "\n*1* Ondoa kifaa kingine\n*2* Badilisha nambari yangu\n*0* Rudi"}),
+            Map.entry("signedOut", new String[]{
+                    "✅ Signed out. Your code is free to use on another device — your remaining time is untouched.",
+                    "✅ Imeondolewa. Nambari yako inaweza kutumika kwenye kifaa kingine — muda wako haujaguswa."}),
+            Map.entry("signedOutOffline", new String[]{
+                    "We couldn't reach the router just now, so nothing was signed out. Please try again shortly.",
+                    "Hatukuweza kufikia rauta sasa. Jaribu tena baadaye."}),
+            Map.entry("reissued", new String[]{
+                    "🔐 Done. Your new code is *%s* — use it as both username and password.\n"
+                            + "The old code has stopped working everywhere, including on any device still using it.\n"
+                            + "You keep the %s you had left.",
+                    "🔐 Imekamilika. Nambari yako mpya ni *%s* — itumie kama jina na nenosiri.\n"
+                            + "Nambari ya zamani haitumiki tena popote.\n"
+                            + "Umebakiwa na %s."}),
+            Map.entry("reissueFail", new String[]{
+                    "Sorry, that didn't work: %s",
+                    "Samahani, haikufanikiwa: %s"}),
             Map.entry("resendFound", new String[]{"🎟️ Your latest code is *%s* (%s).", "🎟️ Nambari yako ya hivi karibuni ni *%s* (%s)."}),
             Map.entry("planNo", new String[]{"Reply with a plan number from the list, or *menu* to go back.", "Jibu na nambari ya kifurushi, au *menu*."}),
             Map.entry("unknown", new String[]{"Sorry, I didn't get that.\n\n%s", "Samahani, sijaelewa.\n\n%s"}),
@@ -164,6 +187,7 @@ public class WhatsappBotService {
             case RENEW_MONTHS -> handleRenewMonths(s, text);
             case SUPPORT_MSG -> handleSupport(s, fromPhone, text);
             case REFERRAL_CODE -> handleReferralCode(s, fromPhone, text);
+            case PASS -> handlePassAction(s, text);
         };
     }
 
@@ -271,8 +295,91 @@ public class WhatsappBotService {
             return t(s, active ? "statusActive" : "statusInactive", until);
         }
         Voucher v = vouchers.findByPhoneNumberOrderByCreatedAtDesc(loose(fromPhone)).stream().findFirst().orElse(null);
-        if (v != null) return t(s, "resendFound", v.getCode(), voucherState(v));
-        return t(s, "statusNone");
+        if (v == null) {
+            return t(s, "statusNone");
+        }
+        s.voucherId = v.getId();
+        s.step = Step.PASS;
+        return passCard(s, v);
+    }
+
+    /**
+     * What the customer is actually asking when they say "how much is left" —
+     * the code, the time, and the data if their package caps it. A finished
+     * pass shows no actions, because neither of them does anything useful on
+     * one.
+     */
+    private String passCard(Session s, Voucher v) {
+        VoucherService.PassStatus st = voucherService.statusOf(v);
+        StringBuilder sb = new StringBuilder("🎟️ *")
+                .append(st.code()).append("*")
+                .append(st.planName() == null ? "" : " · " + st.planName()).append('\n');
+
+        if (st.minutesLeft() <= 0) {
+            sb.append("This pass has finished. Reply *1* to buy another.");
+            s.step = Step.MENU;
+            s.voucherId = null;
+            return sb.toString();
+        }
+
+        sb.append("⏳ Time left: *").append(humanMinutes(st.minutesLeft())).append("*\n");
+        if (st.expiresAt() != null) {
+            sb.append("📅 Valid until ").append(TIME.format(st.expiresAt()))
+                    .append(" on ").append(DATE.format(st.expiresAt())).append('\n');
+        }
+        if (st.capMb() != null) {
+            sb.append("📶 Data: ").append(st.usedMb()).append(" MB of ").append(st.capMb())
+                    .append(" MB used — *").append(st.mbLeft()).append(" MB left*\n");
+        } else if (st.usedMb() > 0) {
+            sb.append("📶 Data used: ").append(st.usedMb()).append(" MB (no limit on this package)\n");
+        }
+        return sb.append(t(s, "passActions")).toString();
+    }
+
+    private String handlePassAction(Session s, String text) {
+        Voucher v = s.voucherId == null ? null : vouchers.findById(s.voucherId).orElse(null);
+        if (v == null) {
+            reset(s);
+            return t(s, "statusNone");
+        }
+        switch (text.trim()) {
+            case "1" -> {
+                boolean done;
+                try {
+                    done = voucherService.signOutDevices(v);
+                } catch (Exception e) {
+                    return t(s, "reissueFail", e.getMessage());
+                }
+                return (done ? t(s, "signedOut") : t(s, "signedOutOffline")) + "\n\n" + passCard(s, v);
+            }
+            case "2" -> {
+                String had = humanMinutes(voucherService.statusOf(v).minutesLeft());
+                try {
+                    Voucher fresh = voucherService.reissueUnderNewCode(v);
+                    reset(s);
+                    return t(s, "reissued", fresh.getCode(), had);
+                } catch (Exception e) {
+                    return t(s, "reissueFail", e.getMessage());
+                }
+            }
+            case "0" -> {
+                reset(s);
+                return menu(s);
+            }
+            default -> {
+                return t(s, "unknown", passCard(s, v));
+            }
+        }
+    }
+
+    /** "3h 20m" rather than "200 minutes", which nobody reads as three hours. */
+    private static String humanMinutes(long minutes) {
+        if (minutes < 60) {
+            return minutes + " min";
+        }
+        long h = minutes / 60;
+        long m = minutes % 60;
+        return m == 0 ? h + "h" : h + "h " + m + "m";
     }
 
     private String resend(Session s, String fromPhone) {
@@ -316,6 +423,7 @@ public class WhatsappBotService {
         s.step = Step.MENU;
         s.planId = null;
         s.subscriberId = null;
+        s.voucherId = null;
         s.planIds.clear();
     }
 
