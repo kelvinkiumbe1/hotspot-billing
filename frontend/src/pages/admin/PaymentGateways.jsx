@@ -50,12 +50,75 @@ const GATEWAYS = [
     icon: 'account_balance',
     blurb: 'Usually for monthly PPPoE customers rather than hotspot buyers.',
   },
+  {
+    kind: 'PAYSTACK',
+    name: 'Paystack',
+    provider: 'Nigeria · Ghana · Kenya · South Africa',
+    badge: 'API KEYS',
+    chips: ['Cards', 'Mobile money', 'Bank', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'credit_card',
+    blurb: 'The customer opens a secure page and pays by card, bank or mobile money. Needs a Paystack account.',
+    webhook: '/api/payments/paystack/webhook',
+    keyHint: 'sk_live_… from Settings → API Keys & Webhooks',
+    secretless: true,
+  },
+  {
+    kind: 'FLUTTERWAVE',
+    name: 'Flutterwave',
+    provider: 'Most of Africa',
+    badge: 'API KEYS',
+    chips: ['Cards', 'Mobile money', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'public',
+    blurb: 'Widest country coverage on the continent. The customer pays on a hosted page.',
+    webhook: '/api/payments/flutterwave/webhook',
+    keyHint: 'FLWSECK-… from Settings → API',
+    secretHint: 'The secret hash you set on their webhook page — you choose it',
+  },
+  {
+    kind: 'STRIPE',
+    name: 'Stripe',
+    provider: 'Worldwide',
+    badge: 'API KEYS',
+    chips: ['Cards', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'language',
+    blurb: 'For operators billing outside mobile-money markets. Cards only, but almost everywhere.',
+    webhook: '/api/payments/stripe/webhook',
+    keyHint: 'sk_live_… from Developers → API keys',
+    secretHint: 'whsec_… shown when you add the endpoint below',
+  },
 ]
 
-function ConfigureForm({ auth, gateway, saved, onCancel, onSaved }) {
+const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE']
+
+/** Copies a webhook URL and says so, because a silent copy reads as a dead button. */
+function CopyUrl({ url }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1600)
+      }}
+      className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg bg-surface-container-high text-xs font-mono break-all cursor-pointer hover:bg-surface-container-highest transition-colors">
+      <Icon name={copied ? 'check' : 'content_copy'} className="text-[14px]! shrink-0" />
+      <span className="flex-1">{url}</span>
+      {copied && <span className="font-sans font-semibold text-primary shrink-0">Copied</span>}
+    </button>
+  )
+}
+
+function ConfigureForm({ auth, gateway, saved, webhookBase, onCancel, onSaved }) {
   const isApi = gateway.kind === 'MPESA_API'
+  const isCard = CARD_KINDS.includes(gateway.kind)
   const [form, setForm] = useState({
     environment: saved?.environment || 'SANDBOX',
+    secretKey: '',
+    publicKey: saved?.publicKey || '',
+    webhookSecret: '',
     consumerKey: '',
     consumerSecret: '',
     shortCode: saved?.shortCode || '',
@@ -184,6 +247,64 @@ function ConfigureForm({ auth, gateway, saved, onCancel, onSaved }) {
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.
             </p>
           )}
+        </>
+      ) : isCard ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL_CLS}>Secret key</label>
+              <input className={INPUT_CLS} type="password" value={form.secretKey}
+                onChange={(e) => set({ secretKey: e.target.value })}
+                placeholder={saved?.secretKey || gateway.keyHint} />
+              <p className="text-xs text-on-surface-variant mt-1">{gateway.keyHint}</p>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Public key <span className="font-normal opacity-70">(optional)</span></label>
+              <input className={INPUT_CLS} value={form.publicKey}
+                onChange={(e) => set({ publicKey: e.target.value })} placeholder="pk_live_…" />
+            </div>
+            {!gateway.secretless && (
+              <div className="md:col-span-2">
+                <label className={LABEL_CLS}>Webhook secret</label>
+                <input className={INPUT_CLS} type="password" value={form.webhookSecret}
+                  onChange={(e) => set({ webhookSecret: e.target.value })}
+                  placeholder={saved?.webhookSecret || gateway.secretHint} />
+                <p className="text-xs text-on-surface-variant mt-1">{gateway.secretHint}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Without this pasted into their dashboard, a customer can pay in full
+              and never be connected — the payment succeeds and we never hear. */}
+          <div className="rounded-lg border border-outline-variant p-3">
+            <p className="text-sm font-medium">Add this webhook in your {gateway.name} dashboard</p>
+            <p className="text-xs text-on-surface-variant mt-1 mb-2">
+              This is how we find out a payment succeeded. Until it is set, customers will pay and stay offline.
+            </p>
+            {webhookBase
+              ? <CopyUrl url={webhookBase + gateway.webhook} />
+              : (
+                <p className="text-xs text-[#b45309]">
+                  This server has no public address configured yet, so the URL can't be shown.
+                  Set MPESA_CALLBACK_URL to your public domain and it will appear here.
+                </p>
+              )}
+          </div>
+
+          {gateway.secretless && (
+            <p className="text-xs text-on-surface-variant">
+              Paystack signs its webhooks with the secret key above, so there is nothing else to enter.
+            </p>
+          )}
+          {saved?.secretKey && (
+            <p className="text-xs text-on-surface-variant">
+              Keys are never shown again once saved. Leave a field blank to keep what is stored.
+            </p>
+          )}
+          <p className="text-xs text-[#b45309]">
+            Charges through this gateway haven't been tried against a live account yet. Take one small
+            real payment and confirm the customer gets online before pointing customers at it.
+          </p>
         </>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,7 +447,7 @@ export default function PaymentGatewaysPage({ auth }) {
                     </span>
                     {isActive && (
                       <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold tracking-wider">
-                        {s.live ? 'ACTIVE' : 'ACTIVE · SANDBOX'}
+                        {s.live ? 'ACTIVE' : CARD_KINDS.includes(g.kind) ? 'ACTIVE · TEST KEYS' : 'ACTIVE · SANDBOX'}
                       </span>
                     )}
                   </div>
@@ -364,6 +485,7 @@ export default function PaymentGatewaysPage({ auth }) {
                   auth={auth}
                   gateway={g}
                   saved={s}
+                  webhookBase={data.webhookBase}
                   onCancel={() => setOpenKind(null)}
                   onSaved={() => {
                     setOpenKind(null)
@@ -378,9 +500,9 @@ export default function PaymentGatewaysPage({ auth }) {
       </div>
 
       <p className="mt-6 text-xs text-on-surface-variant max-w-3xl">
-        Only gateways that actually work are listed. Card processors and other aggregators each need their own
-        integration and merchant account — say the word if you want one added, and it will appear here once it
-        can genuinely take a payment rather than before.
+        Each gateway needs a merchant account with that provider. The three card processors are built and their
+        webhooks are verified against forgery, but no charge has yet been made through a live merchant account —
+        take one small real payment yourself before pointing customers at one.
       </p>
     </div>
   )

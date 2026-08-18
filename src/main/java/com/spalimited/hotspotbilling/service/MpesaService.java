@@ -240,6 +240,11 @@ public class MpesaService {
         return conversationId;
     }
 
+    /** True when an STK prompt can actually be sent right now. */
+    public boolean canPush() {
+        return gatewayService.daraja().usable();
+    }
+
     /** True when money can actually be sent out right now. */
     public boolean canSendMoney() {
         return gatewayService.daraja().canVerifyTransactions()

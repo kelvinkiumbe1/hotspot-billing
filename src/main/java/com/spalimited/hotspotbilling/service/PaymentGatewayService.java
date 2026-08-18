@@ -143,7 +143,7 @@ public class PaymentGatewayService {
             row.put("kind", kind.name());
             row.put("active", g != null && g.isActive());
             row.put("configured", g != null && g.isConfigured());
-            row.put("automatic", kind == PaymentGateway.Kind.MPESA_API);
+            row.put("automatic", PaymentGateway.builder().kind(kind).build().isAutomatic());
             row.put("environment", g != null && g.getEnvironment() != null
                     ? g.getEnvironment().name() : PaymentGateway.Environment.SANDBOX.name());
             row.put("live", g != null && g.isLive());
@@ -159,6 +159,12 @@ public class PaymentGatewayService {
             row.put("initiatorName", g == null ? null : g.getInitiatorName());
             row.put("securityCredential", mask(g == null ? null : g.getSecurityCredential()));
             row.put("canVerifyCodes", g != null && filledForVerify(g));
+
+            row.put("secretKey", mask(g == null ? null : g.getSecretKey()));
+            row.put("webhookSecret", mask(g == null ? null : g.getWebhookSecret()));
+            // The public key is public by design — masking it would only make
+            // an operator go and look it up again to check they pasted the right one.
+            row.put("publicKey", g == null ? null : g.getPublicKey());
 
             row.put("shortCode", g == null ? null : g.getShortCode());
             row.put("paybillNumber", g == null ? null : g.getPaybillNumber());
@@ -200,6 +206,14 @@ public class PaymentGatewayService {
             keepIfBlank(incoming.getPasskey(), gateway::getPasskey, gateway::setPasskey);
             keepIfBlank(incoming.getInitiatorName(), gateway::getInitiatorName, gateway::setInitiatorName);
             keepIfBlank(incoming.getSecurityCredential(), gateway::getSecurityCredential, gateway::setSecurityCredential);
+        } else if (kind == PaymentGateway.Kind.PAYSTACK
+                || kind == PaymentGateway.Kind.FLUTTERWAVE
+                || kind == PaymentGateway.Kind.STRIPE) {
+            keepIfBlank(incoming.getSecretKey(), gateway::getSecretKey, gateway::setSecretKey);
+            keepIfBlank(incoming.getPublicKey(), gateway::getPublicKey, gateway::setPublicKey);
+            keepIfBlank(incoming.getWebhookSecret(), gateway::getWebhookSecret, gateway::setWebhookSecret);
+            // No environment field: which of these is live is decided by the key
+            // itself, so storing a separate answer only creates one that can lie.
         } else {
             gateway.setPaybillNumber(trim(incoming.getPaybillNumber()));
             gateway.setTillNumber(trim(incoming.getTillNumber()));

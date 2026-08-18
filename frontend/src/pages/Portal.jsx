@@ -423,7 +423,7 @@ export default function Portal() {
     e.preventDefault()
     setSending(true)
     try {
-      const { paymentId } = selected.customMinutes
+      const { paymentId, checkoutUrl } = selected.customMinutes
         ? await api('/payments/stk-push-custom', {
             method: 'POST',
             body: { phoneNumber: normalizePhone(phone), minutes: selected.customMinutes },
@@ -432,6 +432,14 @@ export default function Portal() {
             method: 'POST',
             body: { phoneNumber: normalizePhone(phone), planId: selected.id },
           })
+      // A card rail hands back somewhere to pay; M-Pesa prompts the handset and
+      // sends nothing. Opened in this tab rather than a new one: on a captive
+      // portal a popup is as likely to be blocked as shown, and a customer
+      // staring at an unchanged screen assumes it failed and pays twice.
+      if (checkoutUrl) {
+        window.location.assign(checkoutUrl)
+        return
+      }
       setScreen('waiting')
       let tries = 0
       pollRef.current = setInterval(async () => {

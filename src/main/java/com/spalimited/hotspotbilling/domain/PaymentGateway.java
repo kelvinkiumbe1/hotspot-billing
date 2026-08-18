@@ -154,13 +154,37 @@ public class PaymentGateway {
      */
     @Transient
     public boolean isAutomatic() {
-        return kind == Kind.MPESA_API;
+        return switch (kind) {
+            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE -> true;
+            case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
+        };
     }
 
-    /** Live money, as opposed to Safaricom's sandbox. */
+    /**
+     * Live money, as opposed to a sandbox.
+     *
+     * <p>Safaricom picks its sandbox by URL, so the stored environment decides.
+     * The card processors pick it by which key you paste, which means an
+     * operator can believe they are live while every payment is play money.
+     * Reading the key's own prefix is the only answer that cannot disagree with
+     * what the processor will actually do.
+     */
     @Transient
     public boolean isLive() {
-        return kind != Kind.MPESA_API || environment == Environment.PRODUCTION;
+        return switch (kind) {
+            case MPESA_API -> environment == Environment.PRODUCTION;
+            case PAYSTACK, FLUTTERWAVE, STRIPE -> !isTestKey(secretKey);
+            default -> true;
+        };
+    }
+
+    /** Paystack and Stripe both prefix test keys "sk_test_"; Flutterwave uses "_TEST". */
+    private static boolean isTestKey(String key) {
+        if (!filled(key)) {
+            return false;
+        }
+        String k = key.toLowerCase();
+        return k.startsWith("sk_test") || k.contains("_test");
     }
 
     private static boolean filled(String value) {

@@ -28,12 +28,18 @@ public class PaymentSettingsController {
     private final PaymentGatewayService gatewayService;
     private final MpesaService mpesaService;
     private final AuditService audit;
+    private final com.spalimited.hotspotbilling.config.MpesaProperties mpesaProps;
 
     @GetMapping
     public Map<String, Object> list() {
         List<Map<String, Object>> all = gatewayService.describeAll();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("gateways", all);
+        // Every card processor needs a webhook URL pasted into its dashboard,
+        // and an operator guessing at it is an operator whose payments never
+        // settle. Derived from the M-Pesa callback URL because that is the one
+        // address already known to reach this server from the outside.
+        out.put("webhookBase", webhookBase());
         out.put("available", all.size());
         out.put("connected", all.stream().filter(g -> Boolean.TRUE.equals(g.get("configured"))).count());
         out.put("activeKind", all.stream()
@@ -41,6 +47,16 @@ public class PaymentSettingsController {
                 .map(g -> g.get("kind"))
                 .findFirst().orElse(null));
         return out;
+    }
+
+    /** The public origin of this server, or null when it was never configured. */
+    private String webhookBase() {
+        String callback = mpesaProps.callbackUrl();
+        if (callback == null || callback.isBlank() || callback.contains("example.com")) {
+            return null;
+        }
+        int api = callback.indexOf("/api/");
+        return api > 0 ? callback.substring(0, api) : null;
     }
 
     public record GatewayRequest(
@@ -51,6 +67,9 @@ public class PaymentSettingsController {
             String passkey,
             String initiatorName,
             String securityCredential,
+            String secretKey,
+            String publicKey,
+            String webhookSecret,
             String paybillNumber,
             String tillNumber,
             String bankName,
@@ -72,6 +91,9 @@ public class PaymentSettingsController {
                 .passkey(request.passkey())
                 .initiatorName(request.initiatorName())
                 .securityCredential(request.securityCredential())
+                .secretKey(request.secretKey())
+                .publicKey(request.publicKey())
+                .webhookSecret(request.webhookSecret())
                 .paybillNumber(request.paybillNumber())
                 .tillNumber(request.tillNumber())
                 .bankName(request.bankName())

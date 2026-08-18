@@ -35,11 +35,29 @@ public class PaymentController {
     /** Customer picks a plan on the captive portal and gets an STK prompt. */
     @PostMapping("/stk-push")
     public Map<String, Object> stkPush(@Valid @RequestBody StkPushRequest request) {
-        Payment payment = paymentService.initiateStkPush(request.phoneNumber(), request.planId());
-        return Map.of(
-                "paymentId", payment.getId(),
-                "status", payment.getStatus(),
-                "message", "Check your phone and enter your M-Pesa PIN");
+        return started(paymentService.initiateStkPush(request.phoneNumber(), request.planId()));
+    }
+
+    /**
+     * The same answer whichever rail took the payment, because the portal
+     * should not have to know which one is configured.
+     *
+     * <p>A checkout URL means "send them here to pay"; its absence means the
+     * customer's handset is already showing a PIN prompt. The wording follows,
+     * so nobody is told to check a phone that will never buzz.
+     */
+    private Map<String, Object> started(Payment payment) {
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("paymentId", payment.getId());
+        out.put("status", payment.getStatus());
+        out.put("provider", payment.getProvider());
+        if (payment.getCheckoutUrl() != null) {
+            out.put("checkoutUrl", payment.getCheckoutUrl());
+            out.put("message", "Opening a secure page to complete your payment");
+        } else {
+            out.put("message", "Check your phone and enter your M-Pesa PIN");
+        }
+        return out;
     }
 
     public record CustomStkPushRequest(
@@ -51,11 +69,7 @@ public class PaymentController {
     /** Pay-per-minute purchase: the customer typed exactly how long they need. */
     @PostMapping("/stk-push-custom")
     public Map<String, Object> stkPushCustom(@Valid @RequestBody CustomStkPushRequest request) {
-        Payment payment = paymentService.initiateCustomStkPush(request.phoneNumber(), request.minutes());
-        return Map.of(
-                "paymentId", payment.getId(),
-                "status", payment.getStatus(),
-                "message", "Check your phone and enter your M-Pesa PIN");
+        return started(paymentService.initiateCustomStkPush(request.phoneNumber(), request.minutes()));
     }
 
     /** Poll endpoint for the portal to learn when the voucher is ready. */

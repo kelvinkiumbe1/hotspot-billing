@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +45,8 @@ public class PaymentService {
     private final WebhookService webhookService;
     private final LoyaltyService loyaltyService;
     private final SmsService smsService;
+    private final MoneyService money;
+    private final com.spalimited.hotspotbilling.service.payments.PaymentProviders providers;
     private final ManualClaimRepository manualClaims;
     private final PaymentGatewayService gatewayService;
     private final CreditService creditService;
@@ -73,14 +76,53 @@ public class PaymentService {
         // recovery mechanism — there is no separate debt to chase afterwards.
         BigDecimal owed = creditService.outstandingFor(phoneNumber);
         BigDecimal charge = price.add(owed);
-        String checkoutRequestId = mpesaService.stkPush(phoneNumber, charge, "HOTSPOT-" + planId);
-        Payment payment = Payment.builder()
+        return start(phoneNumber, charge, plan, null, "HOTSPOT-" + planId, plan.getName());
+    }
+
+    /**
+     * Starts a payment on whichever rail the operator has active.
+     *
+     * <p>The reference is made unique per attempt. M-Pesa never saw the one we
+     * pass, but the card rails do and reject a reference they have seen before
+     * — so a customer whose first attempt was declined could not pay at all on
+     * their second try if the same string went out twice.
+     *
+     * <p>The payment row is written before the rail is called, and updated
+     * after. Written after, a processor that succeeded while our reply was lost
+     * would leave a paid customer with no record — the webhook would arrive
+     * quoting a reference nothing had ever heard of.
+     */
+    private Payment start(String phoneNumber, BigDecimal charge, Plan plan,
+                          Integer customMinutes, String prefix, String description) {
+        var provider = providers.active().orElseThrow(() -> new IllegalStateException(
+                "No automatic payment method is set up — add one under Settings → Payment gateways"));
+
+        Payment payment = paymentRepository.save(Payment.builder()
                 .phoneNumber(phoneNumber)
                 .amount(charge)
                 .plan(plan)
-                .checkoutRequestId(checkoutRequestId)
-                .build();
-        return paymentRepository.save(payment);
+                .customMinutes(customMinutes)
+                .provider(provider.kind().name())
+                .build());
+        String reference = prefix + "-" + payment.getId();
+
+        PaymentProvider.Charge started;
+        try {
+            started = provider.charge(new PaymentProvider.ChargeRequest(
+                    phoneNumber, null, charge, money.code(), reference, description));
+        } catch (RuntimeException e) {
+            // The row exists and nothing was collected against it. Failing it
+            // here keeps reconciliation honest instead of leaving a PENDING
+            // payment nobody will ever settle.
+            markFailed(payment, "could not start: " + e.getMessage());
+            throw e;
+        }
+        payment.setCheckoutRequestId(started.providerRef() == null ? reference : started.providerRef());
+        Payment saved = paymentRepository.save(payment);
+        // Not stored: single-use, stale within minutes, and only ever an answer
+        // to "I just pressed pay".
+        saved.setCheckoutUrl(started.checkoutUrl());
+        return saved;
     }
 
     /**
@@ -99,15 +141,7 @@ public class PaymentService {
         }
         BigDecimal price = promotionService.apply(customPlanService.priceFor(minutes, settings));
         Plan plan = customPlanService.systemPlan(settings);
-        String checkoutRequestId = mpesaService.stkPush(phoneNumber, price, "HOTSPOT-CUSTOM");
-        Payment payment = Payment.builder()
-                .phoneNumber(phoneNumber)
-                .amount(price)
-                .plan(plan)
-                .customMinutes(minutes)
-                .checkoutRequestId(checkoutRequestId)
-                .build();
-        return paymentRepository.save(payment);
+        return start(phoneNumber, price, plan, minutes, "HOTSPOT-CUSTOM", minutes + " minutes of WiFi");
     }
 
     /**
