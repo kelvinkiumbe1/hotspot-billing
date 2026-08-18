@@ -260,6 +260,14 @@ public class PaymentService {
                         providerRef == null ? "" : providerRef))
                 .orElse(null);
         if (payment == null) {
+            // Not a voucher purchase. It may be a PPPoE renewal, which lives in
+            // a different table -- the same fork the Daraja callback has always
+            // taken, and without it every non-Daraja renewal would settle
+            // nowhere and time out as failed with the money taken.
+            if (subscriptionService.handleProviderSettlement(
+                    providerRef, reference, paid, receipt, failureReason)) {
+                return;
+            }
             log.warn("{} webhook for unknown reference {} / {}", provider, reference, providerRef);
             return;
         }

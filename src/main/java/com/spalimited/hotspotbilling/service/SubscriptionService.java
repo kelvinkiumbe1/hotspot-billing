@@ -1,7 +1,9 @@
 package com.spalimited.hotspotbilling.service;
 
+import com.spalimited.hotspotbilling.domain.PaymentGateway;
 import com.spalimited.hotspotbilling.domain.Router;
 import com.spalimited.hotspotbilling.domain.Subscriber;
+import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.domain.SubscriptionPayment;
 import com.spalimited.hotspotbilling.repository.RouterRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
@@ -38,6 +40,8 @@ public class SubscriptionService {
     private final InvoiceService invoiceService;
     private final EtimsService etimsService;
     private final ReferralService referralService;
+    private final com.spalimited.hotspotbilling.service.payments.PaymentProviders providers;
+    private final MoneyService money;
 
     @org.springframework.beans.factory.annotation.Value("${app.portal-url}")
     private String portalUrl;
@@ -148,19 +152,176 @@ public class SubscriptionService {
         return payment;
     }
 
-    /** Sends an M-Pesa STK prompt to the subscriber's phone for N months. */
+    /**
+     * Asks the subscriber to pay for N months, on whichever rail is configured.
+     *
+     * <p>Named for the STK push because for a long time that is all it could
+     * do: it called Daraja directly rather than going through the provider
+     * abstraction, which meant a Ghanaian ISP could set up MTN MoMo perfectly
+     * and still have no way to bill a monthly customer. Kept as the name
+     * because the callers all mean "ask them to pay".
+     */
     @Transactional
     public SubscriptionPayment initiateStk(Long subscriberId, int months) {
+        return initiateRenewal(subscriberId, months, null).payment();
+    }
+
+    /**
+     * A started renewal. {@code checkoutUrl} is null on the rails that prompt
+     * the handset — there is nowhere to send anybody.
+     */
+    public record Started(SubscriptionPayment payment, String checkoutUrl) {
+    }
+
+    /**
+     * The same, on a named rail.
+     *
+     * <p>Falls back to Daraja only when no provider is configured at all, so an
+     * existing Kenyan deployment behaves exactly as it did — including the
+     * error it already gives when Daraja is not set up either.
+     */
+    @Transactional
+    public Started initiateRenewal(Long subscriberId, int months, String kind) {
         Subscriber sub = get(subscriberId);
         BigDecimal amount = sub.getMonthlyFee().multiply(BigDecimal.valueOf(months));
-        String checkoutRequestId = mpesaService.stkPush(sub.getPhoneNumber(), amount, "PPPOE-" + sub.getId());
-        return payments.save(SubscriptionPayment.builder()
+
+        var provider = kind == null ? providers.active() : providers.chosen(kind);
+        if (provider.isEmpty() || provider.get().kind() == PaymentGateway.Kind.MPESA_API) {
+            String checkoutRequestId = mpesaService.stkPush(
+                    sub.getPhoneNumber(), amount, "PPPOE-" + sub.getId());
+            return new Started(payments.save(SubscriptionPayment.builder()
+                    .subscriber(sub)
+                    .amount(amount)
+                    .months(months)
+                    .method(SubscriptionPayment.Method.MPESA)
+                    .provider(PaymentGateway.Kind.MPESA_API.name())
+                    .checkoutRequestId(checkoutRequestId)
+                    .build()), null);
+        }
+
+        // The row first, so the reference can carry its id. A payment the rail
+        // has heard of and we have not is the one shape that cannot be
+        // reconciled afterwards.
+        SubscriptionPayment payment = payments.save(SubscriptionPayment.builder()
                 .subscriber(sub)
                 .amount(amount)
                 .months(months)
-                .method(SubscriptionPayment.Method.MPESA)
-                .checkoutRequestId(checkoutRequestId)
+                .method(SubscriptionPayment.Method.ONLINE)
+                .provider(provider.get().kind().name())
                 .build());
+        String reference = "PPPOE-" + sub.getId() + "-" + payment.getId();
+
+        String checkoutUrl;
+        try {
+            var started = provider.get().charge(new PaymentProvider.ChargeRequest(
+                    sub.getPhoneNumber(), null, amount, money.code(), reference,
+                    "Internet " + months + " month" + (months == 1 ? "" : "s")));
+            payment.setCheckoutRequestId(started.providerRef() == null
+                    ? reference : started.providerRef());
+            checkoutUrl = started.checkoutUrl();
+        } catch (RuntimeException e) {
+            payment.setStatus(SubscriptionPayment.Status.FAILED);
+            payment.setCompletedAt(Instant.now());
+            payments.save(payment);
+            throw e;
+        }
+        return new Started(payments.save(payment), checkoutUrl);
+    }
+
+    /** The reference a renewal payment was charged under. */
+    public static String referenceFor(Long subscriberId, Long paymentId) {
+        return "PPPOE-" + subscriberId + "-" + paymentId;
+    }
+
+    /**
+     * Settles a subscription payment that arrived on one of the other rails.
+     *
+     * <p>Returns false when neither identifier is ours, which is how
+     * PaymentService knows to keep looking. Both are tried because which one a
+     * rail quotes back differs: Paystack echoes our reference, Wave returns its
+     * own session id, Orange needs three values glued together.
+     */
+    @Transactional
+    public boolean handleProviderSettlement(String providerRef, String reference,
+                                            boolean paid, String receipt, String failureReason) {
+        SubscriptionPayment payment = payments
+                .findByCheckoutRequestId(providerRef == null ? "" : providerRef)
+                .or(() -> payments.findByCheckoutRequestId(reference == null ? "" : reference))
+                .orElse(null);
+        if (payment == null) {
+            return false;
+        }
+        if (payment.getStatus() != SubscriptionPayment.Status.PENDING) {
+            // Every rail retries until it gets a 2xx, and a mandate charge marks
+            // itself paid synchronously — so a repeat is the normal case and
+            // must not extend the subscription a second time.
+            log.info("Ignoring repeat settlement for subscription payment {}", payment.getId());
+            return true;
+        }
+        payment.setCompletedAt(Instant.now());
+        if (!paid) {
+            payment.setStatus(SubscriptionPayment.Status.FAILED);
+            payments.save(payment);
+            log.info("Subscription payment {} failed: {}", payment.getId(), failureReason);
+            return true;
+        }
+        payment.setStatus(SubscriptionPayment.Status.SUCCESS);
+        payment.setMpesaReceiptNumber(receipt);
+        payments.save(payment);
+        extend(payment.getSubscriber(), payment.getMonths(),
+                payment.getProvider() == null ? "ONLINE" : payment.getProvider());
+        return true;
+    }
+
+    /**
+     * Takes the money under a standing order this system has to collect itself.
+     *
+     * <p>Synchronous on purpose. {@code chargeStored} either took the money or
+     * threw — the customer is asleep, there is no page to open and no prompt to
+     * wait for — so the subscription is extended here rather than waiting for a
+     * webhook that only confirms what the response already said. The webhook
+     * still arrives and is ignored, because the payment is no longer PENDING.
+     */
+    @Transactional
+    public SubscriptionPayment collectMandate(Long subscriberId, int months) {
+        Subscriber sub = get(subscriberId);
+        var mandate = mandates.forSubscriber(subscriberId)
+                .filter(com.spalimited.hotspotbilling.domain.PaymentMandate::weCollect)
+                .orElseThrow(() -> new IllegalStateException(
+                        "This customer has no standing order for us to collect"));
+        var provider = providers.forKind(mandate.getProvider())
+                .filter(PaymentProvider::supportsRecurring)
+                .orElseThrow(() -> new IllegalStateException(
+                        mandate.getProvider() + " can no longer charge saved methods"));
+
+        BigDecimal amount = sub.getMonthlyFee().multiply(BigDecimal.valueOf(months));
+        SubscriptionPayment payment = payments.save(SubscriptionPayment.builder()
+                .subscriber(sub)
+                .amount(amount)
+                .months(months)
+                .method(SubscriptionPayment.Method.ONLINE)
+                .provider(mandate.getProvider())
+                .build());
+        String reference = "PPPOE-" + sub.getId() + "-" + payment.getId();
+        payment.setCheckoutRequestId(reference);
+
+        try {
+            provider.chargeStored(mandate.getToken(), new PaymentProvider.ChargeRequest(
+                    sub.getPhoneNumber(), null, amount, money.code(), reference,
+                    "Internet renewal"));
+        } catch (RuntimeException e) {
+            payment.setStatus(SubscriptionPayment.Status.FAILED);
+            payment.setCompletedAt(Instant.now());
+            payments.save(payment);
+            mandates.recordFailedCollection(mandate.getId(), e.getMessage());
+            throw e;
+        }
+        payment.setStatus(SubscriptionPayment.Status.SUCCESS);
+        payment.setCompletedAt(Instant.now());
+        payments.save(payment);
+        mandates.recordCollectionById(mandate.getId());
+        extend(sub, months, mandate.getProvider());
+        return payment;
     }
 
     /**
@@ -413,19 +574,31 @@ public class SubscriptionService {
                 // Auto-renewal: one day before expiry, fire an STK prompt so the
                 // customer only has to enter their M-Pesa PIN. Once per cycle.
                 if (sub.getPaidUntil().isBefore(now.plus(1, ChronoUnit.DAYS))
-                        && !sub.getPaidUntil().equals(sub.getAutoStkForExpiry())
-                        // A standing order collects on its own. Prompting as
-                        // well asks the customer to pay a bill already being
-                        // paid, and two payments is worse than none.
-                        && !mandates.collectsAutomatically(sub.getId())) {
+                        && !sub.getPaidUntil().equals(sub.getAutoStkForExpiry())) {
                     sub.setAutoStkForExpiry(sub.getPaidUntil());
                     subscribers.save(sub);
-                    try {
-                        initiateStk(sub.getId(), 1);
-                        startDunning(sub); // begin the retry clock for this renewal
-                        log.info("Auto-renewal STK sent to subscriber {}", sub.getPppoeUsername());
-                    } catch (Exception e) {
-                        log.warn("Auto-renewal STK for {} failed: {}", sub.getPppoeUsername(), e.getMessage());
+                    var mandate = mandates.forSubscriber(sub.getId()).orElse(null);
+
+                    if (mandate != null && mandate.weCollect()) {
+                        // Ours to take. Nobody is prompted and nothing is
+                        // chased unless it fails.
+                        try {
+                            collectMandate(sub.getId(), 1);
+                            log.info("Collected {} renewal for {} under a standing order",
+                                    mandate.getProvider(), sub.getPppoeUsername());
+                        } catch (Exception e) {
+                            log.warn("Standing order collection for {} failed: {} — falling back "
+                                    + "to asking them", sub.getPppoeUsername(), e.getMessage());
+                            promptAndChase(sub);
+                        }
+                    } else if (mandate != null && mandate.isCollecting()) {
+                        // A push mandate: Safaricom is already sending it.
+                        // Prompting as well asks the customer to pay a bill
+                        // already being paid, and two payments is worse than none.
+                        log.debug("Renewal for {} is collected by a standing order",
+                                sub.getPppoeUsername());
+                    } else {
+                        promptAndChase(sub);
                     }
                 }
             }
@@ -433,6 +606,20 @@ public class SubscriptionService {
     }
 
     // --- Dunning: recover failed auto-renewals instead of letting them lapse ---
+
+    /**
+     * Asks the customer to pay, and starts the clock for chasing them if they
+     * do not. What happens for everybody without a working standing order.
+     */
+    private void promptAndChase(Subscriber sub) {
+        try {
+            initiateStk(sub.getId(), 1);
+            startDunning(sub);
+            log.info("Auto-renewal request sent to subscriber {}", sub.getPppoeUsername());
+        } catch (Exception e) {
+            log.warn("Auto-renewal for {} failed: {}", sub.getPppoeUsername(), e.getMessage());
+        }
+    }
 
     /**
      * Begins the retry clock for a subscriber whose auto-renewal STK has just

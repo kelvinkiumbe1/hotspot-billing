@@ -201,4 +201,88 @@ public class PaystackProvider implements PaymentProvider {
         }
         return BigDecimal.valueOf(minor).movePointLeft(2);
     }
+
+    // --- Recurring ---
+
+    @Override
+    public boolean supportsRecurring() {
+        return true;
+    }
+
+    /**
+     * Paystack hands back an authorization code on every successful charge.
+     *
+     * <p>Only some of them can be used again, and the flag saying so is the
+     * whole check. A one-time bank transfer or a USSD payment produces an
+     * authorization that looks identical and is not reusable; storing it gives
+     * an operator a mandate that fails on its first renewal, by which point they
+     * have stopped chasing the customer.
+     */
+    @Override
+    public Optional<String> reusableToken(byte[] rawBody) {
+        JsonNode event;
+        try {
+            event = mapper.readTree(rawBody);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        JsonNode auth = event.path("data").path("authorization");
+        if (!auth.path("reusable").asBoolean(false)) {
+            return Optional.empty();
+        }
+        String code = auth.path("authorization_code").asString(null);
+        return code == null || code.isBlank() ? Optional.empty() : Optional.of(code);
+    }
+
+    /**
+     * Charges a stored authorization. The customer is not there.
+     *
+     * <p>Paystack answers in the response rather than by webhook for this call,
+     * so the verdict is read here — but a webhook follows for the same
+     * reference, and settling twice is prevented by the payment no longer being
+     * PENDING.
+     */
+    @Override
+    public Charge chargeStored(String token, ChargeRequest request) {
+        String secret = secret();
+        if (secret == null) {
+            throw new IllegalStateException("Paystack is not set up");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("authorization_code", token);
+        body.put("email", request.email() != null && request.email().contains("@")
+                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        body.put("amount", minorUnits(request.amount(), request.currency()));
+        body.put("currency", request.currency());
+        body.put("reference", request.reference());
+
+        JsonNode response;
+        try {
+            response = client.post()
+                    .uri("/transaction/charge_authorization")
+                    .header("Authorization", "Bearer " + secret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Paystack would not charge the saved method: "
+                    + e.getMessage());
+        }
+        if (response == null || !response.path("status").asBoolean(false)) {
+            throw new IllegalStateException("Paystack refused the renewal: "
+                    + (response == null ? "no response" : response.path("message").asString("")));
+        }
+        JsonNode data = response.path("data");
+        String status = data.path("status").asString("");
+        if (!"success".equalsIgnoreCase(status)) {
+            // "failed" and "abandoned" both arrive here with status:true at the
+            // envelope level -- Paystack is reporting that it successfully told
+            // us the charge did not work.
+            throw new IllegalStateException("The saved payment method was declined: "
+                    + data.path("gateway_response").asString(status));
+        }
+        // No URL: there is nobody to send anywhere.
+        return new Charge(data.path("reference").asString(request.reference()), null);
+    }
 }

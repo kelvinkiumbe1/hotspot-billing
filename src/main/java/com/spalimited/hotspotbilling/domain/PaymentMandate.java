@@ -32,6 +32,22 @@ public class PaymentMandate {
 
     public enum Status { PENDING, ACTIVE, CANCELLED, FAILED }
 
+    /**
+     * Who initiates the money, which is the whole difference between the two
+     * kinds of standing order.
+     *
+     * <p>PUSH is M-Pesa Ratiba: the customer approves on their handset and
+     * Safaricom sends the money on schedule. Nothing here acts; it records the
+     * money arriving. PULL is a stored authorisation — Paystack's authorization
+     * code, Flutterwave's card token, Stripe's payment method. Nothing arrives
+     * unless this system charges it.
+     *
+     * <p>Treating them alike breaks in both directions: a PUSH mandate charged
+     * by us takes the money twice, and a PULL mandate merely waited on never
+     * collects at all while the customer is no longer being chased.
+     */
+    public enum Model { PUSH, PULL }
+
     public enum Frequency { WEEKLY, MONTHLY, QUARTERLY, YEARLY }
 
     @Id
@@ -52,6 +68,39 @@ public class PaymentMandate {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private Status status = Status.PENDING;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8)
+    private Model model = Model.PUSH;
+
+    /**
+     * The reusable authorisation.
+     *
+     * <p>Never returned by any API this system exposes — it is the thing that
+     * can move a customer's money.
+     */
+    @Column(length = 255)
+    private String token;
+
+    /** When the customer agreed, and the payment that proved it. */
+    private Instant consentedAt;
+
+    @Column(length = 120)
+    private String consentReference;
+
+    private Instant lastAttemptAt;
+
+    /**
+     * How many collections in a row have failed.
+     *
+     * <p>A card expires, a wallet empties. After a few of these the mandate is
+     * not a reason to stop chasing any more, and saying so is the difference
+     * between a customer being asked to pay and a customer quietly lapsing.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private int consecutiveFailures = 0;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
@@ -96,10 +145,28 @@ public class PaymentMandate {
         }
     }
 
-    /** Whether this is a reason to stop chasing the customer. */
+    /**
+     * Whether this is a reason to stop chasing the customer.
+     *
+     * <p>True for both models: a PUSH mandate collects on its own and a PULL
+     * mandate is collected by MandateService. Either way nobody should be
+     * texted about a renewal that is already arranged.
+     */
     @Transient
     public boolean isCollecting() {
         return status == Status.ACTIVE;
+    }
+
+    /**
+     * Whether this system has to go and take the money.
+     *
+     * <p>The question the renewal job asks. A PUSH mandate answers no and must
+     * not be charged — Safaricom is already sending it, and charging as well
+     * takes the money twice.
+     */
+    @Transient
+    public boolean weCollect() {
+        return status == Status.ACTIVE && model == Model.PULL && token != null;
     }
 
     /**
@@ -113,6 +180,11 @@ public class PaymentMandate {
     public boolean isSuspect() {
         if (status != Status.ACTIVE) {
             return false;
+        }
+        // A PULL mandate with no token is the dangerous one: it says ACTIVE,
+        // the operator has stopped chasing, and there is nothing to charge.
+        if (model == Model.PULL && token == null) {
+            return true;
         }
         boolean overdue = startsOn != null
                 && startsOn.plusDays(35).isBefore(LocalDate.now());

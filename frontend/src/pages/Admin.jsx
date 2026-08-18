@@ -2426,6 +2426,164 @@ function SubscriberModal({ auth, onClose, onSaved }) {
   )
 }
 
+
+/** How a payment was taken, in words. */
+function payLabel(method) {
+  if (!method) return '\u2014'
+  const known = {
+    MPESA: 'M-Pesa', MPESA_API: 'M-Pesa', CASH: 'Cash', ONLINE: 'Online',
+    PAYSTACK: 'Paystack', FLUTTERWAVE: 'Flutterwave', STRIPE: 'Card',
+    MTN_MOMO: 'MTN MoMo', AIRTEL_MONEY: 'Airtel Money', ORANGE_MONEY: 'Orange Money',
+    WAVE: 'Wave', CHAPA: 'Chapa', PAYNOW: 'EcoCash',
+  }
+  return known[method] || method
+}
+
+/**
+ * Standing orders, so a renewal collects itself.
+ *
+ * Two mechanisms behind one panel, and the difference is worth showing rather
+ * than hiding: M-Pesa Ratiba is approved on the customer's handset and Safaricom
+ * sends the money, while every other rail needs the customer to pay once and
+ * agree that renewals may be charged the same way. The second returns a link to
+ * send them.
+ */
+function StandingOrder({ auth, subscriber, onChanged }) {
+  const [mandate, setMandate] = useState(null)
+  const [options, setOptions] = useState([])
+  const [kind, setKind] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  const load = () => {
+    api(`/admin/subscribers/${subscriber.id}/mandate`, { auth })
+      .then(setMandate).catch(() => setMandate({ exists: false }))
+    api('/admin/mandates/options', { auth })
+      .then((r) => {
+        setOptions(r.options || [])
+        setKind((k) => k || (r.options?.[0]?.kind ?? ''))
+      })
+      .catch(() => setOptions([]))
+  }
+  useEffect(load, [subscriber.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function setUp() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api(`/admin/subscribers/${subscriber.id}/mandate`,
+        { method: 'POST', auth, body: { kind } })
+      setMsg({ ok: true, text: r.message, url: r.checkoutUrl })
+      load(); onChanged?.()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  async function cancel() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api(`/admin/subscribers/${subscriber.id}/mandate`, { method: 'DELETE', auth })
+      setMsg({ ok: true, text: r.message })
+      load(); onChanged?.()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally { setBusy(false) }
+  }
+
+  if (mandate === null) return null
+
+  const live = mandate.exists && mandate.collecting
+  return (
+    <div>
+      <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">
+        Standing Order
+      </h4>
+
+      {live ? (
+        <div className={`rounded-lg border p-3 ${mandate.suspect ? 'border-error' : 'border-outline-variant'}`}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold">
+                {payLabel(mandate.provider)} · {mandate.model === 'PUSH'
+                  ? 'the customer\u2019s bank sends it'
+                  : 'charged automatically'}
+              </p>
+              <p className="text-xs text-on-surface-variant">
+                {mandate.collections > 0
+                  ? `${mandate.collections} collected, last ${fmtDate(mandate.lastCollectedAt)}`
+                  : 'nothing collected yet'}
+                {mandate.consecutiveFailures > 0 && ` \u00b7 ${mandate.consecutiveFailures} failed in a row`}
+              </p>
+            </div>
+            <button disabled={busy} onClick={cancel}
+              className="h-9 px-3 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer disabled:opacity-60">
+              Stop relying on it
+            </button>
+          </div>
+          {/* The dangerous state: the operator has stopped chasing this
+              customer and nothing is actually being collected. */}
+          {mandate.suspect && (
+            <p className="text-xs text-error mt-2">
+              This says it is working and has collected nothing. This customer is not being
+              chased either — check it or stop relying on it.
+            </p>
+          )}
+          {mandate.lastError && (
+            <p className="text-xs text-[#b45309] mt-2">Last problem: {mandate.lastError}</p>
+          )}
+        </div>
+      ) : mandate.exists ? (
+        <div className="rounded-lg border border-outline-variant p-3">
+          <p className="text-sm">
+            Waiting for the customer to authorise it ({payLabel(mandate.provider)}).
+          </p>
+          <p className="text-xs text-on-surface-variant mt-1">
+            They are still being chased for this month, which is correct until it is live.
+          </p>
+          <button disabled={busy} onClick={cancel}
+            className="mt-2 h-9 px-3 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer disabled:opacity-60">
+            Cancel the request
+          </button>
+        </div>
+      ) : options.length === 0 ? (
+        <p className="text-xs text-on-surface-variant">
+          No gateway that can hold a standing order is switched on. Paystack, Flutterwave,
+          Stripe or M-Pesa can; the others cannot charge a customer who is not there.
+        </p>
+      ) : (
+        <div className="flex items-end gap-2 flex-wrap">
+          <select value={kind} onChange={(e) => setKind(e.target.value)}
+            className="h-10 bg-surface border border-outline-variant rounded-lg px-2 text-sm focus:outline-none focus:border-primary">
+            {options.map((o) => (
+              <option key={o.kind} value={o.kind}>{payLabel(o.kind)}</option>
+            ))}
+          </select>
+          <button disabled={busy || !kind} onClick={setUp}
+            className="h-10 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold disabled:opacity-60 cursor-pointer">
+            {busy ? 'Setting up\u2026' : 'Set up'}
+          </button>
+          <p className="text-xs text-on-surface-variant basis-full">
+            {options.find((o) => o.kind === kind)?.how}
+          </p>
+        </div>
+      )}
+
+      {msg && (
+        <div className="mt-2">
+          <p className={`text-xs ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>
+          {msg.url && (
+            <button type="button" onClick={() => navigator.clipboard?.writeText(msg.url)}
+              className="mt-1 text-xs underline text-primary cursor-pointer break-all text-left">
+              Copy the link to send them
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
   const [history, setHistory] = useState(null)
   const [months, setMonths] = useState(1)
@@ -2501,8 +2659,9 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
             </Row>
             <Row label="Created on">{fmtDate(s.createdAt)}, {fmtTime(s.createdAt)}</Row>
             <Row label="Last payment">
+              {/* Was a two-way guess that called every rail "Cash". */}
               {s.lastPaymentMethod
-                ? `${s.lastPaymentMethod === 'MPESA' ? 'M-Pesa' : 'Cash'}${s.lastPaymentAt ? ` · ${fmtDate(s.lastPaymentAt)}` : ''}`
+                ? `${payLabel(s.lastPaymentMethod)}${s.lastPaymentAt ? ` · ${fmtDate(s.lastPaymentAt)}` : ''}`
                 : <span className="text-on-surface-variant">No payment yet</span>}
             </Row>
           </div>
@@ -2521,12 +2680,17 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
                 className="h-10 px-3 rounded-lg bg-secondary text-on-secondary text-xs font-semibold disabled:opacity-60 cursor-pointer">
                 Record Cash
               </button>
-              <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/stk`, { months: Number(months) }, 'STK prompt sent.')}
+              {/* Named for what it does, not for one country's rail. It goes
+                  down whichever gateway is first in Settings, which for a
+                  Ghanaian operator is not M-Pesa. */}
+              <button disabled={busy} onClick={() => run(`/admin/subscribers/${s.id}/stk`, { months: Number(months) }, 'Payment request sent.')}
                 className="h-10 px-3 rounded-lg bg-primary text-on-primary text-xs font-semibold disabled:opacity-60 cursor-pointer">
-                Send M-Pesa STK
+                Request Payment
               </button>
             </div>
           </div>
+
+          <StandingOrder auth={auth} subscriber={s} onChanged={onChanged} />
 
           {/* Goodwill extend */}
           <div>

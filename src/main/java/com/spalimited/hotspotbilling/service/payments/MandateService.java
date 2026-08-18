@@ -27,10 +27,21 @@ import java.util.Optional;
  * an interruption the customer did not ask for. A live mandate makes all four
  * unnecessary for that subscriber.
  *
- * <p>Only M-Pesa Ratiba is implemented. The card rails could do the same
- * through tokenisation and deliberately do not yet — a stored card mandate is
- * a different consent with different rules, and pretending one interface covers
- * both would mean charging somebody under an agreement they did not give.
+ * <p>Two mechanisms sit behind this and they are not the same consent.
+ *
+ * <p><b>PUSH</b> is M-Pesa Ratiba. The customer approves a standing order on
+ * their handset and Safaricom sends the money on schedule; this system does
+ * nothing but record it arriving.
+ *
+ * <p><b>PULL</b> is a stored authorisation — Paystack's authorization code,
+ * Flutterwave's card token, Stripe's payment method. Nothing arrives unless
+ * this system goes and takes it, and it may only do so because the customer
+ * paid once and agreed that renewals could be charged the same way.
+ *
+ * <p>They are kept apart rather than hidden behind one word because getting it
+ * wrong is expensive in both directions: charging a PUSH mandate takes the
+ * money twice, and merely waiting on a PULL mandate collects nothing at all
+ * while the customer is no longer being chased.
  */
 @Service
 @RequiredArgsConstructor
@@ -94,6 +105,7 @@ public class MandateService {
         PaymentMandate mandate = mandates.save(PaymentMandate.builder()
                 .subscriberId(subscriberId)
                 .provider(PaymentGateway.Kind.MPESA_API.name())
+                .model(PaymentMandate.Model.PUSH)
                 .amount(sub.getMonthlyFee())
                 .frequency(frequency == null ? PaymentMandate.Frequency.MONTHLY : frequency)
                 .startsOn(startsOn == null ? LocalDate.now() : startsOn)
@@ -114,6 +126,111 @@ public class MandateService {
                     + e.getMessage());
         }
         return mandates.save(mandate);
+    }
+
+    /**
+     * Records that a customer has agreed to renewals being charged.
+     *
+     * <p>Creates the mandate PENDING with no token. It becomes usable only when
+     * a real payment on that rail comes back carrying a reusable authorisation
+     * — which is a better guarantee than Ratiba gives, since a token that
+     * arrived with a completed charge has already been proven to work.
+     *
+     * <p>{@code consentReference} is the payment that will establish it. Stored
+     * rather than inferred because it is the evidence: a stored authorisation
+     * with no record of which payment the customer agreed to is one the operator
+     * cannot defend, and a card chargeback is decided on exactly that.
+     */
+    @Transactional
+    public PaymentMandate awaitConsent(Long subscriberId, PaymentGateway.Kind kind,
+                                       String consentReference, String by) {
+        Subscriber sub = subscribers.findById(subscriberId).orElseThrow(() ->
+                new IllegalArgumentException("No such subscriber"));
+        if (sub.getMonthlyFee() == null || sub.getMonthlyFee().signum() <= 0) {
+            throw new IllegalStateException("Set this customer's monthly fee before a standing order");
+        }
+        mandates.findBySubscriberId(subscriberId).ifPresent(mandates::delete);
+
+        return mandates.save(PaymentMandate.builder()
+                .subscriberId(subscriberId)
+                .provider(kind.name())
+                .model(PaymentMandate.Model.PULL)
+                .amount(sub.getMonthlyFee())
+                .frequency(PaymentMandate.Frequency.MONTHLY)
+                .startsOn(LocalDate.now())
+                .status(PaymentMandate.Status.PENDING)
+                .consentReference(consentReference)
+                .createdBy(by)
+                .build());
+    }
+
+    /**
+     * A payment came back carrying a reusable authorisation.
+     *
+     * <p>Matched on the reference the customer consented against, and on nothing
+     * else. Storing a token because a payment merely happened would give the
+     * operator the ability to charge a customer who never agreed to it, which is
+     * the one thing this whole path has to get right.
+     */
+    @Transactional
+    public void captureToken(String reference, String token) {
+        if (reference == null || token == null || token.isBlank()) {
+            return;
+        }
+        mandates.findByConsentReference(reference).ifPresent(mandate -> {
+            if (mandate.getModel() != PaymentMandate.Model.PULL) {
+                return;
+            }
+            mandate.setToken(token);
+            mandate.setStatus(PaymentMandate.Status.ACTIVE);
+            mandate.setConsentedAt(Instant.now());
+            mandate.setConsecutiveFailures(0);
+            mandate.setLastError(null);
+            mandates.save(mandate);
+            log.info("Standing order for subscriber {} is authorised on {}",
+                    mandate.getSubscriberId(), mandate.getProvider());
+        });
+    }
+
+    /** A collection we made ourselves succeeded. */
+    @Transactional
+    public void recordCollectionById(Long mandateId) {
+        mandates.findById(mandateId).ifPresent(mandate -> {
+            mandate.setLastCollectedAt(Instant.now());
+            mandate.setLastAttemptAt(Instant.now());
+            mandate.setCollections(mandate.getCollections() + 1);
+            mandate.setConsecutiveFailures(0);
+            mandate.setLastError(null);
+            mandate.setStatus(PaymentMandate.Status.ACTIVE);
+            mandates.save(mandate);
+        });
+    }
+
+    /**
+     * A collection we made ourselves was declined.
+     *
+     * <p>Three in a row and the mandate stops counting as a reason not to chase.
+     * Cards expire and wallets empty, and a mandate that keeps failing while
+     * still reading as ACTIVE is the worst of both: nobody collects and nobody
+     * asks.
+     */
+    @Transactional
+    public void recordFailedCollection(Long mandateId, String why) {
+        mandates.findById(mandateId).ifPresent(mandate -> {
+            mandate.setLastAttemptAt(Instant.now());
+            mandate.setConsecutiveFailures(mandate.getConsecutiveFailures() + 1);
+            mandate.setLastError(why);
+            if (mandate.getConsecutiveFailures() >= 3) {
+                mandate.setStatus(PaymentMandate.Status.FAILED);
+                log.warn("Standing order for subscriber {} failed {} times and has been stood "
+                        + "down: {} — this customer will be chased again",
+                        mandate.getSubscriberId(), mandate.getConsecutiveFailures(), why);
+            } else {
+                log.info("Standing order collection for subscriber {} failed ({} of 3): {}",
+                        mandate.getSubscriberId(), mandate.getConsecutiveFailures(), why);
+            }
+            mandates.save(mandate);
+        });
     }
 
     /**

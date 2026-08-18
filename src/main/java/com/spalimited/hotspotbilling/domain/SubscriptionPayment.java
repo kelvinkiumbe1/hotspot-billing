@@ -16,7 +16,12 @@ import java.time.Instant;
 @Builder
 public class SubscriptionPayment {
 
-    public enum Method { MPESA, CASH }
+    /**
+      * MPESA is kept for the rows already written by the Daraja-only path;
+      * ONLINE is any rail reached through the provider abstraction, with
+      * {@code provider} saying which.
+      */
+    public enum Method { MPESA, CASH, ONLINE }
 
     public enum Status { PENDING, SUCCESS, FAILED }
 
@@ -44,7 +49,15 @@ public class SubscriptionPayment {
     private Status status = Status.PENDING;
 
     @Column(unique = true)
+    /**
+      * What the rail will quote back. Named for Daraja because that is all it
+      * ever held; it now holds Paystack's reference, Wave's session id and the
+      * rest, and the matching in SubscriptionService looks here for all of them.
+      */
     private String checkoutRequestId;
+
+    /** Which rail took it. Null on the rows written before more than one existed. */
+    private String provider;
 
     private String mpesaReceiptNumber;
 

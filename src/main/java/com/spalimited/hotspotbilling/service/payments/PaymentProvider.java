@@ -89,4 +89,47 @@ public interface PaymentProvider {
     default boolean pollable() {
         return false;
     }
+
+    // --- Recurring: charging again without asking the customer again ---
+
+    /**
+     * Whether one payment can authorise later ones.
+     *
+     * <p>False for most of these, and not an oversight. Airtel, Orange, Wave,
+     * Chapa and Paynow have no generally available way to charge a customer who
+     * is not present; MTN's pre-approval exists but is granted per market rather
+     * than being something an operator can switch on. Claiming the ability and
+     * failing at renewal time is worse than not claiming it: the operator stops
+     * chasing on the strength of it.
+     */
+    default boolean supportsRecurring() {
+        return false;
+    }
+
+    /**
+     * The reusable authorisation a completed payment left behind, if any.
+     *
+     * <p>Read from the same webhook body that settled the payment, because that
+     * is where all three rails put it and it is the only moment it is offered.
+     * Takes the raw body for the same reason {@link #settle} does.
+     *
+     * <p>Empty is the normal answer. A customer who did not consent must not
+     * have a token stored, and a card the processor marked non-reusable cannot
+     * be charged again however much anybody wants it to be.
+     */
+    default Optional<String> reusableToken(byte[] rawBody) {
+        return Optional.empty();
+    }
+
+    /**
+     * Charges an authorisation the customer gave earlier.
+     *
+     * <p>The customer is not present. There is no PIN prompt, no page and
+     * nothing to return a URL to — so unlike {@link #charge} this either takes
+     * the money or throws, and the answer usually arrives in the response rather
+     * than by webhook.
+     */
+    default Charge chargeStored(String token, ChargeRequest request) {
+        throw new UnsupportedOperationException(kind() + " cannot charge a stored authorisation");
+    }
 }

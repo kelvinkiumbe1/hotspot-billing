@@ -146,4 +146,80 @@ public class FlutterwaveProvider implements PaymentProvider {
                 data.path("flw_ref").asString(null),
                 paid ? null : "Flutterwave reported: " + status));
     }
+
+    // --- Recurring ---
+
+    @Override
+    public boolean supportsRecurring() {
+        return true;
+    }
+
+    /**
+     * Flutterwave returns a card token on a successful card charge.
+     *
+     * <p>Cards only. A mobile money payment through Flutterwave leaves no
+     * token, which matters because mobile money is what most of this system's
+     * customers use. Recurring here reaches the card-paying minority, and the
+     * operator should be told that rather than discovering it in three weeks.
+     */
+    @Override
+    public Optional<String> reusableToken(byte[] rawBody) {
+        JsonNode event;
+        try {
+            event = mapper.readTree(rawBody);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        JsonNode data = event.path("data");
+        if (!"successful".equalsIgnoreCase(data.path("status").asString(""))) {
+            return Optional.empty();
+        }
+        String token = data.path("card").path("token").asString(null);
+        return token == null || token.isBlank() ? Optional.empty() : Optional.of(token);
+    }
+
+    @Override
+    public Charge chargeStored(String token, ChargeRequest request) {
+        PaymentGateway cfg = config();
+        if (cfg == null) {
+            throw new IllegalStateException("Flutterwave is not configured");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("token", token);
+        body.put("currency", request.currency());
+        // Major units, the same as the interactive charge. Minor units here
+        // would take a hundred times the monthly fee, unprompted, from a
+        // customer who is not watching.
+        body.put("amount", request.amount().toPlainString());
+        body.put("tx_ref", request.reference());
+        body.put("email", request.email() != null && request.email().contains("@")
+                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        if (request.description() != null) {
+            body.put("narration", request.description());
+        }
+
+        JsonNode response;
+        try {
+            response = client.post()
+                    .uri("/tokenized-charges")
+                    .header("Authorization", "Bearer " + cfg.getSecretKey())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Flutterwave would not charge the saved card: "
+                    + e.getMessage());
+        }
+        if (response == null || !"success".equalsIgnoreCase(response.path("status").asString(""))) {
+            throw new IllegalStateException("Flutterwave refused the renewal: "
+                    + (response == null ? "no response" : response.path("message").asString("")));
+        }
+        JsonNode data = response.path("data");
+        if (!"successful".equalsIgnoreCase(data.path("status").asString(""))) {
+            throw new IllegalStateException("The saved card was declined: "
+                    + data.path("processor_response").asString(data.path("status").asString("")));
+        }
+        return new Charge(data.path("flw_ref").asString(request.reference()), null);
+    }
 }

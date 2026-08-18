@@ -12,6 +12,15 @@ public interface PaymentMandateRepository extends JpaRepository<PaymentMandate, 
 
     Optional<PaymentMandate> findByExternalRef(String externalRef);
 
+    /**
+     * The mandate a payment reference was meant to authorise.
+     *
+     * <p>How a token finds its mandate. Matching on the reference the customer
+     * consented against, rather than on the subscriber, is what stops a later
+     * unrelated payment silently storing a card nobody agreed to reuse.
+     */
+    Optional<PaymentMandate> findByConsentReference(String consentReference);
+
     List<PaymentMandate> findByStatus(PaymentMandate.Status status);
 
     long countByStatus(PaymentMandate.Status status);

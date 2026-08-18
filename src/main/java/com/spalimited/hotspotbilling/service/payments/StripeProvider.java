@@ -226,4 +226,93 @@ public class StripeProvider implements PaymentProvider {
         });
         return sb.toString();
     }
+
+    // --- Recurring ---
+
+    /** Separates the customer from the payment method in a stored token. */
+    static final String TOKEN_SEPARATOR = "/";
+
+    @Override
+    public boolean supportsRecurring() {
+        return true;
+    }
+
+    /**
+     * The payment method a completed checkout saved.
+     *
+     * <p>Both halves are returned, separated, because charging needs the
+     * customer and the payment method together and this interface carries one
+     * string. A payment method with no customer cannot be charged again, so
+     * half a pair is treated as none.
+     */
+    @Override
+    public Optional<String> reusableToken(byte[] rawBody) {
+        JsonNode event;
+        try {
+            event = mapper.readTree(rawBody);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        JsonNode object = event.path("data").path("object");
+        String method = object.path("payment_method").asString(null);
+        String customer = object.path("customer").asString(null);
+        if (method == null || method.isBlank() || customer == null || customer.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(customer + TOKEN_SEPARATOR + method);
+    }
+
+    @Override
+    public Charge chargeStored(String token, ChargeRequest request) {
+        PaymentGateway cfg = config();
+        if (cfg == null) {
+            throw new IllegalStateException("Stripe is not configured");
+        }
+        int slash = token == null ? -1 : token.indexOf(TOKEN_SEPARATOR);
+        if (slash <= 0) {
+            throw new IllegalStateException("That saved card is not usable, because it was "
+                    + "stored without the customer it belongs to");
+        }
+        Map<String, String> form = new LinkedHashMap<>();
+        form.put("amount", String.valueOf(minorUnits(request.amount(), request.currency())));
+        form.put("currency", request.currency().toLowerCase());
+        form.put("customer", token.substring(0, slash));
+        form.put("payment_method", token.substring(slash + 1));
+        // The three that make this a charge rather than an attempt: confirm now,
+        // the customer is not here, and do not try to redirect anybody.
+        form.put("confirm", "true");
+        form.put("off_session", "true");
+        form.put("automatic_payment_methods[enabled]", "true");
+        form.put("automatic_payment_methods[allow_redirects]", "never");
+        form.put("metadata[reference]", request.reference());
+
+        JsonNode response;
+        try {
+            response = client.post()
+                    .uri("/payment_intents")
+                    .header("Authorization", "Bearer " + cfg.getSecretKey())
+                    .header("Idempotency-Key", request.reference())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(encode(form))
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Stripe would not charge the saved card: "
+                    + e.getMessage());
+        }
+        if (response == null || response.path("id").isMissingNode()) {
+            throw new IllegalStateException("Stripe refused the renewal: "
+                    + (response == null ? "no response"
+                            : response.path("error").path("message").asString("")));
+        }
+        String status = response.path("status").asString("");
+        if (!"succeeded".equals(status)) {
+            // requires_action means the card wants the customer present for a
+            // 3DS step nobody can complete at two in the morning. It is a
+            // decline for this purpose, and calling it anything else strands
+            // the renewal in a state no job will ever resolve.
+            throw new IllegalStateException("The saved card needs the customer: " + status);
+        }
+        return new Charge(response.path("id").asString(request.reference()), null);
+    }
 }

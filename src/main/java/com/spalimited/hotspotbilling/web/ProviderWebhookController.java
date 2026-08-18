@@ -7,6 +7,7 @@ import com.spalimited.hotspotbilling.service.payments.ChapaProvider;
 import com.spalimited.hotspotbilling.service.payments.MtnMomoProvider;
 import com.spalimited.hotspotbilling.service.payments.OrangeMoneyProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
+import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.Signatures;
@@ -53,6 +54,7 @@ public class ProviderWebhookController {
     private final OrangeMoneyProvider orangeMoney;
     private final WaveProvider wave;
     private final PaymentService payments;
+    private final MandateService mandates;
 
     @PostMapping("/paystack/webhook")
     public ResponseEntity<String> paystack(@RequestBody(required = false) byte[] body,
@@ -169,7 +171,26 @@ public class ProviderWebhookController {
      */
     private ResponseEntity<String> handle(String name, PaymentProvider provider,
                                           byte[] body, HttpServletRequest request) {
-        return finish(name, provider.settle(body, headersOf(request)));
+        var settlement = provider.settle(body, headersOf(request));
+        ResponseEntity<String> result = finish(name, settlement);
+
+        // A completed payment may also be the moment a customer authorises
+        // renewals. Read after settling, never before: a token stored against a
+        // payment that then failed is an authorisation for money that never
+        // moved. Only the rails that can charge again are even asked.
+        if (settlement.isPresent() && settlement.get().paid() && provider.supportsRecurring()) {
+            try {
+                provider.reusableToken(body).ifPresent(token ->
+                        mandates.captureToken(settlement.get().reference(), token));
+            } catch (Exception e) {
+                // The payment is settled and the customer is online. Failing to
+                // store the token costs them a prompt next month; failing the
+                // webhook here would cost them their voucher.
+                log.warn("Could not store the renewal authorisation from {}: {}",
+                        name, e.getMessage());
+            }
+        }
+        return result;
     }
 
     /** The half after verification, shared with the rails that verify their own way. */
