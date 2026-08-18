@@ -11,6 +11,7 @@ import zidiLogoDark from '../assets/zidi-logo-dark.png'
 import RoutersPage from './admin/Routers.jsx'
 import DevicesPage from './admin/Devices.jsx'
 import RadiusPage from './admin/Radius.jsx'
+import ThemeSwitcher from '../components/ThemeSwitcher.jsx'
 import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
 import PayBillPage from './admin/PayBill.jsx'
@@ -469,8 +470,8 @@ const NAV_GROUPS = [
       { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering', need: 'NETWORK' },
       { key: 'plans', label: 'Plans', icon: 'inventory_2', need: 'PRICING' },
       { key: 'routers', label: 'Routers', icon: 'router', need: 'NETWORK' },
-      { key: 'devices', label: 'Devices', icon: 'device_hub', need: 'NETWORK' },
-      { key: 'radius', label: 'RADIUS', icon: 'vpn_key', need: 'NETWORK' },
+      { key: 'devices', label: 'Devices', icon: 'lan', need: 'NETWORK' },
+      { key: 'radius', label: 'RADIUS', icon: 'key', need: 'NETWORK' },
       { key: 'equipment', label: 'Equipment', icon: 'inventory_2', need: 'NETWORK' },
       { key: 'fiber', label: 'Fiber Map', icon: 'polyline', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
@@ -1021,7 +1022,7 @@ function useResolvedTheme(choice) {
 /* The signed-in owner's account menu, hung off the top-bar avatar: who they
    are, the theme, the account and workspace shortcuts, and sign out.
    "Password & security" is where they manage 2FA and passkeys. */
-function ProfileMenu({ me, onNav, onLogout, onInstall, theme, onTheme }) {
+function ProfileMenu({ me, onNav, onLogout, onInstall, theme, resolvedTheme, onTheme }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -1064,20 +1065,23 @@ function ProfileMenu({ me, onNav, onLogout, onInstall, theme, onTheme }) {
           </div>
 
           {/* Theme */}
-          <div className="p-3 border-b border-outline-variant">
-            <div className="flex rounded-lg border border-outline-variant overflow-hidden">
-              {[['light', 'Light', 'light_mode'], ['dark', 'Dark', 'dark_mode'], ['system', 'System', 'computer']].map(([key, label, icon]) => (
-                <button
-                  key={key}
-                  onClick={() => onTheme(key)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium cursor-pointer transition-colors ${
-                    theme === key ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'
-                  }`}
-                >
-                  <Icon name={icon} className="text-[15px]!" /> {label}
-                </button>
-              ))}
-            </div>
+          <div className="p-3 border-b border-outline-variant flex flex-col items-center gap-2">
+            <ThemeSwitcher isDark={resolvedTheme === 'dark'} onToggle={onTheme} />
+            {/* The switch is two-state and the setting is three. "System" is
+                kept beside it rather than dropped, because a laptop that dims
+                itself at dusk is a real preference and a nicer toggle is not a
+                reason to take it away. */}
+            <button
+              type="button"
+              onClick={() => onTheme('system')}
+              className={`text-xs font-medium px-3 py-1 rounded-full cursor-pointer transition-colors ${
+                theme === 'system'
+                  ? 'bg-primary text-on-primary'
+                  : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {theme === 'system' ? 'Following your system' : 'Follow my system'}
+            </button>
           </div>
 
           <div className="px-1.5 py-1.5">
@@ -1221,7 +1225,7 @@ function Shell({ auth, onLogout }) {
         </div>
         <div className="flex items-center gap-2">
           <PayoutBell auth={auth} />
-          <ProfileMenu me={me} onNav={nav} onLogout={onLogout} theme={theme} onTheme={setTheme}
+          <ProfileMenu me={me} onNav={nav} onLogout={onLogout} theme={theme} resolvedTheme={resolvedTheme} onTheme={setTheme}
             onInstall={async () => { const native = await triggerInstall(); if (!native) setInstallOpen(true) }} />
         </div>
       </header>
