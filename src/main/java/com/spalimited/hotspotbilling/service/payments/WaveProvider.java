@@ -80,7 +80,21 @@ public class WaveProvider implements PaymentProvider {
 
     @Override
     public boolean usable() {
-        return config() != null;
+        return config() != null && currencyAgrees();
+    }
+
+    /**
+     * Whether the prices are written in the currency this rail collects in.
+     *
+     * <p>Deliberately not inside {@code config()}. Reading the outcome of a
+     * payment that has already been started does not depend on the price
+     * agreeing with anything — and if this blocked polling, an operator who
+     * changed their currency would strand every payment already in flight,
+     * timing them out as failed with the customers' money taken.
+     */
+    private boolean currencyAgrees() {
+        return MarketGuard.currencyAgrees("Wave", country(),
+                portalSettings.settings().getCurrencyCode());
     }
 
     @Override
@@ -121,7 +135,7 @@ public class WaveProvider implements PaymentProvider {
     @Override
     public Charge charge(ChargeRequest request) {
         Config cfg = config();
-        if (cfg == null) {
+        if (cfg == null || !currencyAgrees()) {
             throw new IllegalStateException("Wave is not set up for this country");
         }
 

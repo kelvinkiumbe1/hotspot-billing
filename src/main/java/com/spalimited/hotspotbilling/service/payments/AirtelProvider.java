@@ -76,7 +76,24 @@ public class AirtelProvider implements PaymentProvider {
 
     @Override
     public boolean usable() {
-        return config() != null;
+        return config() != null && currencyAgrees();
+    }
+
+    /**
+     * Whether the prices are written in the currency this rail collects in.
+     *
+     * <p>Deliberately not inside {@code config()}. Reading the outcome of a
+     * payment that has already been started does not depend on the price
+     * agreeing with anything — and if this blocked polling, an operator who
+     * changed their currency would strand every payment already in flight,
+     * timing them out as failed with the customers' money taken.
+     */
+    private boolean currencyAgrees() {
+        // Airtel takes the amount as a bare number in the market's currency. If
+        // the prices are written in a different one, that number means something
+        // else — silently, and about money.
+        return MarketGuard.currencyAgrees("Airtel Money", country(),
+                portalSettings.settings().getCurrencyCode());
     }
 
     @Override
@@ -140,7 +157,7 @@ public class AirtelProvider implements PaymentProvider {
     @Override
     public Charge charge(ChargeRequest request) {
         Config cfg = config();
-        if (cfg == null) {
+        if (cfg == null || !currencyAgrees()) {
             throw new IllegalStateException("Airtel Money is not set up for this country");
         }
         // Ours, generated before the call, because everything afterwards is
