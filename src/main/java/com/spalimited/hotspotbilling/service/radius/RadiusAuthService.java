@@ -245,7 +245,7 @@ public class RadiusAuthService {
      *
      * @return {up, down} in bits per second, or null when it cannot be read
      */
-    static long[] parseRate(String rate) {
+    public static long[] parseRate(String rate) {
         String[] parts = rate.trim().split("/");
         if (parts.length != 2) {
             return null;

@@ -31,7 +31,7 @@ import {
   CircleCheckBig, Timer, TrendingDown, TrendingUp, SlidersHorizontal, Eye, EyeOff, Wifi,
   RadioTower, Settings, Circle, ShieldAlert, BadgeCheck, BanknoteX, Inbox,
   CircleQuestionMark, UserX, WifiOff, CalendarX, HeartPulse, DatabaseBackup, ServerCog,
-  Pencil, Globe, Languages, BatteryCharging, Cable, Share2,
+  Pencil, Globe, Languages, BatteryCharging, Cable, Share2, Moon,
 } from 'lucide-react'
 
 const MAP = {
@@ -63,6 +63,7 @@ const MAP = {
   confirmation_number: Ticket,
   content_copy: Copy,
   credit_card: CreditCard,
+  bedtime: Moon,
   device_hub: Share2,
   edit: Pencil,
   language: Languages,

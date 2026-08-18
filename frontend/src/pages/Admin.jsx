@@ -11,6 +11,7 @@ import zidiLogoDark from '../assets/zidi-logo-dark.png'
 import RoutersPage from './admin/Routers.jsx'
 import DevicesPage from './admin/Devices.jsx'
 import RadiusPage from './admin/Radius.jsx'
+import RetentionPage from './admin/Retention.jsx'
 import ThemeSwitcher from '../components/ThemeSwitcher.jsx'
 import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
@@ -461,6 +462,7 @@ const NAV_GROUPS = [
     items: [
       { key: 'subscribers', label: 'Subscribers', icon: 'lan', need: 'CUSTOMERS' },
       { key: 'leads', label: 'Leads', icon: 'person_search', need: 'CUSTOMERS' },
+      { key: 'retention', label: 'Keeping customers', icon: 'monitor_heart', need: 'CUSTOMERS' },
       { key: 'support', label: 'Tickets', icon: 'support_agent', need: 'CUSTOMERS' },
     ],
   },
@@ -731,6 +733,7 @@ const TAB_TITLES = {
   routers: 'Routers',
   devices: 'Devices',
   radius: 'RADIUS',
+  retention: 'Keeping customers',
   branches: 'Branches',
   support: 'Tickets',
   maintenance: 'Maintenance',
@@ -1258,6 +1261,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'routers' && <RoutersPage auth={auth} />}
         {tab === 'devices' && <DevicesPage auth={auth} />}
         {tab === 'radius' && <RadiusPage auth={auth} />}
+        {tab === 'retention' && <RetentionPage auth={auth} />}
         {tab === 'branches' && <BranchesPage auth={auth} />}
         {tab === 'promos' && <BrandingPage auth={auth} />}
         {tab === 'audit' && <AuditLogPage auth={auth} />}
