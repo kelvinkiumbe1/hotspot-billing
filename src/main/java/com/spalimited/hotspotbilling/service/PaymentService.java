@@ -65,7 +65,16 @@ public class PaymentService {
     }
 
     @Transactional
+    /**
+     * The old two-argument form. USSD and the WhatsApp bot cannot show a picker,
+     * so they take the operator's first-offered rail rather than being made to
+     * choose one they have no way to ask about.
+     */
     public Payment initiateStkPush(String phoneNumber, Long planId) {
+        return initiateStkPush(phoneNumber, planId, null);
+    }
+
+    public Payment initiateStkPush(String phoneNumber, Long planId, String method) {
         Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown plan: " + planId));
         if (!plan.isActive()) {
@@ -77,7 +86,7 @@ public class PaymentService {
         // recovery mechanism — there is no separate debt to chase afterwards.
         BigDecimal owed = creditService.outstandingFor(phoneNumber);
         BigDecimal charge = price.add(owed);
-        return start(phoneNumber, charge, plan, null, "HOTSPOT-" + planId, plan.getName());
+        return start(phoneNumber, charge, plan, null, "HOTSPOT-" + planId, plan.getName(), method);
     }
 
     /**
@@ -94,8 +103,9 @@ public class PaymentService {
      * quoting a reference nothing had ever heard of.
      */
     private Payment start(String phoneNumber, BigDecimal charge, Plan plan,
-                          Integer customMinutes, String prefix, String description) {
-        var provider = providers.active().orElseThrow(() -> new IllegalStateException(
+                          Integer customMinutes, String prefix, String description,
+                          String method) {
+        var provider = providers.chosen(method).orElseThrow(() -> new IllegalStateException(
                 "No automatic payment method is set up — add one under Settings → Payment gateways"));
 
         Payment payment = paymentRepository.save(Payment.builder()
@@ -132,6 +142,10 @@ public class PaymentService {
      */
     @Transactional
     public Payment initiateCustomStkPush(String phoneNumber, int minutes) {
+        return initiateCustomStkPush(phoneNumber, minutes, null);
+    }
+
+    public Payment initiateCustomStkPush(String phoneNumber, int minutes, String method) {
         CustomPlanSettings settings = customPlanService.settings();
         if (!settings.isEnabled()) {
             throw new IllegalStateException("Custom time passes are not available right now");
@@ -142,7 +156,7 @@ public class PaymentService {
         }
         BigDecimal price = promotionService.apply(customPlanService.priceFor(minutes, settings));
         Plan plan = customPlanService.systemPlan(settings);
-        return start(phoneNumber, price, plan, minutes, "HOTSPOT-CUSTOM", minutes + " minutes of WiFi");
+        return start(phoneNumber, price, plan, minutes, "HOTSPOT-CUSTOM", minutes + " minutes of WiFi", method);
     }
 
     /**

@@ -80,9 +80,27 @@ public class PaymentGateway {
     @Column(nullable = false, unique = true)
     private Kind kind;
 
+    /**
+     * Whether customers may pay through this.
+     *
+     * <p>No longer exclusive. Several can be true at once, because a Tanzanian
+     * ISP has customers on three different wallets and forcing a choice between
+     * them means choosing which two thirds of the market cannot pay.
+     */
     @Builder.Default
     @Column(nullable = false)
     private boolean active = false;
+
+    /**
+     * Where this sits in the list a customer is shown.
+     *
+     * <p>Lowest first, and the lowest is also the default: USSD and the
+     * WhatsApp bot have no way to show a picker, so they take whatever comes
+     * first rather than refusing to sell.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private int sortOrder = 100;
 
     // --- Daraja (MPESA_API only) ---
 

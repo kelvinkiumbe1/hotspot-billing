@@ -55,9 +55,30 @@ public class PaymentGatewayService {
         return gateways.findByKind(kind);
     }
 
+    /**
+     * Every gateway customers may currently pay through, in the order they are
+     * offered.
+     */
+    @Transactional(readOnly = true)
+    public List<PaymentGateway> enabled() {
+        return gateways.findAll().stream()
+                .filter(PaymentGateway::isActive)
+                .filter(PaymentGateway::isConfigured)
+                .sorted(java.util.Comparator.comparingInt(PaymentGateway::getSortOrder)
+                        .thenComparing(g -> g.getKind().name()))
+                .toList();
+    }
+
+    /**
+     * The one to use when nobody has chosen.
+     *
+     * <p>USSD and the WhatsApp bot cannot show a picker, so they need an answer
+     * rather than a list. The first in the offered order, which for every
+     * install that predates multiple gateways is the single one they had.
+     */
     @Transactional(readOnly = true)
     public Optional<PaymentGateway> active() {
-        return gateways.findByActiveTrue();
+        return enabled().stream().findFirst();
     }
 
     /**
@@ -100,13 +121,20 @@ public class PaymentGatewayService {
     }
 
     /**
-     * What to tell a customer who has to pay by hand, or empty when the
-     * active gateway collects automatically.
+     * What to tell a customer who has to pay by hand, or empty when there is no
+     * hand-reconciled way to pay.
+     *
+     * <p>Looks for the first <em>manual</em> gateway rather than the first
+     * enabled one. Now that several can be on at once, the first is often M-Pesa
+     * STK — and reading only that would report "no payment details" to a
+     * customer while a perfectly good paybill sat switched on behind it.
      */
     @Transactional(readOnly = true)
     public Map<String, Object> manualInstructions() {
-        PaymentGateway gateway = active().orElse(null);
-        if (gateway == null || gateway.isAutomatic() || !gateway.isConfigured()) {
+        PaymentGateway gateway = enabled().stream()
+                .filter(g -> !g.isAutomatic())
+                .findFirst().orElse(null);
+        if (gateway == null || !gateway.isConfigured()) {
             // Fall back to a paybill set by environment variable, which is
             // how the current deployments show one.
             if (props.paybill() != null && !props.paybill().isBlank()) {
@@ -130,6 +158,34 @@ public class PaymentGatewayService {
         return out;
     }
 
+    /**
+     * Every hand-reconciled way to pay, for a portal that can show more than one.
+     *
+     * <p>An operator may well have a paybill and a bank account both switched
+     * on; showing only whichever happened to be first is the sort of thing a
+     * customer reads as the business not knowing its own payment details.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> allManualInstructions() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (PaymentGateway gateway : enabled()) {
+            if (gateway.isAutomatic()) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("kind", gateway.getKind().name());
+            row.put("paybillNumber", gateway.getPaybillNumber());
+            row.put("tillNumber", gateway.getTillNumber());
+            row.put("bankName", gateway.getBankName());
+            row.put("accountNumber", gateway.getAccountNumber());
+            row.put("accountName", gateway.getAccountName());
+            row.put("instructions", gateway.getInstructions());
+            row.values().removeIf(Objects::isNull);
+            out.add(row);
+        }
+        return out;
+    }
+
     /** Every gateway with its state, secrets masked. */
     @Transactional
     public List<Map<String, Object>> describeAll() {
@@ -142,6 +198,7 @@ public class PaymentGatewayService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("kind", kind.name());
             row.put("active", g != null && g.isActive());
+            row.put("sortOrder", g != null ? g.getSortOrder() : 100);
             row.put("configured", g != null && g.isConfigured());
             row.put("automatic", PaymentGateway.builder().kind(kind).build().isAutomatic());
             row.put("environment", g != null && g.getEnvironment() != null
@@ -206,14 +263,24 @@ public class PaymentGatewayService {
             keepIfBlank(incoming.getPasskey(), gateway::getPasskey, gateway::setPasskey);
             keepIfBlank(incoming.getInitiatorName(), gateway::getInitiatorName, gateway::setInitiatorName);
             keepIfBlank(incoming.getSecurityCredential(), gateway::getSecurityCredential, gateway::setSecurityCredential);
-        } else if (kind == PaymentGateway.Kind.PAYSTACK
-                || kind == PaymentGateway.Kind.FLUTTERWAVE
-                || kind == PaymentGateway.Kind.STRIPE) {
+        } else if (PaymentGateway.builder().kind(kind).build().isAutomatic()) {
+            // Every remaining automatic rail. Written as one branch rather than
+            // a list of kinds because the list was the bug: MTN MoMo, Airtel,
+            // Chapa and Paynow all fell through to the manual branch below,
+            // which stores paybill numbers and silently discards API
+            // credentials — so none of the four could ever be configured, and
+            // the settings screen looked like it had saved them.
             keepIfBlank(incoming.getSecretKey(), gateway::getSecretKey, gateway::setSecretKey);
             keepIfBlank(incoming.getPublicKey(), gateway::getPublicKey, gateway::setPublicKey);
             keepIfBlank(incoming.getWebhookSecret(), gateway::getWebhookSecret, gateway::setWebhookSecret);
-            // No environment field: which of these is live is decided by the key
-            // itself, so storing a separate answer only creates one that can lie.
+            keepIfBlank(incoming.getConsumerKey(), gateway::getConsumerKey, gateway::setConsumerKey);
+            keepIfBlank(incoming.getConsumerSecret(), gateway::getConsumerSecret, gateway::setConsumerSecret);
+            // The telco rails pick their sandbox by URL the way Daraja does, so
+            // they need the stored environment. The card rails read it off the
+            // key prefix and simply ignore this.
+            if (incoming.getEnvironment() != null) {
+                gateway.setEnvironment(incoming.getEnvironment());
+            }
         } else {
             gateway.setPaybillNumber(trim(incoming.getPaybillNumber()));
             gateway.setTillNumber(trim(incoming.getTillNumber()));
@@ -239,15 +306,53 @@ public class PaymentGatewayService {
             throw new IllegalStateException("That gateway is missing details it needs — finish "
                     + "setting it up before making it active");
         }
-        for (PaymentGateway other : gateways.findAll()) {
-            if (other.isActive() && !other.getKind().equals(kind)) {
-                other.setActive(false);
-                gateways.save(other);
+        // Deliberately does not stand the others down any more. Several wallets
+        // live side by side in most markets, and switching one on used to switch
+        // the rest off — which for a Tanzanian operator meant two thirds of
+        // their customers losing the ability to pay.
+        chosen.setActive(true);
+        if (chosen.getSortOrder() >= 100) {
+            // Newly switched on goes to the end of the list rather than jumping
+            // ahead of whatever the operator already had customers using.
+            int lowest = enabled().stream()
+                    .mapToInt(PaymentGateway::getSortOrder).max().orElse(0);
+            chosen.setSortOrder(Math.min(99, lowest + 10));
+        }
+        log.info("Payment gateway {} switched on", kind);
+        return gateways.save(chosen);
+    }
+
+    /**
+     * Stops customers being offered this one.
+     *
+     * <p>Refuses to switch off the last one: an operator with nothing enabled
+     * cannot be paid, and the admin would look healthy while every sale failed.
+     */
+    @Transactional
+    public PaymentGateway deactivate(PaymentGateway.Kind kind) {
+        PaymentGateway chosen = gateways.findByKind(kind).orElseThrow(() ->
+                new IllegalArgumentException("That gateway is not set up"));
+        if (enabled().size() <= 1 && chosen.isActive()) {
+            throw new IllegalStateException("That is the only way customers can pay you. "
+                    + "Switch another one on before turning this off.");
+        }
+        chosen.setActive(false);
+        log.info("Payment gateway {} switched off", kind);
+        return gateways.save(chosen);
+    }
+
+    /** Reorders the list customers see. The first is also the default. */
+    @Transactional
+    public void reorder(List<PaymentGateway.Kind> order) {
+        int position = 10;
+        for (PaymentGateway.Kind kind : order) {
+            PaymentGateway gateway = gateways.findByKind(kind).orElse(null);
+            if (gateway != null) {
+                gateway.setSortOrder(position);
+                gateways.save(gateway);
+                position += 10;
             }
         }
-        chosen.setActive(true);
-        log.info("Payment gateway switched to {}", kind);
-        return gateways.save(chosen);
     }
 
     private static void keepIfBlank(String incoming, java.util.function.Supplier<String> current,

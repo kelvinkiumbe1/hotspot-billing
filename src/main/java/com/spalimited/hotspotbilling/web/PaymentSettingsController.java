@@ -49,10 +49,17 @@ public class PaymentSettingsController {
                         portalSettings.settings().getCountry())));
         out.put("available", all.size());
         out.put("connected", all.stream().filter(g -> Boolean.TRUE.equals(g.get("configured"))).count());
-        out.put("activeKind", all.stream()
+        // Kept for anything still reading it, but the plural is the truth now:
+        // several gateways can be on at once, and the first is merely the
+        // default for the surfaces that cannot ask.
+        List<Object> activeKinds = all.stream()
                 .filter(g -> Boolean.TRUE.equals(g.get("active")))
                 .map(g -> g.get("kind"))
-                .findFirst().orElse(null));
+                .toList();
+        out.put("activeKinds", activeKinds);
+        out.put("activeKind", activeKinds.isEmpty() ? null : activeKinds.get(0));
+        out.put("offered", gatewayService.enabled().stream()
+                .map(g -> g.getKind().name()).toList());
         return out;
     }
 
@@ -112,6 +119,27 @@ public class PaymentSettingsController {
         PaymentGateway saved = gatewayService.save(kind, incoming, principal.getName());
         audit.record(principal, "payments.configure", "Updated " + kind + " settings");
         return Map.of("kind", saved.getKind(), "configured", saved.isConfigured());
+    }
+
+    @PostMapping("/{kind}/deactivate")
+    public Map<String, Object> deactivate(@PathVariable PaymentGateway.Kind kind, Principal principal) {
+        gatewayService.deactivate(kind);
+        audit.record(principal, "payments.deactivate", "Customers can no longer pay via " + kind);
+        return Map.of("kind", kind, "active", false);
+    }
+
+    public record OrderRequest(List<PaymentGateway.Kind> order) {
+    }
+
+    /**
+     * Reorders the list customers see. The first is also what USSD and the
+     * WhatsApp bot use, since neither can show a picker.
+     */
+    @PutMapping("/order")
+    public Map<String, Object> reorder(@RequestBody OrderRequest request, Principal principal) {
+        gatewayService.reorder(request.order() == null ? List.of() : request.order());
+        audit.record(principal, "payments.reorder", "Changed the order customers see");
+        return Map.of("ok", true);
     }
 
     @PostMapping("/{kind}/activate")

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { normalizePhone, setCountry, phoneExample, phoneForLookup } from '../phone.js'
+import { normalizePhone, setCountry, phoneExample, phoneForLookup, dialPrefix } from '../phone.js'
 import { api } from '../api.js'
 import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
 import heroCity from '../assets/hero-city.jpg'
@@ -105,6 +105,8 @@ const STRINGS = {
     'err.badge': 'Error',
     'err.failed': 'Payment didn’t go through. The {pay} request failed or was cancelled.',
     'pay.badPhone': 'That number doesn’t look right. It should look like {example}.',
+    'pay.choose': 'How would you like to pay?',
+    'pay.chooseHint': 'Use the number that belongs to the service you picked.',
     'err.retry': 'Retry Payment',
     'err.choose': 'Choose another plan',
     'err.support': 'Support:',
@@ -218,6 +220,8 @@ const STRINGS = {
     'err.badge': 'Hitilafu',
     'err.failed': 'Malipo hayakufanikiwa. Ombi la {pay} lilishindwa au lilighairiwa.',
     'pay.badPhone': 'Nambari hiyo haionekani sahihi. Inapaswa kuwa kama {example}.',
+    'pay.choose': 'Unapenda kulipa vipi?',
+    'pay.chooseHint': 'Tumia nambari inayohusiana na huduma uliyochagua.',
     'err.retry': 'Jaribu Malipo Tena',
     'err.choose': 'Chagua kifurushi kingine',
     'err.support': 'Msaada:',
@@ -331,6 +335,8 @@ const STRINGS = {
     'err.badge': 'Erreur',
     'err.failed': 'Le paiement n’a pas abouti. La demande {pay} a échoué ou a été annulée.',
     'pay.badPhone': 'Ce numéro ne semble pas correct. Il doit ressembler à {example}.',
+    'pay.choose': 'Comment souhaitez-vous payer ?',
+    'pay.chooseHint': 'Utilisez le numéro correspondant au service choisi.',
     'err.retry': 'Réessayer le paiement',
     'err.choose': 'Choisir un autre forfait',
     'err.support': 'Assistance :',
@@ -444,6 +450,8 @@ const STRINGS = {
     'err.badge': 'Erro',
     'err.failed': 'O pagamento não foi concluído. O pedido {pay} falhou ou foi cancelado.',
     'pay.badPhone': 'Esse número não parece certo. Deve ser algo como {example}.',
+    'pay.choose': 'Como prefere pagar?',
+    'pay.chooseHint': 'Use o número correspondente ao serviço que escolheu.',
     'err.retry': 'Tentar pagar novamente',
     'err.choose': 'Escolher outro plano',
     'err.support': 'Apoio:',
@@ -697,6 +705,10 @@ export default function Portal() {
   // Kenya's default until the server says otherwise, matching the backend,
   // so an existing deployment reads exactly as it does today.
   const [pay, setPay] = useState('M-Pesa')
+  // Every wallet this operator accepts. One entry is the ordinary case; a
+  // Tanzanian operator has three, and the customer has to say which is theirs.
+  const [methods, setMethods] = useState([])
+  const [method, setMethod] = useState(null)
   // True once the customer has picked for themselves — either just now, or on
   // a previous visit. A returning customer's choice must outrank the
   // operator's default, or every visit undoes what they chose last time.
@@ -715,8 +727,8 @@ export default function Portal() {
       setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
       if (s.paymentBrand) setPay(s.paymentBrand)
-      // Primed before anyone types: the shape a number must take
-      // is a property of where the operator is.
+      // Primed before anyone types: the shape a number must take is a property
+      // of where the operator is.
       if (s.country) setCountry(s.country)
       setBrand({
         name: s.businessName || '',
@@ -732,6 +744,15 @@ export default function Portal() {
       } else if (!langChosen.current && s.defaultLanguage) {
         setLang(s.defaultLanguage)
       }
+    }).catch(() => {})
+    // Its own request, deliberately. Folding it into the settings callback is
+    // what broke branding a moment ago: one response, two shapes of data.
+    api('/payments/methods').then((m) => {
+      const list = m.methods || []
+      setMethods(list)
+      // Preselect the operator's first, so a single-wallet market never sees a
+      // choice it does not have and nobody has to tap twice.
+      setMethod((prev) => prev || (list[0] ? list[0].kind : null))
     }).catch(() => {})
   }
 
@@ -774,11 +795,11 @@ export default function Portal() {
       const { paymentId, checkoutUrl } = selected.customMinutes
         ? await api('/payments/stk-push-custom', {
             method: 'POST',
-            body: { phoneNumber: dialable, minutes: selected.customMinutes },
+            body: { phoneNumber: dialable, minutes: selected.customMinutes, method },
           })
         : await api('/payments/stk-push', {
             method: 'POST',
-            body: { phoneNumber: dialable, planId: selected.id },
+            body: { phoneNumber: dialable, planId: selected.id, method },
           })
       // A card rail hands back somewhere to pay; M-Pesa prompts the handset and
       // sends nothing. Opened in this tab rather than a new one: on a captive
@@ -833,8 +854,7 @@ export default function Portal() {
   let screen_
   if (screen === 'pay') {
     screen_ = (
-      <PayScreen
-        plan={selected}
+      <PayScreen methods={methods} method={method} setMethod={setMethod} plan={selected}
         phone={phone}
         setPhone={setPhone}
         sending={sending}
@@ -1946,7 +1966,8 @@ function CreditPanel({ plan, phone }) {
   )
 }
 
-function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
+function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose,
+  methods = [], method, setMethod }) {
   const { t } = useT()
   return (
     <DesignShell className="min-h-screen flex flex-col">
@@ -1979,12 +2000,42 @@ function PayScreen({ plan, phone, setPhone, sending, onSubmit, onClose }) {
         </div>
 
         <form className="w-full" onSubmit={onSubmit}>
+          {/* Only when there is genuinely a choice. A single-wallet market must
+              not be shown a picker with one option in it. */}
+          {methods.length > 1 && (
+            <div className="w-full mb-6 fade-up" style={{ animationDelay: '150ms' }}>
+              <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">
+                {t('pay.choose')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {methods.map((m) => (
+                  <button
+                    key={m.kind}
+                    type="button"
+                    onClick={() => setMethod(m.kind)}
+                    aria-pressed={method === m.kind}
+                    className={`px-3 py-3 rounded-lg text-sm font-semibold cursor-pointer transition-colors border ${
+                      method === m.kind
+                        ? 'bg-primary text-on-primary border-primary'
+                        : 'border-outline-variant text-on-surface hover:bg-surface-container-high'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              {/* A direct wallet only reaches its own customers, so the number
+                  has to match what they picked. Said plainly here rather than
+                  left to a failure the customer cannot interpret. */}
+              <p className="text-xs text-on-surface-variant mt-2">{t('pay.chooseHint')}</p>
+            </div>
+          )}
           <div className="w-full mb-6 fade-up" style={{ animationDelay: '200ms' }}>
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="mpesa-phone">
               {t('pay.phone')}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-4 text-lg font-semibold text-on-surface-variant">+254</span>
+              <span className="absolute left-4 text-lg font-semibold text-on-surface-variant">{dialPrefix()}</span>
               <input
                 id="mpesa-phone"
                 name="phone"

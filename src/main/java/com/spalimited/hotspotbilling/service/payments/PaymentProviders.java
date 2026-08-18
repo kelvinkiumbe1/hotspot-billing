@@ -35,11 +35,45 @@ public class PaymentProviders {
      * to call. Callers turn that into "pay by hand and quote this reference",
      * which is a real answer rather than an error.
      */
-    public Optional<PaymentProvider> active() {
-        return gateways.active()
+    /**
+     * Every rail a customer may choose right now, in the order to offer them.
+     *
+     * <p>Only the automatic ones: a bank transfer is a set of instructions, not
+     * something this can charge, and putting it in the same list as M-Pesa would
+     * have the portal try to start a payment it cannot start.
+     */
+    public List<PaymentProvider> enabled() {
+        return gateways.enabled().stream()
+                .filter(PaymentGateway::isAutomatic)
                 .map(PaymentGateway::getKind)
-                .flatMap(this::forKind)
-                .filter(PaymentProvider::usable);
+                .flatMap(kind -> forKind(kind).stream())
+                .filter(PaymentProvider::usable)
+                .toList();
+    }
+
+    /**
+     * The rail to use when the customer has not chosen one.
+     *
+     * <p>USSD and the WhatsApp bot cannot show a picker. They get the first
+     * rather than an error, because a sale through the wrong-but-working wallet
+     * beats no sale at all.
+     */
+    public Optional<PaymentProvider> active() {
+        return enabled().stream().findFirst();
+    }
+
+    /**
+     * The rail the customer asked for, if it is one they are allowed to use.
+     *
+     * <p>Checked against the enabled list rather than merely resolved by name:
+     * without that, a crafted request could charge through a gateway the
+     * operator has deliberately switched off.
+     */
+    public Optional<PaymentProvider> chosen(String kind) {
+        if (kind == null || kind.isBlank()) {
+            return active();
+        }
+        return forKind(kind).filter(p -> enabled().contains(p));
     }
 
     public Optional<PaymentProvider> forKind(PaymentGateway.Kind kind) {

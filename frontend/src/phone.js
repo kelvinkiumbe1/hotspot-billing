@@ -103,3 +103,14 @@ export function isValidPhone(raw) {
 export function phoneForLookup(raw) {
   return normalizePhone(raw) || String(raw ?? '').replace(/\D/g, '')
 }
+
+/**
+ * The "+254" shown beside a phone field.
+ *
+ * Was written into the pay form as a literal, which told a Ghanaian customer
+ * their number began with Kenya's country code.
+ */
+export function dialPrefix() {
+  const [dial] = DIALLING[home] || DIALLING.KE
+  return dial ? '+' + dial : ''
+}

@@ -3,6 +3,7 @@ package com.spalimited.hotspotbilling.web;
 import tools.jackson.databind.JsonNode;
 import com.spalimited.hotspotbilling.config.MpesaCallbackGuard;
 import com.spalimited.hotspotbilling.domain.Payment;
+import com.spalimited.hotspotbilling.domain.PaymentGateway;
 import com.spalimited.hotspotbilling.service.AgentPayoutService;
 import com.spalimited.hotspotbilling.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +27,8 @@ public class PaymentController {
     private final AgentPayoutService agentPayouts;
     private final MpesaCallbackGuard callbackGuard;
     private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
+    private final com.spalimited.hotspotbilling.service.payments.PaymentProviders providers;
+    private final com.spalimited.hotspotbilling.service.PaymentGatewayService gatewayService;
 
     /**
      * The language for this reply.
@@ -42,7 +45,13 @@ public class PaymentController {
     public record StkPushRequest(
             @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber,
-            @NotNull Long planId) {
+            @NotNull Long planId,
+            /**
+             * Which wallet the customer picked, or null to use the first one the
+             * operator offers. Null is the ordinary case for a market with a
+             * single wallet, and for USSD, which cannot show a picker.
+             */
+            String method) {
     }
 
     /** Customer picks a plan on the captive portal and gets an STK prompt. */
@@ -50,7 +59,7 @@ public class PaymentController {
     public Map<String, Object> stkPush(@Valid @RequestBody StkPushRequest request,
                                        @RequestHeader(value = "Accept-Language", required = false)
                                        String acceptLanguage) {
-        return started(paymentService.initiateStkPush(request.phoneNumber(), request.planId()),
+        return started(paymentService.initiateStkPush(request.phoneNumber(), request.planId(), request.method()),
                 acceptLanguage);
     }
 
@@ -80,7 +89,8 @@ public class PaymentController {
     public record CustomStkPushRequest(
             @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber,
-            @NotNull Integer minutes) {
+            @NotNull Integer minutes,
+            String method) {
     }
 
     /** Pay-per-minute purchase: the customer typed exactly how long they need. */
@@ -88,8 +98,65 @@ public class PaymentController {
     public Map<String, Object> stkPushCustom(@Valid @RequestBody CustomStkPushRequest request,
                                              @RequestHeader(value = "Accept-Language", required = false)
                                              String acceptLanguage) {
-        return started(paymentService.initiateCustomStkPush(request.phoneNumber(), request.minutes()),
+        return started(paymentService.initiateCustomStkPush(request.phoneNumber(), request.minutes(), request.method()),
                 acceptLanguage);
+    }
+
+/**
+     * Every way a customer here can pay.
+     *
+     * <p>Public, because the captive portal reads it before anyone has paid for
+     * anything. Nothing secret is in it: the names of the wallets an operator
+     * accepts are on their shopfront.
+     */
+    @GetMapping("/methods")
+    public Map<String, Object> methods(
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage) {
+        var language = languageOf(acceptLanguage);
+        java.util.List<Map<String, Object>> automatic = new java.util.ArrayList<>();
+        for (var provider : providers.enabled()) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("kind", provider.kind().name());
+            row.put("label", label(provider.kind()));
+            // Whether the customer ends up on a page or holding their phone.
+            // The portal words the next screen differently for each, and getting
+            // it wrong tells somebody to watch for a prompt that never comes.
+            row.put("prompt", PROMPTS_PHONE.contains(provider.kind()));
+            automatic.add(row);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("methods", automatic);
+        out.put("manual", gatewayService.allManualInstructions());
+        out.put("message", automatic.isEmpty()
+                ? messages.get(language, "pay.noGateway") : null);
+        return out;
+    }
+
+    /**
+     * The rails that prompt the handset rather than opening a page.
+     *
+     * <p>Listed rather than inferred, because it is a property of how each
+     * provider actually behaves and not of anything in its configuration.
+     */
+    private static final java.util.Set<PaymentGateway.Kind> PROMPTS_PHONE = java.util.Set.of(
+            PaymentGateway.Kind.MPESA_API,
+            PaymentGateway.Kind.MTN_MOMO,
+            PaymentGateway.Kind.AIRTEL_MONEY,
+            PaymentGateway.Kind.PAYNOW);
+
+    /** What a customer should see this wallet called. */
+    private static String label(PaymentGateway.Kind kind) {
+        return switch (kind) {
+            case MPESA_API -> "M-Pesa";
+            case MTN_MOMO -> "MTN MoMo";
+            case AIRTEL_MONEY -> "Airtel Money";
+            case PAYNOW -> "EcoCash";
+            case PAYSTACK -> "Card or bank";
+            case FLUTTERWAVE -> "Card or mobile money";
+            case STRIPE -> "Card";
+            case CHAPA -> "telebirr or card";
+            default -> kind.name();
+        };
     }
 
     /** Poll endpoint for the portal to learn when the voucher is ready. */
