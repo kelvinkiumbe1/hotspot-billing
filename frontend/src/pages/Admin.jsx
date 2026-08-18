@@ -1195,14 +1195,14 @@ function Shell({ auth, onLogout }) {
       {/* Desktop sidebar — a slim icon rail that expands to reveal labels
           while hovered. It's fixed, so the expansion overlays the content
           rather than reflowing it; the main margin stays at the rail width. */}
-      <nav className={`group w-16 hover:w-64 fixed left-0 ${demo ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'} bg-inverse-surface shadow-md hidden md:flex flex-col z-40 overflow-hidden transition-[width] duration-200 ease-out`}>
+      <nav className={`admin-rail group w-16 hover:w-64 fixed left-0 ${demo ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'} bg-inverse-surface shadow-md hidden md:flex flex-col z-40 overflow-hidden transition-[width] duration-200 ease-out`}>
         <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} collapsible />
       </nav>
 
       {/* Mobile drawer */}
       {drawer && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-inverse-surface h-full shadow-xl">
+          <div className="admin-rail w-64 bg-inverse-surface h-full shadow-xl">
             <SidebarContent tab={tab} onNav={nav} onLogout={onLogout} badges={badges} permissions={permissions} me={me} />
           </div>
           <div className="flex-1 bg-on-background/50" onClick={() => setDrawer(false)}></div>

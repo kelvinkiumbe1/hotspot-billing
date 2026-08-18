@@ -614,10 +614,7 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Light mode for the admin: the content area flips to light while the sidebar
-   stays dark (a deliberate "dark rail, light canvas" look). Only the content
-   tokens change; --color-inverse-surface and --color-primary-fixed are left on
-   their dark-theme values so the dark sidebar and its bright amber survive.
+/* Light mode for the admin. The whole thing goes light, sidebar included.
    --color-primary is darkened so amber text/buttons read on white. */
 .admin-theme[data-theme="light"] {
   --color-background: #f4f4f5;
@@ -654,6 +651,25 @@ body {
   --color-outline-variant: #d4d4d8;
   --color-tertiary: #3f3f46;
 }
+/* The sidebar, in light mode.
+
+   Scoped to the rail rather than set globally, because the rail draws its text
+   with --color-surface-bright — which is white, and correct everywhere else in
+   light mode. Flipping the rail's background without re-pointing that token
+   would give white labels on a white rail: a sidebar that looks empty.
+   Redefining the variables on the rail element cascades to its children and
+   leaves the rest of the admin alone. */
+.admin-theme[data-theme="light"] .admin-rail {
+  --color-inverse-surface: #ffffff;
+  /* Label and icon colours, inverted for a pale rail. */
+  --color-surface-bright: #18181b;
+  --color-surface-variant: #52525b;
+  /* Hover needs to be visible against white; the content-area value is a pale
+     grey at 10% opacity, which on white is nothing at all. */
+  --color-surface-container-highest: #71717a;
+  border-right: 1px solid #e4e4e7;
+}
+
 /* The data table carries hardcoded dark colours; lighten them to match. */
 .admin-theme[data-theme="light"] .data-table th { background: #f4f4f5; color: #3f3f46; }
 .admin-theme[data-theme="light"] .data-table td { border-bottom-color: #e4e4e7; }
