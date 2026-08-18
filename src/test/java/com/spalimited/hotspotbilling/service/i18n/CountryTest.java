@@ -3,6 +3,8 @@ package com.spalimited.hotspotbilling.service.i18n;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +41,11 @@ class CountryTest {
         assertThat(Country.MZ.paymentBrand()).isEqualTo("M-Pesa");
         // The whole point: everywhere else, saying "M-Pesa" is wrong.
         assertThat(Country.GH.paymentBrand()).isEqualTo("MTN MoMo");
-        assertThat(Country.SN.paymentBrand()).isEqualTo("Orange Money");
+        // Senegal says the generic term rather than a brand: Wave and Orange
+        // Money both have real share there, and naming one excludes the other's
+        // customers on the screen where they are about to pay.
+        assertThat(Country.SN.paymentBrand()).isEqualTo("Mobile Money");
+        assertThat(Country.SN.networks()).contains("Wave", "Orange Money");
         assertThat(Country.ET.paymentBrand()).isEqualTo("Telebirr");
     }
 
@@ -79,12 +85,19 @@ class CountryTest {
     @Test
     @DisplayName("MTN markets point at MTN directly rather than at an aggregator")
     void mtnMarketsUseMtn() {
-        // Direct, better rates, and the only one of the three that prompts the
-        // handset instead of opening a checkout page.
+        // Direct rather than through an aggregator, and it prompts the handset
+        // instead of opening a checkout page.
+        //
+        // Cote d'Ivoire is deliberately not in this list any more. MTN was its
+        // default only because MTN was the rail that existed; Orange Money is
+        // the larger wallet there, and now that several gateways can be live at
+        // once an operator can offer both rather than being handed the one this
+        // code happened to support.
         for (Country country : new Country[]{
-                Country.GH, Country.UG, Country.RW, Country.ZM, Country.CM, Country.CI}) {
+                Country.GH, Country.UG, Country.RW, Country.ZM, Country.CM}) {
             assertThat(country.rail()).as("%s", country).isEqualTo(Country.Rail.MTN_MOMO);
         }
+        assertThat(Country.CI.networks()).contains("MTN MoMo");
     }
 
     @Test
@@ -119,5 +132,41 @@ class CountryTest {
                     "paymentBrand", "rail", "networks", "needsManualCollection");
         }
         assertThat(Country.describeAll()).hasSize(Country.values().length);
+    }
+
+    @Test
+    @DisplayName("Every rail a country names is one this build can actually drive")
+    void everyRailIsBuilt() {
+        // A country pointing at a rail with no provider behind it is an
+        // operator who sets their country correctly and can still sell nothing.
+        Set<String> built = Set.of("MPESA", "MTN_MOMO", "AIRTEL_MONEY", "ORANGE_MONEY",
+                "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA", "PAYNOW", "NONE");
+        for (Country c : Country.values()) {
+            assertThat(built)
+                    .as("%s points at %s, which nothing implements", c, c.rail())
+                    .contains(c.rail().name());
+        }
+    }
+
+    @Test
+    @DisplayName("Francophone West Africa is off the aggregator")
+    void westAfricaIsDirect() {
+        // Senegal and Cote d'Ivoire both went through Flutterwave, which stacks
+        // an aggregator margin on top of the wallet's own fee for the biggest
+        // wallets in those markets.
+        assertThat(Country.SN.rail()).isEqualTo(Country.Rail.WAVE);
+        assertThat(Country.CI.rail()).isEqualTo(Country.Rail.ORANGE_MONEY);
+    }
+
+    @Test
+    @DisplayName("Angola is still the only country nothing reaches")
+    void onlyAngolaIsUnreachable() {
+        // Multicaixa Express is domestic and no built rail touches it. If this
+        // ever grows a second entry, that country's operator needs telling
+        // before they launch rather than after their first customer cannot pay.
+        assertThat(java.util.Arrays.stream(Country.values())
+                .filter(Country::needsManualCollection)
+                .toList())
+                .containsExactly(Country.AO);
     }
 }

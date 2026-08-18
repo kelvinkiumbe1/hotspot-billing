@@ -29,7 +29,7 @@ public class PaymentSettingsController {
     private final MpesaService mpesaService;
     private final AuditService audit;
     private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
-    private final com.spalimited.hotspotbilling.config.MpesaProperties mpesaProps;
+    private final com.spalimited.hotspotbilling.service.payments.PublicUrls urls;
 
     @GetMapping
     public Map<String, Object> list() {
@@ -40,7 +40,7 @@ public class PaymentSettingsController {
         // and an operator guessing at it is an operator whose payments never
         // settle. Derived from the M-Pesa callback URL because that is the one
         // address already known to reach this server from the outside.
-        out.put("webhookBase", webhookBase());
+        out.put("webhookBase", urls.origin());
         // The banks an operator here is likely to hold an account with. A
         // picklist rather than free text, because "Equty Bank" is not a bank
         // and nothing downstream would ever have said so.
@@ -61,16 +61,6 @@ public class PaymentSettingsController {
         out.put("offered", gatewayService.enabled().stream()
                 .map(g -> g.getKind().name()).toList());
         return out;
-    }
-
-    /** The public origin of this server, or null when it was never configured. */
-    private String webhookBase() {
-        String callback = mpesaProps.callbackUrl();
-        if (callback == null || callback.isBlank() || callback.contains("example.com")) {
-            return null;
-        }
-        int api = callback.indexOf("/api/");
-        return api > 0 ? callback.substring(0, api) : null;
     }
 
     public record GatewayRequest(

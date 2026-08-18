@@ -155,4 +155,25 @@ class AirtelTest {
         assertThat(AirtelProvider.referenceIn("{}".getBytes(StandardCharsets.UTF_8))).isNull();
         assertThat(AirtelProvider.referenceIn(null)).isNull();
     }
+
+    @Test
+    @DisplayName("A verdict reports no amount, because Airtel does not send one")
+    void reportsNoAmountRatherThanZero() {
+        // The bug this replaces: read() claimed BigDecimal.ZERO. Airtel's
+        // enquiry has no amount field at all, so every successful payment that
+        // arrived by webhook hit PaymentService's amount check, failed it, and
+        // was marked FAILED -- customer charged, no voucher, and the row no
+        // longer PENDING so reconciliation would never retry it.
+        var paid = AirtelProvider.read(MAPPER.readTree("""
+                {"data":{"transaction":{"id":"T-1","status":"TS","airtel_money_id":"AM-9"}}}"""), "T-1");
+        assertThat(paid).isPresent();
+        assertThat(paid.get().paid()).isTrue();
+        assertThat(paid.get().amount())
+                .as("zero here is read downstream as the wrong amount")
+                .isNull();
+
+        var failed = AirtelProvider.read(MAPPER.readTree("""
+                {"data":{"transaction":{"id":"T-2","status":"TF","message":"insufficient funds"}}}"""), "T-2");
+        assertThat(failed.get().amount()).isNull();
+    }
 }

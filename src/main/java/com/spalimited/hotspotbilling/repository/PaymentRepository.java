@@ -13,6 +13,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByCheckoutRequestId(String checkoutRequestId);
 
+    /**
+     * A payment whose stored provider reference begins with this.
+     *
+     * <p>For Orange Money, whose status query needs a pay token, an order id and
+     * an amount together — so all three are stored in the one reference column,
+     * order id first. Its notification quotes only the order id, and this is how
+     * that becomes the pay token needed to ask Orange what happened.
+     */
+    Optional<Payment> findFirstByCheckoutRequestIdStartingWith(String prefix);
+
     /** Still-pending payments — the reconciliation sweep queries these. */
     List<Payment> findByStatus(Payment.Status status);
 

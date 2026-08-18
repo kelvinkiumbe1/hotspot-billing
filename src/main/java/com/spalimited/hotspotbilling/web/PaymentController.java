@@ -155,6 +155,8 @@ public class PaymentController {
             case FLUTTERWAVE -> "Card or mobile money";
             case STRIPE -> "Card";
             case CHAPA -> "telebirr or card";
+            case ORANGE_MONEY -> "Orange Money";
+            case WAVE -> "Wave";
             default -> kind.name();
         };
     }

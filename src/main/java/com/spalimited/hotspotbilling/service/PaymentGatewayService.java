@@ -275,6 +275,11 @@ public class PaymentGatewayService {
             keepIfBlank(incoming.getWebhookSecret(), gateway::getWebhookSecret, gateway::setWebhookSecret);
             keepIfBlank(incoming.getConsumerKey(), gateway::getConsumerKey, gateway::setConsumerKey);
             keepIfBlank(incoming.getConsumerSecret(), gateway::getConsumerSecret, gateway::setConsumerSecret);
+            // Orange Money's merchant key rides here. Not a secret — it is
+            // printed in their dashboard — but without it Orange refuses every
+            // payment, and it was being dropped because only the Daraja branch
+            // above saved this column.
+            keepIfBlank(incoming.getShortCode(), gateway::getShortCode, gateway::setShortCode);
             // The telco rails pick their sandbox by URL the way Daraja does, so
             // they need the stored environment. The card rails read it off the
             // key prefix and simply ignore this.

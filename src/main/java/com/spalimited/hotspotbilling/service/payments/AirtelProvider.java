@@ -219,12 +219,17 @@ public class AirtelProvider implements PaymentProvider {
         String message = transaction.path("message").asString(null);
 
         return switch (state.toUpperCase()) {
+            // Null, not zero. Airtel's enquiry does not return the amount,
+            // and claiming zero meant every successful payment that arrived by
+            // webhook hit PaymentService's amount check, failed it, and was
+            // marked FAILED — customer charged, voucher never issued, and the
+            // row no longer PENDING so reconciliation would not retry it.
             case "TS", "SUCCESS", "SUCCESSFUL" -> Optional.of(new Settlement(
                     providerRef, transaction.path("id").asString(providerRef),
-                    true, BigDecimal.ZERO, null, receipt, null));
+                    true, null, null, receipt, null));
             case "TF", "FAILED" -> Optional.of(new Settlement(
                     providerRef, transaction.path("id").asString(providerRef),
-                    false, BigDecimal.ZERO, null, null,
+                    false, null, null, null,
                     message == null ? "declined" : message));
             // TA is ambiguous and TIP is in progress. Both mean the customer is
             // still deciding, and calling either a failure cancels a live sale.

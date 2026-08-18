@@ -61,7 +61,6 @@ const GATEWAYS = [
     icon: 'smartphone',
     blurb: 'Works like M-Pesa: the customer gets a prompt and enters their PIN, with no checkout page. One integration covers every MTN market.',
     webhook: '/api/payments/mtn-momo/webhook',
-    momo: true,
   },
   {
     kind: 'PAYSTACK',
@@ -99,7 +98,33 @@ const GATEWAYS = [
     icon: 'smartphone',
     blurb: 'A USSD push, so the customer gets a prompt and enters their PIN. Reaches Airtel customers only — where another wallet also has a big share, an aggregator covers more people.',
     webhook: '/api/payments/airtel/webhook',
-    telco: true,
+  },
+  {
+    kind: 'ORANGE_MONEY',
+    name: 'Orange Money',
+    provider: 'Senegal · Côte d’Ivoire · Cameroon · DR Congo',
+    badge: 'API KEYS',
+    chips: ['Wallet', 'Hosted page', 'Automatic'],
+    settlement: 'Instant, confirmed by asking Orange',
+    icon: 'account_balance_wallet',
+    blurb: 'The second-biggest wallet network on the continent, and dominant in Senegal, '
+      + 'Mali and Burkina Faso. A hosted page rather than a prompt on the phone — Orange’s '
+      + 'direct-debit APIs are granted merchant by merchant, so this uses the one anybody can sign up for.',
+    webhook: '/api/payments/orange-money/webhook',
+  },
+  {
+    kind: 'WAVE',
+    name: 'Wave',
+    provider: 'Senegal · Côte d’Ivoire',
+    badge: 'API KEYS',
+    chips: ['Wallet', 'Cheapest fees', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'account_balance_wallet',
+    blurb: 'Arrived charging a flat 1% and took a very large share of Senegalese mobile money. '
+      + 'Worth running alongside Orange Money rather than instead of it.',
+    webhook: '/api/payments/wave/webhook',
+    keyHint: 'wave_sn_prod_… from Business → Developer → API keys',
+    secretHint: 'The webhook secret shown when you add the endpoint below',
   },
   {
     kind: 'PAYNOW',
@@ -111,7 +136,6 @@ const GATEWAYS = [
     icon: 'smartphone',
     blurb: 'Reaches EcoCash, OneMoney, InnBucks and Zimswitch. Express Checkout prompts the handset directly, so it feels like M-Pesa rather than a checkout page.',
     webhook: '/api/payments/paynow/webhook',
-    paynow: true,
   },
   {
     kind: 'CHAPA',
@@ -141,12 +165,53 @@ const GATEWAYS = [
   },
 ]
 
-const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA']
-// Prompts the handset instead of opening a page, so it is set up like
-// Daraja rather than like a card processor.
-const MOMO_KIND = 'MTN_MOMO'
-// Same shape of setup as MoMo: an id, a secret, an environment.
-const TELCO_KINDS = ['MTN_MOMO', 'AIRTEL_MONEY']
+const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA', 'WAVE']
+/**
+ * The credentials each direct-wallet rail needs, in the order to ask for them.
+ *
+ * A table rather than three near-identical blocks of JSX, and the reason is a
+ * bug this had: only MTN had a branch, so opening Configure on Airtel Money
+ * rendered a form with no fields in it at all. An operator could not enter
+ * Airtel credentials however hard they tried, and nothing said why.
+ *
+ * The labels are per-rail on purpose. All three are an environment plus an id
+ * and a secret, but they are not called the same things, and a MoMo label on an
+ * Airtel form is how somebody pastes a subscription key into a client id.
+ */
+const TELCO_FIELDS = {
+  MTN_MOMO: [
+    { key: 'secretKey', label: 'Subscription key', secret: true, wide: true,
+      placeholder: 'Ocp-Apim-Subscription-Key, from your Collection subscription',
+      hint: 'MoMo developer portal → your profile → the Collection product.' },
+    { key: 'consumerKey', label: 'API user', placeholder: 'a UUID' },
+    { key: 'consumerSecret', label: 'API key', secret: true,
+      placeholder: 'generated for that API user' },
+  ],
+  AIRTEL_MONEY: [
+    { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },
+    { key: 'consumerSecret', label: 'Client secret', secret: true,
+      placeholder: 'beside the client ID' },
+  ],
+  ORANGE_MONEY: [
+    { key: 'consumerKey', label: 'Client ID',
+      placeholder: 'from your app on developer.orange.com' },
+    { key: 'consumerSecret', label: 'Client secret', secret: true,
+      placeholder: 'beside the client ID' },
+    { key: 'shortCode', label: 'Merchant key', wide: true,
+      placeholder: 'MerchantKey from your Orange Money merchant account',
+      hint: 'Not a secret — but Orange refuses every payment without it, '
+        + 'and the error does not say so.' },
+  ],
+}
+
+/** What the sandbox actually does, per rail, since none of them collect money. */
+const SANDBOX_NOTE = {
+  MTN_MOMO: 'MTN’s sandbox settles in euros whatever your currency is, and collects nothing.',
+  AIRTEL_MONEY: 'Airtel’s sandbox accepts test numbers only, and collects nothing.',
+  ORANGE_MONEY: 'Orange’s sandbox only accepts 1 unit of a fake currency, whatever the price is — '
+    + 'so it proves your keys work and nothing at all about amounts.',
+}
+
 
 /** Copies a webhook URL and says so, because a silent copy reads as a dead button. */
 function CopyUrl({ url }) {
@@ -210,6 +275,7 @@ function Confirmed({ label, value, confirm, placeholder, onValue, onConfirm }) {
 function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onSaved }) {
   const isApi = gateway.kind === 'MPESA_API'
   const isCard = CARD_KINDS.includes(gateway.kind)
+  const telcoFields = TELCO_FIELDS[gateway.kind]
   // A saved bank that is not in the list means the operator typed it before,
   // so the free-text box opens showing it rather than silently dropping it.
   const [otherBank, setOtherBank] = useState(
@@ -413,7 +479,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
             conversation with Paynow is not.
           </p>
         </>
-      ) : gateway.kind === MOMO_KIND ? (
+      ) : telcoFields ? (
         <>
           <div>
             <label className={LABEL_CLS}>Environment</label>
@@ -430,61 +496,54 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
                 </button>
               ))}
             </div>
-            {form.environment === 'SANDBOX' && (
-              <p className="text-xs text-[#b45309] mt-1.5">
-                MTN&rsquo;s sandbox settles in euros whatever your currency is, and collects nothing.
-              </p>
+            {form.environment === 'SANDBOX' && SANDBOX_NOTE[gateway.kind] && (
+              <p className="text-xs text-[#b45309] mt-1.5">{SANDBOX_NOTE[gateway.kind]}</p>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className={LABEL_CLS}>
-                Subscription key {saved?.secretKey && <span className="normal-case font-normal">(blank = keep)</span>}
-              </label>
-              <input className={INPUT_CLS} type="password" value={form.secretKey}
-                onChange={(e) => set({ secretKey: e.target.value })}
-                placeholder={saved?.secretKey || 'Ocp-Apim-Subscription-Key, from your Collection subscription'} />
-              <p className="text-xs text-on-surface-variant mt-1">
-                MoMo developer portal → your profile → the Collection product.
-              </p>
-            </div>
-            <div>
-              <label className={LABEL_CLS}>API user</label>
-              <input className={INPUT_CLS} value={form.consumerKey}
-                onChange={(e) => set({ consumerKey: e.target.value })}
-                placeholder={saved?.consumerKey || 'a UUID'} />
-            </div>
-            <div>
-              <label className={LABEL_CLS}>
-                API key {saved?.consumerSecret && <span className="normal-case font-normal">(blank = keep)</span>}
-              </label>
-              <input className={INPUT_CLS} type="password" value={form.consumerSecret}
-                onChange={(e) => set({ consumerSecret: e.target.value })}
-                placeholder={saved?.consumerSecret || 'generated for that API user'} />
-            </div>
+            {telcoFields.map((f) => (
+              <div key={f.key} className={f.wide ? 'md:col-span-2' : undefined}>
+                <label className={LABEL_CLS}>
+                  {f.label}
+                  {f.secret && saved?.[f.key] && (
+                    <span className="normal-case font-normal"> (blank = keep)</span>
+                  )}
+                </label>
+                <input className={INPUT_CLS} type={f.secret ? 'password' : 'text'}
+                  value={form[f.key]}
+                  onChange={(e) => set({ [f.key]: e.target.value })}
+                  placeholder={(f.secret && saved?.[f.key]) || f.placeholder} />
+                {f.hint && <p className="text-xs text-on-surface-variant mt-1">{f.hint}</p>}
+              </div>
+            ))}
           </div>
 
           <div className="rounded-lg border border-outline-variant p-3">
-            <p className="text-sm font-medium">Callback (optional)</p>
+            <p className="text-sm font-medium">Callback</p>
             <p className="text-xs text-on-surface-variant mt-1 mb-2">
-              MTN does not sign its callbacks, so this system never believes one — it asks MTN
-              directly instead, and asks again on a sweep if no callback arrives. Setting this is a
-              speed improvement, not a requirement, and payments settle without it.
+              None of these sign what they send, so this system never believes a callback — it asks
+              them directly instead, and asks again on a sweep if nothing arrives. Setting this makes
+              a paid customer get online in seconds rather than up to a minute and a half.
             </p>
             {webhookBase
               ? <CopyUrl url={webhookBase + gateway.webhook} />
               : (
                 <p className="text-xs text-[#b45309]">
                   No public address is configured, so the URL can&rsquo;t be shown. Payments still
-                  settle — the sweep asks MTN every minute.
+                  settle — the sweep asks every minute.
                 </p>
               )}
           </div>
 
+          {saved?.consumerKey && (
+            <p className="text-xs text-on-surface-variant">
+              Secrets are never shown again once saved. Leave a field blank to keep what is stored.
+            </p>
+          )}
           <p className="text-xs text-[#b45309]">
-            No charge has been made through a live MTN account yet. Take one small real payment and
-            confirm the customer gets online before pointing customers at it.
+            No charge has gone through a live {gateway.name} account yet. Take one small real payment
+            and confirm the customer gets online before pointing customers at it.
           </p>
         </>
       ) : isCard ? (

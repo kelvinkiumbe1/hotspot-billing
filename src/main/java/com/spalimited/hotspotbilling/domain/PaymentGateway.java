@@ -67,7 +67,19 @@ public class PaymentGateway {
          * Airtel Money across fourteen markets. A USSD push, so it prompts the
          * handset like M-Pesa rather than opening a checkout page.
          */
-        AIRTEL_MONEY
+        AIRTEL_MONEY,
+        /**
+         * Orange Money across francophone West and Central Africa. Its Web
+         * Payment API is a hosted page rather than a handset push, so it sets
+         * up like a card processor even though the customer pays from a wallet.
+         */
+        ORANGE_MONEY,
+        /**
+         * Wave — Senegal and Cote d'Ivoire. Undercut Orange Money on fees and
+         * took real share doing it, so a Senegalese operator wants both.
+         * Hosted page, and the only rail here that signs its webhooks properly.
+         */
+        WAVE
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -197,6 +209,16 @@ public class PaymentGateway {
             // An OAuth2 client id and secret. Nothing else: the market and its
             // currency follow the operator country rather than being typed in.
             case AIRTEL_MONEY -> filled(consumerKey) && filled(consumerSecret);
+            // Three fields, unlike every other OAuth rail here. The client id
+            // and secret get a token; the merchant key names which Orange
+            // Money merchant the money lands in, and Orange rejects a payment
+            // without it. It rides on shortCode because that column already
+            // means "the merchant's own identifier at the telco".
+            case ORANGE_MONEY -> filled(consumerKey) && filled(consumerSecret) && filled(shortCode);
+            // An API key and a webhook secret. Wave signs its callbacks the way
+            // Stripe does, so without the secret the callback cannot be trusted
+            // and the gateway is not ready however valid the key is.
+            case WAVE -> filled(secretKey) && filled(webhookSecret);
         };
     }
 
@@ -209,7 +231,7 @@ public class PaymentGateway {
     public boolean isAutomatic() {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
-                    AIRTEL_MONEY -> true;
+                    AIRTEL_MONEY, ORANGE_MONEY, WAVE -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -226,8 +248,14 @@ public class PaymentGateway {
     @Transient
     public boolean isLive() {
         return switch (kind) {
-            case MPESA_API, MTN_MOMO, AIRTEL_MONEY -> environment == Environment.PRODUCTION;
-            case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA -> !isTestKey(secretKey);
+            // Orange picks its sandbox by a segment in the URL, the way Daraja
+            // picks it by host, so the stored environment is what decides.
+            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY ->
+                    environment == Environment.PRODUCTION;
+            // Wave keys carry their own market and mode: wave_sn_prod_… against
+            // wave_sn_test_…, so the key is the truth rather than a dropdown an
+            // operator can set to the opposite of reality.
+            case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, WAVE -> !isTestKey(secretKey);
             default -> true;
         };
     }

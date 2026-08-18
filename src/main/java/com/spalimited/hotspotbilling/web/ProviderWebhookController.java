@@ -5,10 +5,13 @@ import com.spalimited.hotspotbilling.service.payments.FlutterwaveProvider;
 import com.spalimited.hotspotbilling.service.payments.AirtelProvider;
 import com.spalimited.hotspotbilling.service.payments.ChapaProvider;
 import com.spalimited.hotspotbilling.service.payments.MtnMomoProvider;
+import com.spalimited.hotspotbilling.service.payments.OrangeMoneyProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
+import com.spalimited.hotspotbilling.service.payments.Signatures;
 import com.spalimited.hotspotbilling.service.payments.StripeProvider;
+import com.spalimited.hotspotbilling.service.payments.WaveProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,8 @@ public class ProviderWebhookController {
     private final AirtelProvider airtel;
     private final FlutterwaveProvider flutterwave;
     private final StripeProvider stripe;
+    private final OrangeMoneyProvider orangeMoney;
+    private final WaveProvider wave;
     private final PaymentService payments;
 
     @PostMapping("/paystack/webhook")
@@ -111,6 +116,46 @@ public class ProviderWebhookController {
     }
 
     /**
+     * Orange Money, which needs a lookup before it can be asked anything.
+     *
+     * <p>Its notification quotes the order id and nothing else this can use. The
+     * status query needs the pay token as well, and the token cannot be carried
+     * in the notification URL because Orange only issues it in the reply to the
+     * request that sets that URL. So the order id becomes the stored reference,
+     * the stored reference becomes a question for Orange, and Orange's answer is
+     * the verdict. Nothing in the body is believed at any point.
+     */
+    @PostMapping("/orange-money/webhook")
+    public ResponseEntity<String> orangeMoney(@RequestBody(required = false) byte[] body) {
+        String orderId = OrangeMoneyProvider.notifiedOrderId(body);
+        if (orderId == null || orderId.isBlank()) {
+            throw Signatures.reject("Orange Money", "no order id in the notification");
+        }
+        String stored = payments
+                .providerRefStartingWith(OrangeMoneyProvider.refPrefix(orderId))
+                .orElse(null);
+        if (stored == null) {
+            // Genuine notification for something we have no record of. Nothing
+            // to do and nothing to retry, so acknowledge it rather than earning
+            // an escalating stream of redeliveries.
+            log.warn("Orange Money notified about unknown order {}", orderId);
+            return ResponseEntity.ok("unknown");
+        }
+        return finish("Orange Money", orangeMoney.poll(stored));
+    }
+
+    /**
+     * Wave, which signs properly — {@code Wave-Signature: t=…,v1=…} over the raw
+     * body, the same scheme as Stripe. The only wallet rail here whose body can
+     * be believed without a second round trip.
+     */
+    @PostMapping("/wave/webhook")
+    public ResponseEntity<String> wave(@RequestBody(required = false) byte[] body,
+                                       HttpServletRequest request) {
+        return handle("Wave", wave, body, request);
+    }
+
+    /**
      * Verify, settle, acknowledge.
      *
      * <p>A verified delivery is always acknowledged with 200, even when we do
@@ -124,7 +169,12 @@ public class ProviderWebhookController {
      */
     private ResponseEntity<String> handle(String name, PaymentProvider provider,
                                           byte[] body, HttpServletRequest request) {
-        var settlement = provider.settle(body, headersOf(request));
+        return finish(name, provider.settle(body, headersOf(request)));
+    }
+
+    /** The half after verification, shared with the rails that verify their own way. */
+    private ResponseEntity<String> finish(String name,
+                                          java.util.Optional<PaymentProvider.Settlement> settlement) {
         if (settlement.isEmpty()) {
             return ResponseEntity.ok("ignored");
         }

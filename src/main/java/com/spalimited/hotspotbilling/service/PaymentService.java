@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Orchestrates the buy flow: STK push -> Daraja callback -> voucher issued.
@@ -229,6 +230,24 @@ public class PaymentService {
      * @param providerRef what the processor calls the transaction
      * @param reference   what we called it when we started the charge
      */
+    /**
+     * The provider reference stored against a payment, found by its prefix.
+     *
+     * <p>Exists for Orange Money. Its notification carries the order id and not
+     * the pay token its own status query needs, and the token cannot be put in
+     * the notification URL either — Orange only issues it in the reply to the
+     * request that carries that URL. So the reference has to be read back out of
+     * the payment, and doing it here keeps the repository out of the providers.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> providerRefStartingWith(String prefix) {
+        if (prefix == null || prefix.isBlank()) {
+            return Optional.empty();
+        }
+        return paymentRepository.findFirstByCheckoutRequestIdStartingWith(prefix)
+                .map(Payment::getCheckoutRequestId);
+    }
+
     @Transactional
     public void settleFromProvider(String provider, String providerRef, String reference,
                                    boolean paid, java.math.BigDecimal amount, String receipt,
@@ -260,10 +279,23 @@ public class PaymentService {
         // rather than a signature over the body, so the body is the part we
         // trust least. A mismatch is recorded as FAILED so reconciliation sees
         // it rather than a voucher being minted for the wrong money.
+        // A reported amount that differs is a mismatch and fails. A rail that
+        // reports no amount at all is not the same thing, and treating the two
+        // alike is what failed every webhook-settled Airtel payment: its
+        // enquiry has no amount field, so "silent" read as "wrong".
+        //
+        // This does not weaken the rails whose bodies we distrust. Paystack,
+        // Stripe, Chapa and Paynow all default a missing amount to zero, and
+        // Flutterwave now rejects an unreadable one outright — so for every rail
+        // that settles from a body, null cannot arrive here.
         java.math.BigDecimal expected = payment.getAmount();
-        if (expected != null && (amount == null || amount.compareTo(expected) != 0)) {
+        if (expected != null && amount != null && amount.compareTo(expected) != 0) {
             markFailed(payment, provider + " reported " + amount + " but we asked for " + expected);
             return;
+        }
+        if (expected != null && amount == null) {
+            log.info("{} confirmed payment {} without quoting an amount; verdict came from "
+                    + "asking them directly", provider, payment.getId());
         }
         completeSuccess(payment, receipt);
     }

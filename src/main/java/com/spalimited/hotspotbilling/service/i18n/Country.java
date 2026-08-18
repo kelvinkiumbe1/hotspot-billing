@@ -46,10 +46,18 @@ public enum Country {
             List.of("M-Pesa", "e-Mola", "mKesh"), "258", 9, List.of()),
     AO("Angola", "AOA", "pt", "Multicaixa", Rail.NONE,
             List.of("Multicaixa Express"), "244", 9, List.of()),
-    SN("Senegal", "XOF", "fr", "Orange Money", Rail.FLUTTERWAVE,
-            List.of("Orange Money", "Wave", "Free Money"), "221", 9, List.of()),
-    CI("Côte d'Ivoire", "XOF", "fr", "Mobile Money", Rail.MTN_MOMO,
-            List.of("Orange Money", "MTN MoMo", "Moov Money", "Wave"), "225", 10, List.of()),
+    // Wave rather than Orange Money as the default, on price: Wave arrived at a
+    // flat 1% against several times that and took a very large share of
+    // Senegalese mobile money. An operator here wants both switched on, which is
+    // now possible, so this only decides which one is listed first.
+    SN("Senegal", "XOF", "fr", "Mobile Money", Rail.WAVE,
+            List.of("Wave", "Orange Money", "Free Money"), "221", 9, List.of()),
+    // Was MTN, which was never the biggest here — Orange Money is. MTN was the
+    // default only because it was the rail that existed, and now that several
+    // gateways can run at once an operator can offer Orange, MTN and Wave
+    // together instead of the one this code happened to support.
+    CI("Côte d'Ivoire", "XOF", "fr", "Mobile Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "MTN MoMo", "Wave", "Moov Money"), "225", 10, List.of()),
     CM("Cameroon", "XAF", "fr", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Orange Money"), "237", 9, List.of()),
     CD("DR Congo", "CDF", "fr", "Mobile Money", Rail.FLUTTERWAVE,
@@ -64,15 +72,20 @@ public enum Country {
     /**
      * Which of the built rails actually serves this country.
      *
-     * <p>A direct telco rail is cheaper and prompts the handset, but it only
-     * reaches that telco's own customers. So it is the right default only where
-     * one network dominates — MTN in Ghana, Airtel in Malawi, Safaricom in
-     * Kenya. Tanzania and the DRC keep an aggregator on purpose: no single
-     * wallet has a majority there, and since exactly one gateway can be active
-     * at a time, picking one telco would leave most customers unable to pay.
+     * <p>A direct rail is cheaper than an aggregator, and some of them prompt the
+     * handset instead of opening a page. But it reaches only that provider's own
+     * customers, so it is the right <em>default</em> where one dominates — MTN in
+     * Ghana, Airtel in Malawi, Safaricom in Kenya, Wave in Senegal on price.
+     *
+     * <p>This is now only which rail is offered first. Several can be switched on
+     * at once, so a Tanzanian or Ivorian operator can run three side by side. The
+     * aggregator defaults that remain — Tanzania, Mozambique, the DRC — are markets
+     * where no single wallet has a majority and one integration genuinely reaches
+     * more customers than any one telco would.
      */
     public enum Rail {
-        MPESA, MTN_MOMO, AIRTEL_MONEY, PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE
+        MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
+        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE
     }
 
     private final String countryName;

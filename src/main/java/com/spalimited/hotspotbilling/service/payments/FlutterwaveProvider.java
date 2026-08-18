@@ -130,12 +130,16 @@ public class FlutterwaveProvider implements PaymentProvider {
             return Optional.empty();
         }
         boolean paid = "successful".equalsIgnoreCase(status);
-        BigDecimal amount = null;
+        BigDecimal amount;
         try {
             amount = new BigDecimal(data.path("amount").asString("0"));
-        } catch (RuntimeException ignored) {
-            // Left null; the amount check downstream treats that as a mismatch,
-            // which is the safe direction.
+        } catch (RuntimeException e) {
+            // Rejected outright rather than passed on as null. This used to
+            // rely on a null being read as a mismatch by PaymentService, which
+            // made "no amount" and "the wrong amount" the same thing — and that
+            // conflation is what marked every webhook-settled Airtel payment
+            // failed, since Airtel's enquiry reports no amount at all.
+            throw Signatures.reject("Flutterwave", "amount was not a number");
         }
         return Optional.of(new Settlement(providerRef, reference, paid, amount,
                 data.path("currency").asString(null),
