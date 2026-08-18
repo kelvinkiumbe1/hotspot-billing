@@ -1,38 +1,83 @@
 /**
  * Real brand logos for the payment gateways.
  *
- * Empty on purpose. These are trademarks, and the right versions have to come
- * from each company's own brand assets rather than be redrawn from memory — a
- * hand-approximated logo is both wrong and a worse trademark problem than no
- * logo at all. Where to get them:
+ * Five are here. The rest are missing because they are trademarks that live
+ * behind partner brand portals, and a hand-approximated logo is both wrong and
+ * a worse trademark problem than no logo at all. Anything absent falls back to
+ * a generic glyph, so a partial set is the designed state rather than a broken
+ * one.
  *
- *   Stripe       stripe.com/newsroom/brand-assets
+ * <h2>What is here, and where it came from</h2>
+ *
+ * Stripe, Airtel, Orange, Visa and Mastercard came from simpleicons.org, whose
+ * icon shapes are CC0. The brands themselves remain the trademarks of their
+ * owners — CC0 covers the drawing, not permission to imply a relationship.
+ * Each file keeps the official brand colour and is otherwise untouched.
+ *
+ * <h2>Where to get the rest</h2>
+ *
  *   Paystack     paystack.com/press
- *   Flutterwave  flutterwave.com  → press / brand assets
- *   M-Pesa       Safaricom brand portal (partner access)
- *   MTN MoMo     MTN brand portal (partner access)
- *   Visa / MC    Visa Brand Center, Mastercard Brand Center
- *   Free set     simpleicons.org (Stripe, Visa, Mastercard as clean SVGs)
+ *   Flutterwave  flutterwave.com — press / media enquiries
+ *   Wave         wave.com — press
+ *   M-Pesa       Safaricom brand portal (developer.safaricom.co.ke → partner access)
+ *   MTN MoMo     momodeveloper.mtn.com → MTN brand portal
+ *   Chapa        chapa.co
+ *   Paynow       paynow.co.zw
  *
- * To add one: save the SVG here, import it as a React component, and register
- * it below against the gateway kind. Nothing else changes — the screen already
- * falls back to a generic glyph for anything not listed.
+ * Checked live rather than recited: several of those hosts return 403 to a
+ * command-line request and open perfectly in a browser, so a failed fetch there
+ * means bot-blocking, not a dead page.
  *
- *   import { ReactComponent as Paystack } from './paystack.svg'
- *   export const GATEWAY_LOGOS = { PAYSTACK: () => <Paystack className="h-6 w-auto" /> }
+ * <h2>Adding one</h2>
  *
- * Two rules that are not style preferences:
+ * Save the SVG beside this file and register it below. Note this project is
+ * Vite with no svgr plugin, so the CRA-style `ReactComponent as X` import does
+ * not work here — import the file and render it as an image:
  *
- * 1. INLINE the SVG. Do not link a CDN. The captive portal has no internet
- *    until the customer has paid, so a remote logo fails exactly on the screen
- *    where it matters, and the whole icon set is bundled for this reason.
+ *   import paystack from './paystack.svg'
+ *   export const GATEWAY_LOGOS = { PAYSTACK: mark(paystack, 'Paystack') }
  *
- * 2. Do not modify them — no recolouring, no squashing, respect the clear
- *    space. Showing a logo to say "we accept this" is ordinary and fine;
- *    altering it, or arranging it so it reads as an endorsement, is not. The
- *    line is stricter for Zidi-the-product than for an ISP saying which
- *    payment methods it takes.
+ * <h2>Two rules that are not style preferences</h2>
+ *
+ * 1. NO CDN. These are bundled, and every one is small enough that Vite inlines
+ *    it as a data URI — so there is no network request at all. That matters
+ *    because the captive portal has no internet until the customer has paid,
+ *    which is exactly the screen where a missing logo would be noticed.
+ *
+ * 2. DO NOT MODIFY THEM. No recolouring, no squashing, respect the clear space.
+ *    Showing a mark to say "we accept this" is ordinary and fine; altering it,
+ *    or arranging it so it reads as an endorsement, is not. The line is stricter
+ *    for Zidi-the-product than for an ISP listing the methods it takes.
  */
 
+import stripe from './stripe.svg'
+import airtel from './airtel.svg'
+import orange from './orange.svg'
+
+/**
+ * One mark, rendered without being interfered with.
+ *
+ * object-contain rather than a fixed width and height: these SVGs are not all
+ * square, and stretching a trademark to fit a box is the exact thing rule 2
+ * forbids.
+ */
+const mark = (src, alt) => function GatewayLogo() {
+  return <img src={src} alt={alt} className="w-6 h-6 object-contain" />
+}
+
 /** Keyed by PaymentGateway.Kind. Anything absent falls back to a glyph. */
-export const GATEWAY_LOGOS = {}
+export const GATEWAY_LOGOS = {
+  STRIPE: mark(stripe, 'Stripe'),
+  AIRTEL_MONEY: mark(airtel, 'Airtel Money'),
+  ORANGE_MONEY: mark(orange, 'Orange Money'),
+}
+
+/**
+ * Card-network marks, kept for the "cards accepted" row on the checkout and the
+ * marketing page. Deliberately not in GATEWAY_LOGOS: Visa and Mastercard are
+ * not gateways, they are what Paystack, Flutterwave and Stripe accept, and
+ * putting a Visa logo where a gateway's own mark belongs misdescribes who the
+ * operator has an account with.
+ */
+export { default as visaMark } from './visa.svg'
+export { default as mastercardMark } from './mastercard.svg'
