@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api.js'
+import { GATEWAY_LOGOS } from '../../assets/gateways/index.jsx'
 import {
   Icon, Skeleton, PageHeader, PrimaryButton, INPUT_CLS, LABEL_CLS,
 } from '../../components/ui.jsx'
@@ -111,9 +112,54 @@ function CopyUrl({ url }) {
   )
 }
 
-function ConfigureForm({ auth, gateway, saved, webhookBase, onCancel, onSaved }) {
+const OTHER_BANK = 'Other — type it in'
+
+/**
+ * A number that has to be typed twice.
+ *
+ * The account, paybill and till numbers are the one thing on this screen that
+ * nothing downstream can check. A wrong digit is not rejected by anybody — it
+ * is money arriving somewhere else. Typing it twice means a typo has to be
+ * made identically twice, which is the only defence available.
+ */
+function Confirmed({ label, value, confirm, placeholder, onValue, onConfirm }) {
+  const touched = (confirm || '').length > 0
+  const matches = (value || '') === (confirm || '')
+  // Kept together in their own row. Loose in the parent grid, the confirmation
+  // landed beside an unrelated field and read as belonging to it.
+  return (
+    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className={LABEL_CLS}>{label}</label>
+        <input className={INPUT_CLS} required value={value} placeholder={placeholder}
+          onChange={(e) => onValue(e.target.value)} />
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Type it again</label>
+        <input
+          className={`${INPUT_CLS} ${touched && !matches ? 'border-error' : ''}`}
+          required value={confirm}
+          // Paste defeats the point entirely — it copies the typo.
+          onPaste={(e) => e.preventDefault()}
+          onChange={(e) => onConfirm(e.target.value)} />
+        {touched && !matches && (
+          <p className="text-xs text-error mt-1">These don&rsquo;t match.</p>
+        )}
+        {touched && matches && (
+          <p className="text-xs text-primary mt-1">Matches.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onSaved }) {
   const isApi = gateway.kind === 'MPESA_API'
   const isCard = CARD_KINDS.includes(gateway.kind)
+  // A saved bank that is not in the list means the operator typed it before,
+  // so the free-text box opens showing it rather than silently dropping it.
+  const [otherBank, setOtherBank] = useState(
+    !!saved?.bankName && !banks.includes(saved.bankName))
   const [form, setForm] = useState({
     environment: saved?.environment || 'SANDBOX',
     secretKey: '',
@@ -126,18 +172,40 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, onCancel, onSaved })
     initiatorName: saved?.initiatorName || '',
     securityCredential: '',
     paybillNumber: saved?.paybillNumber || '',
+    // Seeded from what is stored, so editing an unrelated field does not make
+    // the operator retype a number they got right months ago.
+    paybillConfirm: saved?.paybillNumber || '',
     tillNumber: saved?.tillNumber || '',
+    tillConfirm: saved?.tillNumber || '',
     bankName: saved?.bankName || '',
     accountNumber: saved?.accountNumber || '',
+    accountConfirm: saved?.accountNumber || '',
     accountName: saved?.accountName || '',
     instructions: saved?.instructions || '',
   })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
+  const pickedBank = otherBank ? OTHER_BANK : (form.bankName || '')
+
+  /** Every number that must be typed twice actually was. */
+  function mismatched() {
+    const pairs = [
+      [form.paybillNumber, form.paybillConfirm, gateway.kind === 'MPESA_PAYBILL_MANUAL'],
+      [form.tillNumber, form.tillConfirm, gateway.kind === 'MPESA_TILL_MANUAL'],
+      [form.accountNumber, form.accountConfirm, gateway.kind === 'BANK_TRANSFER'],
+    ]
+    return pairs.some(([a, b, applies]) => applies && (a || '') !== (b || ''))
+  }
 
   async function submit(e) {
     e.preventDefault()
+    // Refused rather than saved. A number that failed its own confirmation is
+    // one the operator has already half-noticed is wrong.
+    if (mismatched()) {
+      setMsg({ ok: false, text: 'The number and its confirmation do not match.' })
+      return
+    }
     setBusy(true)
     setMsg(null)
     try {
@@ -307,49 +375,91 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, onCancel, onSaved })
           </p>
         </>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {gateway.kind === 'MPESA_PAYBILL_MANUAL' && (
-            <>
-              <div>
-                <label className={LABEL_CLS}>Paybill number</label>
-                <input className={INPUT_CLS} required value={form.paybillNumber}
-                  onChange={(e) => set({ paybillNumber: e.target.value })} placeholder="e.g. 522522" />
-              </div>
-              <div>
-                <label className={LABEL_CLS}>Account name shown to customers</label>
-                <input className={INPUT_CLS} value={form.accountName}
-                  onChange={(e) => set({ accountName: e.target.value })}
-                  placeholder="e.g. their phone number" />
-              </div>
-            </>
-          )}
-          {gateway.kind === 'MPESA_TILL_MANUAL' && (
-            <div>
-              <label className={LABEL_CLS}>Till number</label>
-              <input className={INPUT_CLS} required value={form.tillNumber}
-                onChange={(e) => set({ tillNumber: e.target.value })} placeholder="e.g. 8461234" />
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {gateway.kind === 'MPESA_PAYBILL_MANUAL' && (
+              <>
+                <Confirmed label="Paybill number" value={form.paybillNumber}
+                  confirm={form.paybillConfirm} placeholder="e.g. 522522"
+                  onValue={(v) => set({ paybillNumber: v })}
+                  onConfirm={(v) => set({ paybillConfirm: v })} />
+                <div>
+                  <label className={LABEL_CLS}>Account name shown to customers</label>
+                  <input className={INPUT_CLS} value={form.accountName}
+                    onChange={(e) => set({ accountName: e.target.value })}
+                    placeholder="e.g. their phone number" />
+                </div>
+              </>
+            )}
+            {gateway.kind === 'MPESA_TILL_MANUAL' && (
+              <Confirmed label="Till number" value={form.tillNumber}
+                confirm={form.tillConfirm} placeholder="e.g. 8461234"
+                onValue={(v) => set({ tillNumber: v })}
+                onConfirm={(v) => set({ tillConfirm: v })} />
+            )}
+            {gateway.kind === 'BANK_TRANSFER' && (
+              <>
+                <div>
+                  <label className={LABEL_CLS}>Bank</label>
+                  {/* A list, not a text box. "Equty Bank" is not a bank, and
+                      nothing downstream would ever have told the operator so —
+                      they would find out from a confused customer. */}
+                  <select className={INPUT_CLS} value={pickedBank}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setOtherBank(v === OTHER_BANK)
+                      set({ bankName: v === OTHER_BANK ? '' : v })
+                    }}>
+                    <option value="">Choose your bank…</option>
+                    {banks.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  {otherBank && (
+                    <input className={`${INPUT_CLS} mt-2`} required value={form.bankName}
+                      onChange={(e) => set({ bankName: e.target.value })}
+                      placeholder="Type the bank's full name" />
+                  )}
+                </div>
+                <Confirmed label="Account number" value={form.accountNumber}
+                  confirm={form.accountConfirm}
+                  onValue={(v) => set({ accountNumber: v })}
+                  onConfirm={(v) => set({ accountConfirm: v })} />
+                <div>
+                  <label className={LABEL_CLS}>Account name</label>
+                  <input className={INPUT_CLS} value={form.accountName}
+                    onChange={(e) => set({ accountName: e.target.value })} />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Nothing checks these against the bank, so the only defence is
+              showing the operator exactly what a customer will read. */}
+          <div className="rounded-lg border border-outline-variant p-3">
+            <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">
+              What the customer will see
+            </p>
+            <div className="text-sm space-y-0.5">
+              {gateway.kind === 'BANK_TRANSFER' ? (
+                <>
+                  <p>Bank: <strong>{form.bankName || '—'}</strong></p>
+                  <p>Account number: <strong className="font-mono">{form.accountNumber || '—'}</strong></p>
+                  <p>Account name: <strong>{form.accountName || '—'}</strong></p>
+                </>
+              ) : gateway.kind === 'MPESA_TILL_MANUAL' ? (
+                <p>Buy Goods till: <strong className="font-mono">{form.tillNumber || '—'}</strong></p>
+              ) : (
+                <>
+                  <p>Pay Bill: <strong className="font-mono">{form.paybillNumber || '—'}</strong></p>
+                  <p>Account: <strong>{form.accountName || 'their phone number'}</strong></p>
+                </>
+              )}
             </div>
-          )}
-          {gateway.kind === 'BANK_TRANSFER' && (
-            <>
-              <div>
-                <label className={LABEL_CLS}>Bank</label>
-                <input className={INPUT_CLS} required value={form.bankName}
-                  onChange={(e) => set({ bankName: e.target.value })} placeholder="e.g. Equity Bank" />
-              </div>
-              <div>
-                <label className={LABEL_CLS}>Account number</label>
-                <input className={INPUT_CLS} required value={form.accountNumber}
-                  onChange={(e) => set({ accountNumber: e.target.value })} />
-              </div>
-              <div>
-                <label className={LABEL_CLS}>Account name</label>
-                <input className={INPUT_CLS} value={form.accountName}
-                  onChange={(e) => set({ accountName: e.target.value })} />
-              </div>
-            </>
-          )}
-        </div>
+            <p className="text-xs text-[#b45309] mt-2">
+              Nobody checks this against the bank. A wrong digit sends your customers&rsquo; money to a
+              stranger and nothing here would notice — read it back before saving.
+            </p>
+          </div>
+        </>
       )}
 
       <div>
@@ -375,6 +485,63 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, onCancel, onSaved })
         </button>
       </div>
     </form>
+  )
+}
+
+/**
+ * The gateway's mark: a real brand logo where the operator has supplied one,
+ * the generic glyph otherwise.
+ *
+ * Logos are dropped into `frontend/src/assets/gateways/` as inline SVG — not
+ * a CDN link, because the captive portal has no internet until the customer
+ * has paid, which is exactly when a missing logo would be noticed.
+ */
+function GatewayMark({ gateway }) {
+  const Logo = GATEWAY_LOGOS[gateway.kind]
+  return (
+    <span className="w-11 h-11 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 overflow-hidden">
+      {Logo ? <Logo /> : <Icon name={gateway.icon} className="text-[22px]!" />}
+    </span>
+  )
+}
+
+/**
+ * The configure form, in a modal.
+ *
+ * It used to expand the card inline, which on a two-column grid shoved
+ * everything else around and pushed Save below the fold. Every other admin
+ * screen uses a modal for this; consistency is the smaller reason and not
+ * losing the button is the larger one.
+ */
+function ConfigureModal({ gateway, onClose, ...rest }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 bg-on-background/50 backdrop-blur-sm z-50 flex items-center justify-center p-5"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.15)] max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-outline-variant/50 flex justify-between items-start gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <GatewayMark gateway={gateway} />
+            <div className="min-w-0">
+              <h3 className="text-xl font-bold text-on-background truncate">{gateway.name}</h3>
+              <p className="text-xs text-on-surface-variant truncate">{gateway.provider}</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close"
+            className="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/10 cursor-pointer shrink-0">
+            <Icon name="close" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-6 pb-6">
+          <ConfigureForm gateway={gateway} onCancel={onClose} {...rest} />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -429,16 +596,13 @@ export default function PaymentGatewaysPage({ auth }) {
         {GATEWAYS.map((g) => {
           const s = saved[g.kind] || {}
           const isActive = s.active
-          const open = openKind === g.kind
           return (
             <div key={g.kind}
               className={`bg-surface-container-lowest rounded-lg p-4 border transition-colors ${
                 isActive ? 'border-primary' : 'border-outline-variant/40'
-              } ${open ? 'lg:col-span-2' : ''}`}>
+              }`}>
               <div className="flex items-start gap-3">
-                <span className="w-11 h-11 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
-                  <Icon name={g.icon} className="text-[22px]!" />
-                </span>
+                <GatewayMark gateway={g} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold">{g.name}</h3>
@@ -472,32 +636,35 @@ export default function PaymentGatewaysPage({ auth }) {
                       Make active
                     </button>
                   )}
-                  <button onClick={() => setOpenKind(open ? null : g.kind)}
+                  <button onClick={() => setOpenKind(g.kind)}
                     className="px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold cursor-pointer hover:bg-surface-container-high flex items-center gap-1">
                     {s.configured ? 'Edit' : 'Configure'}
-                    <Icon name={open ? 'expand_less' : 'chevron_right'} className="text-[14px]!" />
+                    <Icon name="chevron_right" className="text-[14px]!" />
                   </button>
                 </div>
               </div>
 
-              {open && (
-                <ConfigureForm
-                  auth={auth}
-                  gateway={g}
-                  saved={s}
-                  webhookBase={data.webhookBase}
-                  onCancel={() => setOpenKind(null)}
-                  onSaved={() => {
-                    setOpenKind(null)
-                    setMsg({ ok: true, text: `${g.name} saved.` })
-                    load()
-                  }}
-                />
-              )}
             </div>
           )
         })}
       </div>
+
+      {openKind && (
+        <ConfigureModal
+          auth={auth}
+          gateway={GATEWAYS.find((g) => g.kind === openKind)}
+          saved={saved[openKind] || {}}
+          webhookBase={data.webhookBase}
+          banks={data.banks || []}
+          onClose={() => setOpenKind(null)}
+          onSaved={() => {
+            const name = GATEWAYS.find((g) => g.kind === openKind)?.name
+            setOpenKind(null)
+            setMsg({ ok: true, text: `${name} saved.` })
+            load()
+          }}
+        />
+      )}
 
       <p className="mt-6 text-xs text-on-surface-variant max-w-3xl">
         Each gateway needs a merchant account with that provider. The three card processors are built and their

@@ -28,6 +28,7 @@ public class PaymentSettingsController {
     private final PaymentGatewayService gatewayService;
     private final MpesaService mpesaService;
     private final AuditService audit;
+    private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
     private final com.spalimited.hotspotbilling.config.MpesaProperties mpesaProps;
 
     @GetMapping
@@ -40,6 +41,12 @@ public class PaymentSettingsController {
         // settle. Derived from the M-Pesa callback URL because that is the one
         // address already known to reach this server from the outside.
         out.put("webhookBase", webhookBase());
+        // The banks an operator here is likely to hold an account with. A
+        // picklist rather than free text, because "Equty Bank" is not a bank
+        // and nothing downstream would ever have said so.
+        out.put("banks", com.spalimited.hotspotbilling.service.i18n.Banks.forCountry(
+                com.spalimited.hotspotbilling.service.i18n.Country.of(
+                        portalSettings.settings().getCountry())));
         out.put("available", all.size());
         out.put("connected", all.stream().filter(g -> Boolean.TRUE.equals(g.get("configured"))).count());
         out.put("activeKind", all.stream()
