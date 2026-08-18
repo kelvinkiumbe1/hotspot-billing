@@ -45,7 +45,13 @@ public class PaymentGateway {
         /** Cards and mobile money across most of Africa. Hosted checkout. */
         FLUTTERWAVE,
         /** Cards worldwide, for operators billing outside mobile-money markets. */
-        STRIPE
+        STRIPE,
+        /**
+         * MTN Mobile Money across Ghana, Uganda, Rwanda, Zambia, Cameroon and
+         * Cote d'Ivoire. Prompts the handset rather than opening a page, so it
+         * behaves like M-Pesa rather than like a card processor.
+         */
+        MTN_MOMO
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -144,6 +150,10 @@ public class PaymentGateway {
             // a gateway missing it is not configured, however valid the key is.
             case PAYSTACK -> filled(secretKey);
             case FLUTTERWAVE, STRIPE -> filled(secretKey) && filled(webhookSecret);
+            // Subscription key, API user and API key. No webhook secret,
+            // because MTN does not sign its callbacks at all — the settlement
+            // path re-queries them instead of trusting the body.
+            case MTN_MOMO -> filled(secretKey) && filled(consumerKey) && filled(consumerSecret);
         };
     }
 
@@ -155,7 +165,7 @@ public class PaymentGateway {
     @Transient
     public boolean isAutomatic() {
         return switch (kind) {
-            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE -> true;
+            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -172,7 +182,7 @@ public class PaymentGateway {
     @Transient
     public boolean isLive() {
         return switch (kind) {
-            case MPESA_API -> environment == Environment.PRODUCTION;
+            case MPESA_API, MTN_MOMO -> environment == Environment.PRODUCTION;
             case PAYSTACK, FLUTTERWAVE, STRIPE -> !isTestKey(secretKey);
             default -> true;
         };

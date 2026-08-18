@@ -52,6 +52,18 @@ const GATEWAYS = [
     blurb: 'Usually for monthly PPPoE customers rather than hotspot buyers.',
   },
   {
+    kind: 'MTN_MOMO',
+    name: 'MTN Mobile Money',
+    provider: 'Ghana · Uganda · Rwanda · Zambia · Cameroon · Côte d’Ivoire',
+    badge: 'API KEYS',
+    chips: ['Prompt on phone', 'No web page', 'Automatic'],
+    settlement: 'Instant, confirmed by asking MTN',
+    icon: 'smartphone',
+    blurb: 'Works like M-Pesa: the customer gets a prompt and enters their PIN, with no checkout page. One integration covers every MTN market.',
+    webhook: '/api/payments/mtn-momo/webhook',
+    momo: true,
+  },
+  {
     kind: 'PAYSTACK',
     name: 'Paystack',
     provider: 'Nigeria · Ghana · Kenya · South Africa',
@@ -93,6 +105,9 @@ const GATEWAYS = [
 ]
 
 const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE']
+// Prompts the handset instead of opening a page, so it is set up like
+// Daraja rather than like a card processor.
+const MOMO_KIND = 'MTN_MOMO'
 
 /** Copies a webhook URL and says so, because a silent copy reads as a dead button. */
 function CopyUrl({ url }) {
@@ -315,6 +330,80 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.
             </p>
           )}
+        </>
+      ) : gateway.kind === MOMO_KIND ? (
+        <>
+          <div>
+            <label className={LABEL_CLS}>Environment</label>
+            <div className="flex gap-2">
+              {['SANDBOX', 'PRODUCTION'].map((env) => (
+                <button key={env} type="button" onClick={() => set({ environment: env })}
+                  aria-pressed={form.environment === env}
+                  className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-colors ${
+                    form.environment === env
+                      ? 'bg-primary-container text-on-primary-container font-semibold'
+                      : 'border border-outline-variant hover:bg-surface-container-high'
+                  }`}>
+                  {env === 'SANDBOX' ? 'Sandbox (testing)' : 'Production (real money)'}
+                </button>
+              ))}
+            </div>
+            {form.environment === 'SANDBOX' && (
+              <p className="text-xs text-[#b45309] mt-1.5">
+                MTN&rsquo;s sandbox settles in euros whatever your currency is, and collects nothing.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className={LABEL_CLS}>
+                Subscription key {saved?.secretKey && <span className="normal-case font-normal">(blank = keep)</span>}
+              </label>
+              <input className={INPUT_CLS} type="password" value={form.secretKey}
+                onChange={(e) => set({ secretKey: e.target.value })}
+                placeholder={saved?.secretKey || 'Ocp-Apim-Subscription-Key, from your Collection subscription'} />
+              <p className="text-xs text-on-surface-variant mt-1">
+                MoMo developer portal → your profile → the Collection product.
+              </p>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>API user</label>
+              <input className={INPUT_CLS} value={form.consumerKey}
+                onChange={(e) => set({ consumerKey: e.target.value })}
+                placeholder={saved?.consumerKey || 'a UUID'} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>
+                API key {saved?.consumerSecret && <span className="normal-case font-normal">(blank = keep)</span>}
+              </label>
+              <input className={INPUT_CLS} type="password" value={form.consumerSecret}
+                onChange={(e) => set({ consumerSecret: e.target.value })}
+                placeholder={saved?.consumerSecret || 'generated for that API user'} />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-outline-variant p-3">
+            <p className="text-sm font-medium">Callback (optional)</p>
+            <p className="text-xs text-on-surface-variant mt-1 mb-2">
+              MTN does not sign its callbacks, so this system never believes one — it asks MTN
+              directly instead, and asks again on a sweep if no callback arrives. Setting this is a
+              speed improvement, not a requirement, and payments settle without it.
+            </p>
+            {webhookBase
+              ? <CopyUrl url={webhookBase + gateway.webhook} />
+              : (
+                <p className="text-xs text-[#b45309]">
+                  No public address is configured, so the URL can&rsquo;t be shown. Payments still
+                  settle — the sweep asks MTN every minute.
+                </p>
+              )}
+          </div>
+
+          <p className="text-xs text-[#b45309]">
+            No charge has been made through a live MTN account yet. Take one small real payment and
+            confirm the customer gets online before pointing customers at it.
+          </p>
         </>
       ) : isCard ? (
         <>

@@ -69,4 +69,24 @@ public interface PaymentProvider {
      * a charge.refunded is not a failed purchase. An unauthentic payload throws.
      */
     Optional<Settlement> settle(byte[] rawBody, Map<String, String> headers);
+
+    /**
+     * Asks the provider directly how a charge ended.
+     *
+     * <p>Not every rail can be asked. A card processor tells you once, by
+     * webhook, and has no "how did that go" endpoint worth polling. MTN MoMo is
+     * the opposite: its callback is unsigned and only fires where the callback
+     * host has been registered, so asking is the only trustworthy answer — and
+     * the same call is what rescues a payment whose callback never arrived.
+     *
+     * <p>Empty means "cannot be asked", which is different from "not finished".
+     */
+    default Optional<Settlement> poll(String providerRef) {
+        return Optional.empty();
+    }
+
+    /** Whether {@link #poll} means anything for this rail. */
+    default boolean pollable() {
+        return false;
+    }
 }

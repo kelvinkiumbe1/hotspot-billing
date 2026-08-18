@@ -46,6 +46,25 @@ public class PaymentProviders {
         return providers.stream().filter(p -> p.kind() == kind).findFirst();
     }
 
+    /**
+     * The same, from the name stored on a payment.
+     *
+     * <p>Payments record the rail as text, and rows written before a rail
+     * existed have none at all. An unreadable name is empty rather than an
+     * exception: reconciliation runs over every pending payment, and one
+     * unrecognisable row must not stop the sweep.
+     */
+    public Optional<PaymentProvider> forKind(String kind) {
+        if (kind == null || kind.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return forKind(PaymentGateway.Kind.valueOf(kind.trim()));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
     /** Every rail this build can drive, for the settings screen to offer. */
     public List<PaymentGateway.Kind> supported() {
         return providers.stream().map(PaymentProvider::kind).sorted().toList();

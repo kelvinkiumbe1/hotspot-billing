@@ -2,6 +2,7 @@ package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.service.PaymentService;
 import com.spalimited.hotspotbilling.service.payments.FlutterwaveProvider;
+import com.spalimited.hotspotbilling.service.payments.MtnMomoProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.StripeProvider;
@@ -37,6 +38,7 @@ import java.util.Map;
 public class ProviderWebhookController {
 
     private final PaystackProvider paystack;
+    private final MtnMomoProvider mtnMomo;
     private final FlutterwaveProvider flutterwave;
     private final StripeProvider stripe;
     private final PaymentService payments;
@@ -57,6 +59,20 @@ public class ProviderWebhookController {
     public ResponseEntity<String> stripe(@RequestBody(required = false) byte[] body,
                                          HttpServletRequest request) {
         return handle("Stripe", stripe, body, request);
+    }
+
+    /**
+     * MTN MoMo, which signs nothing.
+     *
+     * <p>The body is read only far enough to learn which charge it concerns;
+     * the provider then asks MTN directly. Trusting the body would let anyone
+     * who learned a reference mark a payment successful, so this endpoint is
+     * safe to leave open in a way the signed ones would not be.
+     */
+    @PostMapping("/mtn-momo/webhook")
+    public ResponseEntity<String> mtnMomo(@RequestBody(required = false) byte[] body,
+                                          HttpServletRequest request) {
+        return handle("MTN MoMo", mtnMomo, body, request);
     }
 
     /**

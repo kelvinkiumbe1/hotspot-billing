@@ -5,6 +5,7 @@ import com.spalimited.hotspotbilling.domain.CustomPlanSettings;
 import com.spalimited.hotspotbilling.domain.ManualClaim;
 import com.spalimited.hotspotbilling.domain.NotificationTemplate;
 import com.spalimited.hotspotbilling.domain.Payment;
+import com.spalimited.hotspotbilling.domain.PaymentGateway;
 import com.spalimited.hotspotbilling.domain.Plan;
 import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.ManualClaimRepository;
@@ -340,6 +341,43 @@ public class PaymentService {
             if (created == null || created.isAfter(graceCutoff)) {
                 continue; // too fresh — the callback may still be on its way
             }
+            // Which rail took this payment decides who to ask. Before more
+            // than one existed, every pending payment was queried against
+            // Daraja — which for a Paystack or MoMo charge asks the wrong
+            // company about a reference it has never heard of, gets nothing
+            // back, and eventually marks a good payment failed.
+            var provider = providers.forKind(p.getProvider());
+            if (provider.isPresent() && provider.get().pollable()) {
+                var outcome = provider.get().poll(p.getCheckoutRequestId());
+                if (outcome.isEmpty()) {
+                    // Still pending as far as they are concerned. Only give up
+                    // once it has been long enough to be hopeless.
+                    if (created.isBefore(timeoutCutoff)) {
+                        markFailed(p, "timed out with no result from " + p.getProvider());
+                        settled++;
+                    }
+                    continue;
+                }
+                var s2 = outcome.get();
+                if (s2.paid()) {
+                    completeSuccess(p, s2.receipt());
+                } else {
+                    markFailed(p, s2.failureReason() == null ? "declined" : s2.failureReason());
+                }
+                settled++;
+                continue;
+            }
+            if (provider.isPresent() && provider.get().kind() != PaymentGateway.Kind.MPESA_API) {
+                // A hosted-checkout rail. It has no status endpoint worth
+                // asking, and its webhook is the only thing that settles it —
+                // so time it out rather than inventing a verdict.
+                if (created.isBefore(timeoutCutoff)) {
+                    markFailed(p, "timed out with no result from " + p.getProvider());
+                    settled++;
+                }
+                continue;
+            }
+
             Integer result = mpesaService.queryStkStatus(p.getCheckoutRequestId());
             if (result == null) {
                 if (created.isBefore(timeoutCutoff)) {
