@@ -52,17 +52,39 @@ class CountryTest {
     }
 
     @Test
-    @DisplayName("Countries no built gateway reaches are flagged, not quietly broken")
+    @DisplayName("Only Angola has no gateway, and it is flagged rather than quietly broken")
     void unreachableCountriesAreNamed() {
-        // Telebirr, EcoCash and Multicaixa are domestic systems that Paystack,
-        // Flutterwave and Stripe do not touch. An operator there needs to know
-        // before they launch, not after their first customer cannot pay.
-        assertThat(Country.ET.needsManualCollection()).isTrue();
-        assertThat(Country.ZW.needsManualCollection()).isTrue();
+        // Multicaixa Express is domestic and none of the built rails touch it.
+        // An operator there needs to know before they launch, not after their
+        // first customer cannot pay.
         assertThat(Country.AO.needsManualCollection()).isTrue();
 
         assertThat(Country.KE.needsManualCollection()).isFalse();
         assertThat(Country.GH.needsManualCollection()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Ethiopia and Zimbabwe are reachable, which they were wrongly said not to be")
+    void ethiopiaAndZimbabweAreReachable() {
+        // Both were marked unreachable, and that is the expensive direction to
+        // be wrong in: it tells an operator in a real market that they cannot
+        // collect automatically when they can.
+        assertThat(Country.ET.needsManualCollection()).isFalse();
+        assertThat(Country.ET.rail()).isEqualTo(Country.Rail.CHAPA);
+
+        assertThat(Country.ZW.needsManualCollection()).isFalse();
+        assertThat(Country.ZW.rail()).isEqualTo(Country.Rail.PAYNOW);
+    }
+
+    @Test
+    @DisplayName("MTN markets point at MTN directly rather than at an aggregator")
+    void mtnMarketsUseMtn() {
+        // Direct, better rates, and the only one of the three that prompts the
+        // handset instead of opening a checkout page.
+        for (Country country : new Country[]{
+                Country.GH, Country.UG, Country.RW, Country.ZM, Country.CM, Country.CI}) {
+            assertThat(country.rail()).as("%s", country).isEqualTo(Country.Rail.MTN_MOMO);
+        }
     }
 
     @Test

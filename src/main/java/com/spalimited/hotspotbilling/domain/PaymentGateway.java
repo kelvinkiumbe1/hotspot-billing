@@ -51,7 +51,18 @@ public class PaymentGateway {
          * Cote d'Ivoire. Prompts the handset rather than opening a page, so it
          * behaves like M-Pesa rather than like a card processor.
          */
-        MTN_MOMO
+        MTN_MOMO,
+        /**
+         * Chapa — Ethiopia. Reaches telebirr and the local banks that no
+         * pan-African aggregator does. Hosted checkout.
+         */
+        CHAPA,
+        /**
+         * Paynow — Zimbabwe. Its Express Checkout prompts an EcoCash or
+         * OneMoney handset directly, so it behaves like M-Pesa rather than
+         * like a card processor.
+         */
+        PAYNOW
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -154,6 +165,12 @@ public class PaymentGateway {
             // because MTN does not sign its callbacks at all — the settlement
             // path re-queries them instead of trusting the body.
             case MTN_MOMO -> filled(secretKey) && filled(consumerKey) && filled(consumerSecret);
+            // Chapa signs its webhooks with a secret of its own, so without it
+            // the callback cannot be trusted and the gateway is not ready.
+            case CHAPA -> filled(secretKey) && filled(webhookSecret);
+            // Paynow needs both halves: the id names the merchant, the key
+            // salts every hash it sends and checks.
+            case PAYNOW -> filled(consumerKey) && filled(secretKey);
         };
     }
 
@@ -165,7 +182,7 @@ public class PaymentGateway {
     @Transient
     public boolean isAutomatic() {
         return switch (kind) {
-            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO -> true;
+            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -183,7 +200,7 @@ public class PaymentGateway {
     public boolean isLive() {
         return switch (kind) {
             case MPESA_API, MTN_MOMO -> environment == Environment.PRODUCTION;
-            case PAYSTACK, FLUTTERWAVE, STRIPE -> !isTestKey(secretKey);
+            case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA -> !isTestKey(secretKey);
             default -> true;
         };
     }

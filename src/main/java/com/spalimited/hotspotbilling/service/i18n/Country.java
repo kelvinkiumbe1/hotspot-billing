@@ -26,11 +26,11 @@ public enum Country {
             List.of("M-Pesa", "Airtel Money"), "254", 9, List.of("7", "1")),
     TZ("Tanzania", "TZS", "sw", "Mobile Money", Rail.FLUTTERWAVE,
             List.of("M-Pesa", "Mixx by Yas", "Airtel Money", "Halopesa"), "255", 9, List.of()),
-    UG("Uganda", "UGX", "en", "Mobile Money", Rail.FLUTTERWAVE,
+    UG("Uganda", "UGX", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Airtel Money"), "256", 9, List.of()),
-    RW("Rwanda", "RWF", "en", "Mobile Money", Rail.FLUTTERWAVE,
+    RW("Rwanda", "RWF", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Airtel Money"), "250", 9, List.of()),
-    GH("Ghana", "GHS", "en", "MTN MoMo", Rail.PAYSTACK,
+    GH("Ghana", "GHS", "en", "MTN MoMo", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Telecel Cash", "AirtelTigo Money"), "233", 9, List.of()),
     // Nigeria and South Africa are the exceptions: cards and bank transfer are
     // what people actually use, and mobile money barely registers.
@@ -38,7 +38,7 @@ public enum Country {
             List.of("Bank transfer", "Card", "USSD"), "234", 10, List.of()),
     ZA("South Africa", "ZAR", "en", "card or EFT", Rail.PAYSTACK,
             List.of("Card", "Instant EFT"), "27", 9, List.of()),
-    ZM("Zambia", "ZMW", "en", "Mobile Money", Rail.FLUTTERWAVE,
+    ZM("Zambia", "ZMW", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Airtel Money", "Zamtel Kwacha"), "260", 9, List.of()),
     MW("Malawi", "MWK", "en", "Mobile Money", Rail.FLUTTERWAVE,
             List.of("Airtel Money", "TNM Mpamba"), "265", 9, List.of()),
@@ -48,21 +48,21 @@ public enum Country {
             List.of("Multicaixa Express"), "244", 9, List.of()),
     SN("Senegal", "XOF", "fr", "Orange Money", Rail.FLUTTERWAVE,
             List.of("Orange Money", "Wave", "Free Money"), "221", 9, List.of()),
-    CI("Côte d'Ivoire", "XOF", "fr", "Mobile Money", Rail.FLUTTERWAVE,
+    CI("Côte d'Ivoire", "XOF", "fr", "Mobile Money", Rail.MTN_MOMO,
             List.of("Orange Money", "MTN MoMo", "Moov Money", "Wave"), "225", 10, List.of()),
-    CM("Cameroon", "XAF", "fr", "Mobile Money", Rail.FLUTTERWAVE,
+    CM("Cameroon", "XAF", "fr", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Orange Money"), "237", 9, List.of()),
     CD("DR Congo", "CDF", "fr", "Mobile Money", Rail.FLUTTERWAVE,
             List.of("M-Pesa", "Orange Money", "Airtel Money"), "243", 9, List.of()),
-    ET("Ethiopia", "ETB", "en", "Telebirr", Rail.NONE,
-            List.of("Telebirr", "CBE Birr"), "251", 9, List.of()),
-    ZW("Zimbabwe", "USD", "en", "EcoCash", Rail.NONE,
-            List.of("EcoCash"), "263", 9, List.of()),
+    ET("Ethiopia", "ETB", "en", "Telebirr", Rail.CHAPA,
+            List.of("Telebirr", "CBE Birr", "M-Pesa", "Amole"), "251", 9, List.of()),
+    ZW("Zimbabwe", "USD", "en", "EcoCash", Rail.PAYNOW,
+            List.of("EcoCash", "OneMoney", "InnBucks", "Zimswitch"), "263", 9, List.of()),
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
     /** Which of the built rails actually serves this country. */
-    public enum Rail { MPESA, PAYSTACK, FLUTTERWAVE, STRIPE, NONE }
+    public enum Rail { MPESA, MTN_MOMO, PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE }
 
     private final String countryName;
     private final String currency;
@@ -123,10 +123,13 @@ public enum Country {
     /**
      * True where no built rail reaches — the operator has to reconcile by hand.
      *
-     * <p>Said out loud rather than left to be discovered: Telebirr, EcoCash and
-     * Multicaixa are domestic systems that neither Paystack, Flutterwave nor
-     * Stripe reaches, and an operator there needs to know that before they
-     * launch rather than after their first customer cannot pay.
+     * <p>Only Angola now. Multicaixa Express is domestic and none of the built
+     * gateways touch it, so an operator there needs to know before they launch
+     * rather than after their first customer cannot pay.
+     *
+     * <p>Ethiopia and Zimbabwe were listed here and should not have been:
+     * Chapa reaches telebirr and Zimbabwe's Paynow reaches EcoCash. Calling a
+     * country unreachable when it is not turns a working market away.
      */
     public boolean needsManualCollection() {
         return rail == Rail.NONE;

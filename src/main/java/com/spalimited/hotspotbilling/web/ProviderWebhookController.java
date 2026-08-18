@@ -2,7 +2,9 @@ package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.service.PaymentService;
 import com.spalimited.hotspotbilling.service.payments.FlutterwaveProvider;
+import com.spalimited.hotspotbilling.service.payments.ChapaProvider;
 import com.spalimited.hotspotbilling.service.payments.MtnMomoProvider;
+import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.StripeProvider;
@@ -39,6 +41,8 @@ public class ProviderWebhookController {
 
     private final PaystackProvider paystack;
     private final MtnMomoProvider mtnMomo;
+    private final ChapaProvider chapa;
+    private final PaynowProvider paynow;
     private final FlutterwaveProvider flutterwave;
     private final StripeProvider stripe;
     private final PaymentService payments;
@@ -73,6 +77,24 @@ public class ProviderWebhookController {
     public ResponseEntity<String> mtnMomo(@RequestBody(required = false) byte[] body,
                                           HttpServletRequest request) {
         return handle("MTN MoMo", mtnMomo, body, request);
+    }
+
+    /** Chapa — Ethiopia. Signed, and verified before anything is read. */
+    @PostMapping("/chapa/webhook")
+    public ResponseEntity<String> chapa(@RequestBody(required = false) byte[] body,
+                                        HttpServletRequest request) {
+        return handle("Chapa", chapa, body, request);
+    }
+
+    /**
+     * Paynow — Zimbabwe. Hashed rather than signed, but genuinely verifiable:
+     * SHA-512 over the values in Paynow's own order, salted with the
+     * integration key.
+     */
+    @PostMapping("/paynow/webhook")
+    public ResponseEntity<String> paynow(@RequestBody(required = false) byte[] body,
+                                         HttpServletRequest request) {
+        return handle("Paynow", paynow, body, request);
     }
 
     /**

@@ -90,6 +90,31 @@ const GATEWAYS = [
     secretHint: 'The secret hash you set on their webhook page — you choose it',
   },
   {
+    kind: 'PAYNOW',
+    name: 'Paynow',
+    provider: 'Zimbabwe',
+    badge: 'API KEYS',
+    chips: ['Prompt on phone', 'EcoCash', 'Automatic'],
+    settlement: 'Instant, confirmed by a hashed reply',
+    icon: 'smartphone',
+    blurb: 'Reaches EcoCash, OneMoney, InnBucks and Zimswitch. Express Checkout prompts the handset directly, so it feels like M-Pesa rather than a checkout page.',
+    webhook: '/api/payments/paynow/webhook',
+    paynow: true,
+  },
+  {
+    kind: 'CHAPA',
+    name: 'Chapa',
+    provider: 'Ethiopia',
+    badge: 'API KEYS',
+    chips: ['telebirr', 'CBE Birr', 'Cards', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'public',
+    blurb: 'Reaches telebirr and the Ethiopian banks no pan-African gateway touches. The customer pays on a hosted page.',
+    webhook: '/api/payments/chapa/webhook',
+    keyHint: 'CHASECK_… from your Chapa dashboard',
+    secretHint: 'The webhook secret you set on Chapa’s webhook page',
+  },
+  {
     kind: 'STRIPE',
     name: 'Stripe',
     provider: 'Worldwide',
@@ -104,7 +129,7 @@ const GATEWAYS = [
   },
 ]
 
-const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE']
+const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA']
 // Prompts the handset instead of opening a page, so it is set up like
 // Daraja rather than like a card processor.
 const MOMO_KIND = 'MTN_MOMO'
@@ -330,6 +355,49 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.
             </p>
           )}
+        </>
+      ) : gateway.kind === 'PAYNOW' ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL_CLS}>Integration ID</label>
+              <input className={INPUT_CLS} value={form.consumerKey}
+                onChange={(e) => set({ consumerKey: e.target.value })}
+                placeholder={saved?.consumerKey || 'from your Paynow dashboard'} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>
+                Integration key {saved?.secretKey && <span className="normal-case font-normal">(blank = keep)</span>}
+              </label>
+              <input className={INPUT_CLS} type="password" value={form.secretKey}
+                onChange={(e) => set({ secretKey: e.target.value })}
+                placeholder={saved?.secretKey || 'the long key beside the ID'} />
+              <p className="text-xs text-on-surface-variant mt-1">
+                Not just a password — every message Paynow sends is hashed with it, and that hash
+                is what proves a payment really happened.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-outline-variant p-3">
+            <p className="text-sm font-medium">Result URL for your Paynow dashboard</p>
+            <p className="text-xs text-on-surface-variant mt-1 mb-2">
+              Where Paynow posts the outcome. Every message is checked against its hash before it
+              is believed, and a payment still settles without this — the sweep asks Paynow directly.
+            </p>
+            {webhookBase
+              ? <CopyUrl url={webhookBase + gateway.webhook} />
+              : (
+                <p className="text-xs text-[#b45309]">
+                  No public address is configured, so the URL can&rsquo;t be shown.
+                </p>
+              )}
+          </div>
+
+          <p className="text-xs text-[#b45309]">
+            No charge has gone through a live Paynow account yet. The hashing is tested; the
+            conversation with Paynow is not.
+          </p>
         </>
       ) : gateway.kind === MOMO_KIND ? (
         <>

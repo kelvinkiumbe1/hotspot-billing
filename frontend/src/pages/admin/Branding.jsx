@@ -217,8 +217,9 @@ export default function Branding({ auth }) {
                     ) : (
                       <p className="mt-1">
                         Recommended gateway: <strong>{
-                          { MPESA: 'M-Pesa (Daraja)', PAYSTACK: 'Paystack',
-                            FLUTTERWAVE: 'Flutterwave', STRIPE: 'Stripe' }[c.rail] || c.rail
+                          { MPESA: 'M-Pesa (Daraja)', MTN_MOMO: 'MTN MoMo', PAYSTACK: 'Paystack',
+                            FLUTTERWAVE: 'Flutterwave', STRIPE: 'Stripe',
+                            CHAPA: 'Chapa', PAYNOW: 'Paynow' }[c.rail] || c.rail
                         }</strong> — set it up under Settings → Payments.
                       </p>
                     )}
