@@ -40,7 +40,7 @@ public class AgentController {
 
     public record AgentRequest(
             @NotBlank String fullName,
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format") String phoneNumber,
+            @com.spalimited.hotspotbilling.config.Phone String phoneNumber,
             @NotBlank @Pattern(regexp = "[A-Za-z0-9-]{2,10}", message = "Code must be 2-10 letters or digits") String code,
             @Min(0) @Max(60) int commissionPercent,
             String location) {

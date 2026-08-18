@@ -40,7 +40,7 @@ public class PaymentController {
     }
 
     public record StkPushRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber,
             @NotNull Long planId) {
     }
@@ -78,7 +78,7 @@ public class PaymentController {
     }
 
     public record CustomStkPushRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber,
             @NotNull Integer minutes) {
     }
@@ -112,7 +112,7 @@ public class PaymentController {
     }
 
     public record RecoverRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber) {
     }
 

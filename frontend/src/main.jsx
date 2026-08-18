@@ -14,6 +14,7 @@ import './index.css'
 import './pwa.js'
 import App from './App.jsx'
 import { setCurrency } from './money.js'
+import { setCountry } from './phone.js'
 
 // Learn how this operator writes money before the first screen paints. Done
 // here rather than per page because prices appear on nearly all of them, and
@@ -23,7 +24,13 @@ import { setCurrency } from './money.js'
 // setting.
 fetch('/api/portal-settings')
   .then((r) => (r.ok ? r.json() : null))
-  .then((s) => setCurrency(s?.currency))
+  .then((s) => {
+    setCurrency(s?.currency)
+    // The same trip learns the country, which decides what shape a
+    // phone number has to be. Every page needs it, not just the ones
+    // that happen to load settings themselves.
+    setCountry(s?.country)
+  })
   .catch(() => {})
 
 createRoot(document.getElementById('root')).render(

@@ -24,6 +24,7 @@ public class AudienceService {
     private final SubscriberRepository subscribers;
     private final VoucherRepository vouchers;
     private final PaymentRepository payments;
+    private final com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
 
     /** A subscriber seen on the router this recently counts as online. */
     private static final Duration ONLINE_WINDOW = Duration.ofMinutes(10);
@@ -223,17 +224,14 @@ public class AudienceService {
     }
 
     /** Accepts 07..., +2547... and 2547... and settles on 2547XXXXXXXX. */
-    public static String normalise(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String digits = raw.replaceAll("\\D", "");
-        if (digits.startsWith("0") && digits.length() == 10) {
-            return "254" + digits.substring(1);
-        }
-        if (digits.length() == 9 && (digits.startsWith("7") || digits.startsWith("1"))) {
-            return "254" + digits;
-        }
-        return digits;
+    /**
+     * One canonical form for a number, whatever shape it was typed in.
+     *
+     * <p>Was a private copy of a Kenyan normaliser hardcoding "254" — one of
+     * five identical copies, and the reason a Ghanaian ISP could configure
+     * everything correctly and still take no money.
+     */
+    public String normalise(String raw) {
+        return phones.normalise(raw);
     }
 }

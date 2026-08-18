@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +27,7 @@ public class PppoeSelfServiceController {
     private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     public record LookupRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber) {
     }
 
@@ -47,7 +46,7 @@ public class PppoeSelfServiceController {
 
     public record PayRequest(
             @NotNull Long subscriberId,
-            @Pattern(regexp = "254\\d{9}") String phoneNumber,
+            @com.spalimited.hotspotbilling.config.Phone String phoneNumber,
             @Min(1) @Max(12) int months) {
     }
 

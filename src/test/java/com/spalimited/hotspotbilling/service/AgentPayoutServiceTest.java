@@ -53,6 +53,8 @@ class AgentPayoutServiceTest {
     @Mock private MessagingSettingsService messagingSettings;
     @Mock private PortalSettingsService portalSettings;
 
+    @Mock private com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
+
     private AgentPayoutService service;
 
     private final Map<Long, CommissionPayout> stored = new LinkedHashMap<>();
@@ -63,7 +65,12 @@ class AgentPayoutServiceTest {
     @BeforeEach
     void setUp() {
         service = new AgentPayoutService(settingsRepo, payouts, agents, agentService, mpesa,
-                smsService, messagingSettings, portalSettings);
+                smsService, messagingSettings, portalSettings, phones);
+        // Kenya's rules, so the payout assertions keep meaning what they meant.
+        when(phones.normalise(org.mockito.ArgumentMatchers.any())).thenAnswer(i ->
+                com.spalimited.hotspotbilling.service.i18n.PhoneNumbers.normalise(
+                        i.getArgument(0),
+                        com.spalimited.hotspotbilling.service.i18n.Country.KE));
 
         settings = AgentPayoutSettings.builder().id(1L).enabled(true).build();
         when(settingsRepo.findById(1L)).thenReturn(Optional.of(settings));

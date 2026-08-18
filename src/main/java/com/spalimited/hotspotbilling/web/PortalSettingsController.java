@@ -113,7 +113,7 @@ public class PortalSettingsController {
     }
 
     public record TrialRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
+            @com.spalimited.hotspotbilling.config.Phone
             String phoneNumber) {
     }
 

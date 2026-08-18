@@ -76,6 +76,12 @@ class OffPeakServiceTest {
         when(traffic.findByBucketHourGreaterThanEqual(any())).thenReturn(List.of());
         when(payments.findByStatusAndCreatedAtAfter(any(), any())).thenReturn(List.of());
         when(audiences.forSegment(anyString())).thenReturn(List.of());
+        // Normalising moved into AudienceService as an instance method; the
+        // mock has to behave like Kenya or every recipient is filtered out.
+        when(audiences.normalise(anyString())).thenAnswer(i ->
+                com.spalimited.hotspotbilling.service.i18n.PhoneNumbers.normalise(
+                        i.getArgument(0),
+                        com.spalimited.hotspotbilling.service.i18n.Country.KE));
         when(notices.findByKindAndSentAtAfter(anyString(), any())).thenReturn(List.of());
         when(portalSettings.settings()).thenReturn(PortalSettings.builder().businessName("SPA WiFi").build());
 

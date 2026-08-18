@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { normalizePhone } from '../phone.js'
 import { api } from '../api.js'
 import loginFiber from '../assets/login-fiber.jpg'
 
@@ -9,12 +10,6 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function normalizePhone(raw) {
-  let d = raw.replace(/\D/g, '')
-  if (d.startsWith('254')) d = d.slice(3)
-  if (d.startsWith('0')) d = d.slice(1)
-  return '254' + d
-}
 
 /**
  * Public self-service page for monthly PPPoE subscribers: enter your

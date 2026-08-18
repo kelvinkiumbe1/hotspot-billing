@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { normalizePhone, setCountry, phoneExample, phoneForLookup } from '../phone.js'
 import { api } from '../api.js'
 import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
 import heroCity from '../assets/hero-city.jpg'
@@ -103,6 +104,7 @@ const STRINGS = {
     'err.title': 'Payment Failed',
     'err.badge': 'Error',
     'err.failed': 'Payment didn’t go through. The {pay} request failed or was cancelled.',
+    'pay.badPhone': 'That number doesn’t look right. It should look like {example}.',
     'err.retry': 'Retry Payment',
     'err.choose': 'Choose another plan',
     'err.support': 'Support:',
@@ -215,6 +217,7 @@ const STRINGS = {
     'err.title': 'Malipo Yameshindikana',
     'err.badge': 'Hitilafu',
     'err.failed': 'Malipo hayakufanikiwa. Ombi la {pay} lilishindwa au lilighairiwa.',
+    'pay.badPhone': 'Nambari hiyo haionekani sahihi. Inapaswa kuwa kama {example}.',
     'err.retry': 'Jaribu Malipo Tena',
     'err.choose': 'Chagua kifurushi kingine',
     'err.support': 'Msaada:',
@@ -327,6 +330,7 @@ const STRINGS = {
     'err.title': 'Échec du paiement',
     'err.badge': 'Erreur',
     'err.failed': 'Le paiement n’a pas abouti. La demande {pay} a échoué ou a été annulée.',
+    'pay.badPhone': 'Ce numéro ne semble pas correct. Il doit ressembler à {example}.',
     'err.retry': 'Réessayer le paiement',
     'err.choose': 'Choisir un autre forfait',
     'err.support': 'Assistance :',
@@ -439,6 +443,7 @@ const STRINGS = {
     'err.title': 'Pagamento falhou',
     'err.badge': 'Erro',
     'err.failed': 'O pagamento não foi concluído. O pedido {pay} falhou ou foi cancelado.',
+    'pay.badPhone': 'Esse número não parece certo. Deve ser algo como {example}.',
     'err.retry': 'Tentar pagar novamente',
     'err.choose': 'Escolher outro plano',
     'err.support': 'Apoio:',
@@ -612,12 +617,6 @@ function speedLabel(bandwidth) {
 }
 
 // Accepts "0712...", "712...", "254712...", with or without spaces
-function normalizePhone(raw) {
-  let d = raw.replace(/\D/g, '')
-  if (d.startsWith('254')) d = d.slice(3)
-  if (d.startsWith('0')) d = d.slice(1)
-  return '254' + d
-}
 
 import { Icon } from '../components/icons.jsx'
 
@@ -716,6 +715,9 @@ export default function Portal() {
       setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
       if (s.paymentBrand) setPay(s.paymentBrand)
+      // Primed before anyone types: the shape a number must take
+      // is a property of where the operator is.
+      if (s.country) setCountry(s.country)
       setBrand({
         name: s.businessName || '',
         logoUrl: s.logoUrl || null,
@@ -761,14 +763,22 @@ export default function Portal() {
     e.preventDefault()
     setSending(true)
     try {
+      // Checked here so the customer is told in their own words what shape
+      // their number takes, rather than watching a request fail.
+      const dialable = normalizePhone(phone)
+      if (!dialable) {
+        setSending(false)
+        setErrorMsg(t('pay.badPhone', { example: phoneExample() }))
+        return
+      }
       const { paymentId, checkoutUrl } = selected.customMinutes
         ? await api('/payments/stk-push-custom', {
             method: 'POST',
-            body: { phoneNumber: normalizePhone(phone), minutes: selected.customMinutes },
+            body: { phoneNumber: dialable, minutes: selected.customMinutes },
           })
         : await api('/payments/stk-push', {
             method: 'POST',
-            body: { phoneNumber: normalizePhone(phone), planId: selected.id },
+            body: { phoneNumber: dialable, planId: selected.id },
           })
       // A card rail hands back somewhere to pay; M-Pesa prompts the handset and
       // sends nothing. Opened in this tab rather than a new one: on a captive
@@ -1059,7 +1069,7 @@ function RewardsCard() {
     e?.preventDefault()
     setMsg(null); setBal(null); setBusy(true)
     try {
-      const b = await api(`/loyalty/${normalizePhone(phone)}`)
+      const b = await api(`/loyalty/${phoneForLookup(phone)}`)
       if (!b.enabled) { setMsg({ ok: false, text: t('rewards.unavailable') }); return }
       setBal(b)
       setMinutes(b.minRedeemMinutes)
@@ -1071,7 +1081,7 @@ function RewardsCard() {
   async function redeem() {
     setMsg(null); setBusy(true)
     try {
-      const r = await api(`/loyalty/${normalizePhone(phone)}/redeem`, { method: 'POST', body: { minutes } })
+      const r = await api(`/loyalty/${phoneForLookup(phone)}/redeem`, { method: 'POST', body: { minutes } })
       setMsg({ ok: true, text: r.message })
       check() // refresh balance
     } catch (err) {
@@ -1244,7 +1254,7 @@ function RecoverBox({ compact = false }) {
     setBusy(true)
     setMsg(null)
     try {
-      const r = await api('/payments/recover', { method: 'POST', body: { phoneNumber: normalizePhone(phone) } })
+      const r = await api('/payments/recover', { method: 'POST', body: { phoneNumber: phoneForLookup(phone) } })
       setMsg({ ok: r.result === 'SENT', text: r.message })
     } catch (err) {
       setMsg({ ok: false, text: err.message })
@@ -1864,7 +1874,7 @@ function CreditPanel({ plan, phone }) {
     if (digits.length < 9) { setState(null); return }
     let cancelled = false
     const id = setTimeout(() => {
-      api(`/credit/${normalizePhone(phone)}`)
+      api(`/credit/${phoneForLookup(phone)}`)
         .then((s) => { if (!cancelled) setState(s) })
         .catch(() => { if (!cancelled) setState(null) })
     }, 400)
@@ -1874,7 +1884,7 @@ function CreditPanel({ plan, phone }) {
   async function take() {
     setBusy(true); setError(null)
     try {
-      setTaken(await api(`/credit/${normalizePhone(phone)}/take`, { method: 'POST', body: { planId: plan.id } }))
+      setTaken(await api(`/credit/${phoneForLookup(phone)}/take`, { method: 'POST', body: { planId: plan.id } }))
     } catch (err) {
       setError(err.message)
     } finally {

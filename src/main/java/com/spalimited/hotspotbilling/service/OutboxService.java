@@ -23,6 +23,7 @@ import java.util.*;
 public class OutboxService {
 
     private final OutboundMessageRepository messages;
+    private final com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
 
     /** Logs a send. Never throws — the message already left. */
     public void record(OutboundMessage.Channel channel, String phone, String name, String body,
@@ -54,7 +55,7 @@ public class OutboxService {
      * silently matches nothing is worse than no feed.
      */
     public List<Map<String, Object>> since(String phone, long sinceEpochMs) {
-        String normalised = SmsService.normalise(phone);
+        String normalised = phones.normalise(phone);
         if (normalised == null) {
             return List.of();
         }

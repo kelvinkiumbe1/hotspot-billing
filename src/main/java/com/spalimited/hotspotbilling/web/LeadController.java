@@ -48,7 +48,7 @@ public class LeadController {
 
     public record LeadRequest(
             @NotBlank String fullName,
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format") String phoneNumber,
+            @com.spalimited.hotspotbilling.config.Phone String phoneNumber,
             String location,
             String interestedIn,
             BigDecimal quotedFee,

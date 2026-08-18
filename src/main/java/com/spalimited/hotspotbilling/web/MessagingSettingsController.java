@@ -64,7 +64,7 @@ public class MessagingSettingsController {
     }
 
     public record TestRequest(
-            @Pattern(regexp = "254\\d{9}", message = "Use the 2547XXXXXXXX form") String phoneNumber) {
+            @com.spalimited.hotspotbilling.config.Phone String phoneNumber) {
     }
 
     /**

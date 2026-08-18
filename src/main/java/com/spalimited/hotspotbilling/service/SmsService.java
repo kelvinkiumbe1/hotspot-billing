@@ -32,6 +32,7 @@ public class SmsService {
     private final OutboxService outboxService;
     private final MessagingSettingsService messagingSettings;
     private final HttpClient http = HttpClient.newHttpClient();
+    private final com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
 
     public boolean isEnabled() {
         var cfg = messagingSettings.sms();
@@ -47,7 +48,7 @@ public class SmsService {
                     "SMS is not configured — set SMS_ENABLED, SMS_USERNAME and SMS_API_KEY");
         }
         List<String> numbers = phoneNumbers.stream()
-                .map(SmsService::normalise)
+                .map(this::normalise)
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .map(p -> "+" + p)
@@ -239,17 +240,14 @@ public class SmsService {
      * the same phone. Null when it cannot be one — better a recorded failure
      * than a message posted into the void.
      */
-    static String normalise(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String d = raw.replaceAll("\\D", "");
-        if (d.length() == 10 && d.startsWith("0")) {
-            d = "254" + d.substring(1);
-        }
-        if (d.length() == 9 && (d.startsWith("7") || d.startsWith("1"))) {
-            d = "254" + d;
-        }
-        return d.matches("254\\d{9}") ? d : null;
+    /**
+     * One canonical form for a number, whatever shape it was typed in.
+     *
+     * <p>Was a private copy of a Kenyan normaliser hardcoding "254" — one of
+     * five identical copies, and the reason a Ghanaian ISP could configure
+     * everything correctly and still take no money.
+     */
+    public String normalise(String raw) {
+        return phones.normalise(raw);
     }
 }

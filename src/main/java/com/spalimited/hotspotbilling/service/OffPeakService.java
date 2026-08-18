@@ -363,7 +363,7 @@ public class OffPeakService {
             if (sent >= s.getMaxMessagesPerRun()) {
                 break;
             }
-            String phone = AudienceService.normalise(r.phone());
+            String phone = audiences.normalise(r.phone());
             if (phone == null || phone.isBlank() || recentlyTold.contains(phone)) {
                 continue;
             }

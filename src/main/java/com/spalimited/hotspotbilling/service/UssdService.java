@@ -52,6 +52,7 @@ public class UssdService {
     /** Named cash rather than money, since money(Plan) already meant something here. */
     private final MoneyService cash;
     private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
+    private final com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
 
     /**
      * Handles one USSD request. {@code text} is everything the caller has
@@ -235,17 +236,14 @@ public class UssdService {
         }
     }
 
-    private static String normalize(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String d = raw.replaceAll("\\D", "");
-        if (d.length() == 10 && d.startsWith("0")) {
-            d = "254" + d.substring(1);
-        }
-        if (d.length() == 9 && (d.startsWith("7") || d.startsWith("1"))) {
-            d = "254" + d;
-        }
-        return d.matches("254\\d{9}") ? d : null;
+    /**
+     * One canonical form for a number, whatever shape it was typed in.
+     *
+     * <p>Was a private copy of a Kenyan normaliser hardcoding "254" — one of
+     * five identical copies, and the reason a Ghanaian ISP could configure
+     * everything correctly and still take no money.
+     */
+    private String normalize(String raw) {
+        return phones.normalise(raw);
     }
 }

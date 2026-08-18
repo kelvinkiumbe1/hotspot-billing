@@ -40,7 +40,7 @@ public class SubscriberController {
 
     public record CreateRequest(
             @NotBlank String fullName,
-            @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format") String phoneNumber,
+            @com.spalimited.hotspotbilling.config.Phone String phoneNumber,
             @NotBlank @Pattern(regexp = "[a-zA-Z0-9._@-]{3,40}",
                     message = "PPPoE username must be 3-40 letters, digits, dots, dashes, @ or underscores")
             String pppoeUsername,

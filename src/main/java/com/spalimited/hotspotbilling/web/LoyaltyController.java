@@ -6,7 +6,6 @@ import com.spalimited.hotspotbilling.service.LoyaltyService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +30,7 @@ public class LoyaltyController {
 
     @GetMapping("/api/loyalty/{phone}")
     public Map<String, Object> balance(
-            @PathVariable @Pattern(regexp = "254\\d{9}") String phone) {
+            @PathVariable @com.spalimited.hotspotbilling.config.Phone String phone) {
         return loyalty.balance(phone);
     }
 
@@ -40,7 +39,7 @@ public class LoyaltyController {
 
     @PostMapping("/api/loyalty/{phone}/redeem")
     public Map<String, Object> redeem(
-            @PathVariable @Pattern(regexp = "254\\d{9}") String phone,
+            @PathVariable @com.spalimited.hotspotbilling.config.Phone String phone,
             @Valid @RequestBody RedeemRequest req) {
         return loyalty.redeem(phone, req.minutes());
     }

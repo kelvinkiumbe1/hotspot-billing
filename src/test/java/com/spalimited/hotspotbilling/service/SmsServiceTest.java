@@ -29,12 +29,19 @@ class SmsServiceTest {
     @Mock private WhatsappService whatsappService;
     @Mock private OutboxService outboxService;
     @Mock private MessagingSettingsService messagingSettings;
+    @Mock private com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
 
     private SmsService service;
 
     @BeforeEach
     void setUp() {
-        service = new SmsService(whatsappService, outboxService, messagingSettings);
+        service = new SmsService(whatsappService, outboxService, messagingSettings, phones);
+        // Normalising is PhoneNumbers' job now and has its own tests; here it
+        // only has to behave like Kenya so these assertions keep their meaning.
+        when(phones.normalise(anyString())).thenAnswer(i ->
+                com.spalimited.hotspotbilling.service.i18n.PhoneNumbers.normalise(
+                        i.getArgument(0),
+                        com.spalimited.hotspotbilling.service.i18n.Country.KE));
         when(whatsappService.isEnabled()).thenReturn(true);
         when(whatsappService.send(anyString(), anyString())).thenReturn(true);
     }
@@ -42,20 +49,20 @@ class SmsServiceTest {
     @Test
     @DisplayName("The way people actually write their number is accepted")
     void acceptsHowPeopleWriteNumbers() {
-        assertThat(SmsService.normalise("0757306837")).isEqualTo("254757306837");
-        assertThat(SmsService.normalise("+254 757 306 837")).isEqualTo("254757306837");
-        assertThat(SmsService.normalise("757306837")).isEqualTo("254757306837");
-        assertThat(SmsService.normalise("254757306837")).isEqualTo("254757306837");
+        assertThat(service.normalise("0757306837")).isEqualTo("254757306837");
+        assertThat(service.normalise("+254 757 306 837")).isEqualTo("254757306837");
+        assertThat(service.normalise("757306837")).isEqualTo("254757306837");
+        assertThat(service.normalise("254757306837")).isEqualTo("254757306837");
         // Safaricom's newer 011x range, not just 07x.
-        assertThat(SmsService.normalise("0110123456")).isEqualTo("254110123456");
+        assertThat(service.normalise("0110123456")).isEqualTo("254110123456");
     }
 
     @Test
     @DisplayName("Something that cannot be a Kenyan mobile is refused rather than guessed at")
     void refusesWhatIsNotANumber() {
-        assertThat(SmsService.normalise("not a number")).isNull();
-        assertThat(SmsService.normalise("12345")).isNull();
-        assertThat(SmsService.normalise(null)).isNull();
+        assertThat(service.normalise("not a number")).isNull();
+        assertThat(service.normalise("12345")).isNull();
+        assertThat(service.normalise(null)).isNull();
     }
 
     @Test
