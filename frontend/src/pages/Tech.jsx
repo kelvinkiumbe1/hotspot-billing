@@ -956,7 +956,7 @@ function TechSubscribers({ auth }) {
         <form onSubmit={create} className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border border-surface-variant flex flex-col gap-3 mb-6">
           <div className="grid grid-cols-2 gap-3">
             <div><label className={labelCls}>Full Name</label><input className={inputCls} required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
-            <div><label className={labelCls}>Phone (M-Pesa)</label><input className={inputCls} required placeholder="2547XXXXXXXX" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} /></div>
+            <div><label className={labelCls}>Phone</label><input className={inputCls} required placeholder="2547XXXXXXXX" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} /></div>
             <div><label className={labelCls}>PPPoE Username</label><input className={inputCls} required value={form.pppoeUsername} onChange={(e) => setForm({ ...form, pppoeUsername: e.target.value })} /></div>
             <div><label className={labelCls}>PPPoE Password</label><input className={inputCls} required minLength={6} value={form.pppoePassword} onChange={(e) => setForm({ ...form, pppoePassword: e.target.value })} /></div>
             <div><label className={labelCls}>Speed (Mbps)</label><input className={inputCls} type="number" min="1" value={form.mbps} onChange={(e) => setForm({ ...form, mbps: e.target.value })} /></div>
@@ -968,7 +968,7 @@ function TechSubscribers({ auth }) {
               <label className={labelCls}>Payment Method</label>
               <select className={inputCls} value={form.initialMethod} onChange={(e) => setForm({ ...form, initialMethod: e.target.value })}>
                 <option value="CASH">Cash received</option>
-                <option value="MPESA">Send M-Pesa STK</option>
+                <option value="MPESA">Send a payment request</option>
               </select>
             </div>
           </div>

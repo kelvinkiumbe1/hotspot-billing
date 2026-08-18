@@ -4,6 +4,7 @@ import { api } from '../api.js'
 import loginFiber from '../assets/login-fiber.jpg'
 
 import { Icon } from '../components/icons.jsx'
+import { payPinPhrase } from '../payBrand.js'
 import { money } from '../money.js'
 
 function fmtDate(d) {
@@ -192,7 +193,7 @@ export default function PayPortal() {
                 </div>
               </div>
               <h2 className="text-xl font-bold text-on-surface">Check your phone</h2>
-              <p className="text-sm text-on-surface-variant">Enter your M-Pesa PIN to complete the payment of <span className="font-mono font-semibold text-on-surface">{money(total)}</span>.</p>
+              <p className="text-sm text-on-surface-variant">Enter {payPinPhrase()} to complete the payment of <span className="font-mono font-semibold text-on-surface">{money(total)}</span>.</p>
             </div>
           )}
 

@@ -54,7 +54,7 @@ const GATEWAYS = [
   {
     kind: 'MTN_MOMO',
     name: 'MTN Mobile Money',
-    provider: 'Ghana · Uganda · Rwanda · Zambia · Cameroon · Côte d’Ivoire',
+    provider: 'Ghana · Uganda · Rwanda · Zambia · Cameroon · Côte d’Ivoire · Benin · Eswatini · South Sudan',
     badge: 'API KEYS',
     chips: ['Prompt on phone', 'No web page', 'Automatic'],
     settlement: 'Instant, confirmed by asking MTN',
@@ -91,7 +91,7 @@ const GATEWAYS = [
   {
     kind: 'AIRTEL_MONEY',
     name: 'Airtel Money',
-    provider: 'Kenya · Tanzania · Uganda · Rwanda · Zambia · Malawi · DR Congo · Nigeria',
+    provider: 'Kenya · Tanzania · Uganda · Rwanda · Zambia · Malawi · DR Congo · Nigeria · Niger · Chad · Gabon · Congo-Brazzaville · Madagascar',
     badge: 'API KEYS',
     chips: ['Prompt on phone', 'No web page', 'Automatic'],
     settlement: 'Instant, confirmed by asking Airtel',
@@ -102,7 +102,7 @@ const GATEWAYS = [
   {
     kind: 'ORANGE_MONEY',
     name: 'Orange Money',
-    provider: 'Senegal · Côte d’Ivoire · Cameroon · DR Congo',
+    provider: 'Senegal · Côte d’Ivoire · Mali · Burkina Faso · Guinea · Sierra Leone · Niger · Madagascar · Botswana · Cameroon · DR Congo',
     badge: 'API KEYS',
     chips: ['Wallet', 'Hosted page', 'Automatic'],
     settlement: 'Instant, confirmed by asking Orange',
@@ -115,7 +115,7 @@ const GATEWAYS = [
   {
     kind: 'WAVE',
     name: 'Wave',
-    provider: 'Senegal · Côte d’Ivoire',
+    provider: 'Senegal · Côte d’Ivoire · Mali · Burkina Faso · Gambia',
     badge: 'API KEYS',
     chips: ['Wallet', 'Cheapest fees', 'Automatic'],
     settlement: 'Instant to us, paid out on their schedule',

@@ -73,7 +73,7 @@ function ConvertForm({ lead, onCancel, onConvert }) {
         <label className={LABEL_CLS}>Payment</label>
         <select className={INPUT_CLS} value={form.initialMethod} onChange={(e) => setForm({ ...form, initialMethod: e.target.value })}>
           <option value="CASH">Cash received</option>
-          <option value="MPESA">Send M-Pesa STK</option>
+          <option value="MPESA">Send a payment request</option>
         </select>
       </div>
       {error && <p className="text-sm text-error col-span-full">{error}</p>}

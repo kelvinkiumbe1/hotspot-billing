@@ -15,6 +15,7 @@ import './pwa.js'
 import App from './App.jsx'
 import { setCurrency } from './money.js'
 import { setCountry } from './phone.js'
+import { setPayBrand } from './payBrand.js'
 
 // Learn how this operator writes money before the first screen paints. Done
 // here rather than per page because prices appear on nearly all of them, and
@@ -30,6 +31,7 @@ fetch('/api/portal-settings')
     // phone number has to be. Every page needs it, not just the ones
     // that happen to load settings themselves.
     setCountry(s?.country)
+    setPayBrand(s?.paymentBrand)
   })
   .catch(() => {})
 

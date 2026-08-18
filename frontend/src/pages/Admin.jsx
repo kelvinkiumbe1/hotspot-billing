@@ -40,6 +40,8 @@ import loginFiber from '../assets/login-fiber.jpg'
 /* ------------------------------------------------------------------ */
 
 import { Icon } from '../components/icons.jsx'
+import { payBrand, payPinPhrase } from '../payBrand.js'
+import { phoneExample } from '../phone.js'
 import { money } from '../money.js'
 
 function formatDuration(minutes) {
@@ -883,12 +885,12 @@ function SubscriptionPage({ auth }) {
           ) : (
             <>
               <p className="text-sm text-on-surface-variant mt-3">
-                Pay <strong className="text-on-surface">{fmtKES(b.amountDue)}</strong> for {b.month} by M-Pesa — we'll send an STK prompt to your phone.
+                Pay <strong className="text-on-surface">{fmtKES(b.amountDue)}</strong> for {b.month} by {payBrand()} — we&rsquo;ll send a prompt to your phone.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 mt-3 max-w-md">
                 <input
                   className={INPUT_CLS + ' flex-1'}
-                  placeholder="M-Pesa number (2547XXXXXXXX)"
+                  placeholder={`${payBrand()} number (${phoneExample()})`}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={pay?.status === 'PENDING'}
@@ -901,7 +903,7 @@ function SubscriptionPage({ auth }) {
                   {pay?.status === 'PENDING' ? 'Awaiting your PIN…' : paying ? 'Sending…' : `Pay ${fmtKES(b.amountDue)}`}
                 </button>
               </div>
-              {pay?.status === 'PENDING' && <p className="text-xs text-on-surface-variant mt-2">Check your phone and enter your M-Pesa PIN to complete the payment…</p>}
+              {pay?.status === 'PENDING' && <p className="text-xs text-on-surface-variant mt-2">Check your phone and enter {payPinPhrase()} to complete the payment…</p>}
               {pay?.status === 'FAILED' && <p className="text-xs text-error mt-2">{pay.detail || 'Payment not completed.'} Please try again.</p>}
               {payErr && <p className="text-xs text-error mt-2">{payErr}</p>}
             </>
@@ -2372,7 +2374,7 @@ function SubscriberModal({ auth, onClose, onSaved }) {
                 <input className={inputCls} required placeholder="e.g. Mary Kamau" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
               <div>
-                <label className={labelCls}>Phone (M-Pesa)</label>
+                <label className={labelCls}>Phone</label>
                 <input className={inputCls} required placeholder="2547XXXXXXXX" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} />
               </div>
             </div>
@@ -2404,7 +2406,7 @@ function SubscriberModal({ auth, onClose, onSaved }) {
               <label className={labelCls}>Initial Payment Method</label>
               <select className={inputCls} value={form.initialMethod} onChange={(e) => setForm({ ...form, initialMethod: e.target.value })}>
                 <option value="CASH">Cash received — credit the months now</option>
-                <option value="MPESA">Send M-Pesa STK — months credited after they pay</option>
+                <option value="MPESA">Send a payment request — months credited after they pay</option>
               </select>
             </div>
             <p className="text-xs font-semibold tracking-wider text-tertiary">
@@ -2894,7 +2896,7 @@ function ImportSubscribersModal({ auth, onClose, onDone }) {
               <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
                 Required columns: <code className="text-primary">fullName</code>, <code className="text-primary">pppoeUsername</code>.
                 Optional: phoneNumber, pppoePassword (auto-generated if blank), bandwidth (e.g. <code>10M/10M</code> or just <code>5</code>),
-                monthlyFee, expiry (<code>YYYY-MM-DD</code>). No M-Pesa prompt is sent and no payment is recorded — the expiry just preserves remaining time.
+                monthlyFee, expiry (<code>YYYY-MM-DD</code>). No payment prompt is sent and no payment is recorded — the expiry just preserves remaining time.
               </p>
 
               {parseErr && <p className="text-sm text-error mt-3">{parseErr}</p>}
@@ -3266,7 +3268,7 @@ function PaymentDetail({ payment, onClose }) {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">M-Pesa Information</h4>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">Payment Information</h4>
             <Row label="Receipt No.">
               <span className="font-mono text-sm font-semibold text-on-surface">{payment.mpesaReceiptNumber || '—'}</span>
             </Row>
@@ -3342,7 +3344,7 @@ function Payments({ auth }) {
 
   return (
     <div>
-      <PageHeader title="Payments" subtitle="Every M-Pesa transaction, and how it ended.">
+      <PageHeader title="Payments" subtitle="Every payment taken, on every rail, and how it ended.">
         <button
           onClick={() => exportCsv(filtered)}
           disabled={filtered.length === 0}
@@ -3440,7 +3442,7 @@ function Payments({ auth }) {
                   <th>Phone</th>
                   <th>Plan</th>
                   <th className="text-right">Amount</th>
-                  <th>M-Pesa receipt</th>
+                  <th>Receipt</th>
                   <th>Voucher</th>
                   <th>Status</th>
                 </tr>
