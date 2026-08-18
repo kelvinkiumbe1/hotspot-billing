@@ -153,6 +153,48 @@ class MessagesTest {
     }
 
     @Test
+    @DisplayName("The payment brand follows the operator's country, not a hardcoded M-Pesa")
+    void paymentBrandFollowsCountry() {
+        when(portalSettings.settings()).thenReturn(PortalSettings.builder()
+                .language("en").followCustomerLanguage(true).country("GH").build());
+
+        // "4. Pay by M-Pesa" on a Ghanaian USSD menu asks a customer to use
+        // something that does not exist in their country.
+        assertThat(messages.get("ussd.menu")).contains("MTN MoMo").doesNotContain("M-Pesa");
+
+        when(portalSettings.settings()).thenReturn(PortalSettings.builder()
+                .language("en").followCustomerLanguage(true).country("KE").build());
+        assertThat(messages.get("ussd.menu")).contains("M-Pesa");
+    }
+
+    @Test
+    @DisplayName("An operator's own wording overrules the country's default")
+    void operatorBrandWins() {
+        when(portalSettings.settings()).thenReturn(PortalSettings.builder()
+                .language("en").followCustomerLanguage(true)
+                .country("KE").paymentBrand("Airtel Money").build());
+
+        // A Nairobi ISP whose customers all use Airtel should not be forced to
+        // say "M-Pesa" because the country table says so.
+        assertThat(messages.get("ussd.menu")).contains("Airtel Money").doesNotContain("M-Pesa");
+    }
+
+    @Test
+    @DisplayName("No message reaches a customer still holding a raw {pay}")
+    void payPlaceholderIsAlwaysFilled() {
+        when(portalSettings.settings()).thenReturn(PortalSettings.builder()
+                .language("fr").followCustomerLanguage(true).country("CI").build());
+
+        for (Language language : Language.values()) {
+            for (String key : Messages.catalogue().get(Language.EN).keySet()) {
+                assertThat(messages.get(language, key))
+                        .as("%s / %s", language.englishName(), key)
+                        .doesNotContain("{pay}");
+            }
+        }
+    }
+
+    @Test
     @DisplayName("Placeholders are filled in whichever language is used")
     void placeholdersFill() {
         operatorSpeaks("pt", true);

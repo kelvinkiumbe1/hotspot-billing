@@ -48,6 +48,7 @@ public class WhatsappBotService {
     private final FieldOpsService fieldOps;
     private final com.spalimited.hotspotbilling.repository.LeadRepository leads;
     private final MoneyService money;
+    private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     private enum Step {
         MENU, PLAN, PAY_PHONE, RENEW_MONTHS, SUPPORT_MSG, REFERRAL_CODE, PASS,
@@ -144,16 +145,16 @@ public class WhatsappBotService {
             Map.entry("choose", new String[]{"*Choose a plan* — reply with its number:\n", "*Chagua kifurushi* — jibu na nambari yake:\n"}),
             Map.entry("back", new String[]{"\nReply *menu* to go back.", "\nJibu *menu* kurudi."}),
             Map.entry("payPrompt", new String[]{
-                    "Reply with the *M-Pesa number* to pay from (2547XXXXXXXX), or reply *me* to use this number.",
-                    "Jibu na *nambari ya M-Pesa* ya kulipa (2547XXXXXXXX), au jibu *me* kutumia hii."}),
+                    "Reply with the *{pay} number* to pay from (2547XXXXXXXX), or reply *me* to use this number.",
+                    "Jibu na *nambari ya {pay}* ya kulipa (2547XXXXXXXX), au jibu *me* kutumia hii."}),
             Map.entry("badPhone", new String[]{
-                    "That doesn't look like a valid M-Pesa number. Reply as 2547XXXXXXXX, or *me*.",
+                    "That doesn't look like a valid {pay} number. Reply as 2547XXXXXXXX, or *me*.",
                     "Nambari si sahihi. Jibu kama 2547XXXXXXXX, au *me*."}),
             Map.entry("buySent", new String[]{
-                    "✅ M-Pesa request sent to %s for %s. Enter your PIN — your WiFi code arrives here once confirmed.",
-                    "✅ Ombi la M-Pesa limetumwa kwa %s la %s. Weka PIN yako — nambari ya WiFi itakuja hapa baada ya kuthibitishwa."}),
+                    "✅ {pay} request sent to %s for %s. Enter your PIN — your WiFi code arrives here once confirmed.",
+                    "✅ Ombi la {pay} limetumwa kwa %s la %s. Weka PIN yako — nambari ya WiFi itakuja hapa baada ya kuthibitishwa."}),
             Map.entry("payFail", new String[]{
-                    "Sorry, we couldn't start the M-Pesa payment right now. Please try again shortly.",
+                    "Sorry, we couldn't start the {pay} payment right now. Please try again shortly.",
                     "Samahani, hatukuweza kuanzisha malipo sasa. Jaribu tena baadaye."}),
             Map.entry("statusNone", new String[]{
                     "We couldn't find an account on this number. Reply *1* to buy a WiFi voucher.",
@@ -169,8 +170,8 @@ public class WhatsappBotService {
                     "Ungependa kulipia miezi mingapi? Jibu nambari *1–12*."}),
             Map.entry("renewBad", new String[]{"Reply a number of months between 1 and 12.", "Jibu nambari ya miezi kati ya 1 na 12."}),
             Map.entry("renewSent", new String[]{
-                    "✅ M-Pesa request sent to renew for %d month(s). Enter your PIN — your internet stays on once confirmed.",
-                    "✅ Ombi la M-Pesa limetumwa kuongeza miezi %d. Weka PIN yako — intaneti itaendelea baada ya kuthibitishwa."}),
+                    "✅ {pay} request sent to renew for %d month(s). Enter your PIN — your internet stays on once confirmed.",
+                    "✅ Ombi la {pay} limetumwa kuongeza miezi %d. Weka PIN yako — intaneti itaendelea baada ya kuthibitishwa."}),
             Map.entry("renewNone", new String[]{
                     "We couldn't find a home/office account on this number. Reply *1* to buy a WiFi voucher, or *menu*.",
                     "Hatukupata akaunti ya nyumbani/ofisini kwa nambari hii. Jibu *1* kununua WiFi, au *menu*."}),
@@ -211,7 +212,20 @@ public class WhatsappBotService {
     private String t(Session s, String key, Object... args) {
         String[] v = M.get(key);
         String base = v == null ? key : v["SW".equals(s.lang) ? 1 : 0];
+        // {pay} is filled before formatting, so the brand can never be mistaken
+        // for a format specifier — and so a Ghanaian customer is not asked for
+        // an "M-Pesa number" by a bot that has no idea where it is.
+        base = base.replace("{pay}", paymentBrand());
         return args.length == 0 ? base : String.format(base, args);
+    }
+
+    /** What paying is called here, falling back to Kenya's answer. */
+    private String paymentBrand() {
+        try {
+            return messages.paymentBrand();
+        } catch (Exception e) {
+            return "M-Pesa";
+        }
     }
 
     /** Entry point — needs the sender's number for the status/renew/resend paths. */

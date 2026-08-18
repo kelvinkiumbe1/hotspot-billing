@@ -48,6 +48,7 @@ class CreditServiceTest {
     @Mock private PortalSettingsService portalSettings;
     @Mock private AuditService audit;
     @Mock private MoneyService money;
+    @Mock private com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     private CreditService service;
     private CreditSettings settings;
@@ -55,9 +56,10 @@ class CreditServiceTest {
     @BeforeEach
     void setUp() {
         service = new CreditService(settingsRepo, advances, payments, plans, voucherService,
-                notifications, smsService, money, portalSettings, audit);
+                notifications, smsService, money, portalSettings, audit, messages);
         // The mock formats the way Kenya does, so the wording these tests
         // assert on reads exactly as it did before currency became a setting.
+        when(messages.paymentBrand()).thenReturn("M-Pesa");
         when(money.format(org.mockito.ArgumentMatchers.any())).thenAnswer(
                 i -> "KES " + (i.getArgument(0) == null ? "0"
                         : ((java.math.BigDecimal) i.getArgument(0)).stripTrailingZeros().toPlainString()));

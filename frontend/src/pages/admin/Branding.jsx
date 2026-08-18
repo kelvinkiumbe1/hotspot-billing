@@ -40,6 +40,7 @@ export default function Branding({ auth }) {
   const [form, setForm] = useState(null)
   const [logoUrl, setLogoUrl] = useState(null)
   const [templates, setTemplates] = useState(null)
+  const [countries, setCountries] = useState([])
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
   const logoRef = useRef(null)
@@ -60,12 +61,15 @@ export default function Branding({ auth }) {
         currencySymbol: s.currencySymbol || '',
         currencySuffix: !!s.currencySuffix,
         currencyDecimals: s.currencyDecimals ?? 0,
+        country: s.country || 'KE',
+        paymentBrand: s.paymentBrand || '',
         language: s.language || 'en',
         followCustomerLanguage: s.followCustomerLanguage !== false,
       })
       setLogoUrl(s.logoFilename ? `/api/uploads/${s.logoFilename}` : null)
     }).catch(() => {})
     api('/admin/templates', { auth }).then(setTemplates).catch(() => setTemplates([]))
+    api('/countries').then(setCountries).catch(() => setCountries([]))
   }, [auth])
 
   if (!form) return <Skeleton className="h-64" />
@@ -174,10 +178,69 @@ export default function Branding({ auth }) {
               set — so every operator was stuck on shillings and English no
               matter what the database could hold. */}
           <section className="bg-surface-container-lowest rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-on-surface mb-1">Money &amp; language</h3>
+            <h3 className="text-lg font-semibold text-on-surface mb-1">Where you operate</h3>
             <p className="text-xs text-on-surface-variant mb-4">
-              How prices are written and what customers are spoken to in. Staff screens stay in English.
+              Sets how prices are written, what customers are spoken to in, and — the one that
+              matters most — what paying is called on their screen.
             </p>
+
+            <div className="mb-5">
+              <label className={LABEL_CLS}>Country</label>
+              <select className={INPUT_CLS} value={form.country}
+                onChange={(e) => {
+                  const c = countries.find((x) => x.code === e.target.value)
+                  // Choosing a country fills in the sensible defaults for it,
+                  // but only ever as a starting point — each field below stays
+                  // editable, because an operator may bill in dollars from
+                  // Kampala or serve a Swahili-speaking estate in Nairobi.
+                  setForm({
+                    ...form,
+                    country: e.target.value,
+                    ...(c ? { currencyCode: c.currency, language: c.language, paymentBrand: '' } : {}),
+                  })
+                  setMsg(null)
+                }}>
+                {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
+              {(() => {
+                const c = countries.find((x) => x.code === form.country)
+                if (!c) return null
+                return (
+                  <div className="mt-2 text-xs text-on-surface-variant">
+                    <p>Customers there typically pay with <strong>{c.networks.join(', ')}</strong>.</p>
+                    {c.needsManualCollection ? (
+                      <p className="mt-1 text-[#b45309]">
+                        None of the built-in gateways reach {c.name} — {c.networks[0]} is domestic
+                        only. You can still take payments, but they have to be matched to customers
+                        by hand under Payments → manual.
+                      </p>
+                    ) : (
+                      <p className="mt-1">
+                        Recommended gateway: <strong>{
+                          { MPESA: 'M-Pesa (Daraja)', PAYSTACK: 'Paystack',
+                            FLUTTERWAVE: 'Flutterwave', STRIPE: 'Stripe' }[c.rail] || c.rail
+                        }</strong> — set it up under Settings → Payments.
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="mb-5">
+              <label className={LABEL_CLS}>
+                What customers call paying <span className="normal-case font-normal">(optional)</span>
+              </label>
+              <input className={INPUT_CLS} value={form.paymentBrand}
+                onChange={(e) => set('paymentBrand', e.target.value)}
+                placeholder={(countries.find((x) => x.code === form.country) || {}).paymentBrand || 'M-Pesa'} />
+              <p className="text-xs text-on-surface-variant mt-1">
+                Printed on nearly every customer screen — “Buy with {form.paymentBrand
+                  || (countries.find((x) => x.code === form.country) || {}).paymentBrand || 'M-Pesa'}”.
+                Leave blank to use the usual name for your country.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={LABEL_CLS}>Currency code</label>

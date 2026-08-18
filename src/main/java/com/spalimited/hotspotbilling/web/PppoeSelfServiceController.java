@@ -25,6 +25,7 @@ import java.util.Map;
 public class PppoeSelfServiceController {
 
     private final SubscriptionService subscriptionService;
+    private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     public record LookupRequest(
             @Pattern(regexp = "254\\d{9}", message = "Phone must be in 2547XXXXXXXX format")
@@ -57,7 +58,7 @@ public class PppoeSelfServiceController {
         return Map.of(
                 "paymentId", payment.getId(),
                 "amount", payment.getAmount(),
-                "message", "Check your phone and enter your M-Pesa PIN");
+                "message", messages.get("pay.checkPhone"));
     }
 
     /** Poll endpoint so the page can show success and the new expiry date. */

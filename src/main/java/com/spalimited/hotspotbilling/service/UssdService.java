@@ -65,7 +65,7 @@ public class UssdService {
 
         try {
             if (steps.length == 0) {
-                return "CON " + business() + "\n1. Buy WiFi\n2. My code\n3. My account\n4. Pay by M-Pesa";
+                return "CON " + business() + "\n" + say("ussd.menu");
             }
             return switch (steps[0]) {
                 case "1" -> buy(phone, steps);

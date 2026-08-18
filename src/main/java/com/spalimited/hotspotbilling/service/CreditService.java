@@ -55,6 +55,7 @@ public class CreditService {
     private final MoneyService money;
     private final PortalSettingsService portalSettings;
     private final AuditService audit;
+    private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     /** Whether this customer may borrow, and what they owe already. */
     public record Eligibility(boolean enabled, boolean eligible, String reason,
@@ -103,7 +104,7 @@ public class CreditService {
             return new Eligibility(false, false, "Not available", BigDecimal.ZERO, outstanding);
         }
         if (phone == null) {
-            return new Eligibility(true, false, "We need your M-Pesa number first", s.getMaxAdvance(), BigDecimal.ZERO);
+            return new Eligibility(true, false, "We need your " + messages.paymentBrand() + " number first", s.getMaxAdvance(), BigDecimal.ZERO);
         }
         if (outstanding.signum() > 0) {
             return new Eligibility(true, false,

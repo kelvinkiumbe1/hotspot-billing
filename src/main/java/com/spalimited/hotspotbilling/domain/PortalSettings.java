@@ -84,6 +84,25 @@ public class PortalSettings {
     @Column(nullable = false)
     private boolean followCustomerLanguage = true;
 
+    /**
+     * Where the operator is. Drives what paying is called and which rail suits
+     * their customers; currency and language default from it but stay
+     * independent, because an operator may bill in dollars from Kampala.
+     */
+    @Builder.Default
+    @Column(nullable = false, length = 8)
+    private String country = "KE";
+
+    /**
+     * What paying is called on a customer's screen.
+     *
+     * <p>Null means "use the country's default". Held separately so an operator
+     * who knows their market can overrule the table — a Nairobi ISP whose
+     * customers all use Airtel Money should not be forced to say "M-Pesa".
+     */
+    @Column(length = 40)
+    private String paymentBrand;
+
     private String headline;
 
     private String subheadline;

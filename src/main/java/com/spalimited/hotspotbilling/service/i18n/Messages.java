@@ -37,7 +37,7 @@ public class Messages {
     static {
         CATALOGUE.put(Language.EN, Map.ofEntries(
                 // --- USSD ---
-                Map.entry("ussd.menu", "1. Buy WiFi\n2. My code\n3. My account\n4. Pay by M-Pesa"),
+                Map.entry("ussd.menu", "1. Buy WiFi\n2. My code\n3. My account\n4. Pay by {pay}"),
                 Map.entry("ussd.badOption", "Sorry, that isn't one of the options. Please dial again."),
                 Map.entry("ussd.error", "Sorry, something went wrong. Please try again shortly."),
                 Map.entry("ussd.noPlans", "No packages are on sale right now. Please try again later."),
@@ -45,10 +45,10 @@ public class Messages {
                 Map.entry("ussd.badPlan", "That wasn't one of the packages. Please dial again."),
                 Map.entry("ussd.cancelled", "Cancelled. Nothing has been charged."),
                 Map.entry("ussd.noNumber", "We couldn't read your number. Please buy from the WiFi page instead."),
-                Map.entry("ussd.payFailed", "We couldn't start the M-Pesa payment. Please try again shortly."),
-                Map.entry("ussd.checkPhone", "Check your phone for the M-Pesa prompt. "
+                Map.entry("ussd.payFailed", "We couldn't start the {pay} payment. Please try again shortly."),
+                Map.entry("ussd.checkPhone", "Check your phone for the {pay} prompt. "
                         + "Your WiFi code arrives by SMS once paid."),
-                Map.entry("ussd.checkPhoneRenew", "Check your phone for the M-Pesa prompt. "
+                Map.entry("ussd.checkPhoneRenew", "Check your phone for the {pay} prompt. "
                         + "Your internet stays on once it is paid."),
                 Map.entry("ussd.noCode", "No WiFi code found for this number. Dial again and choose 1 to buy one."),
                 Map.entry("ussd.yourCode", "Your code is {code} ({plan}, {state}). "
@@ -56,7 +56,7 @@ public class Messages {
                 Map.entry("ussd.noAccount", "No home or office line is registered on this number. "
                         + "Choose 1 to buy a WiFi package."),
                 Map.entry("ussd.accountScreen", "{status}, paid to {date}\n1. Renew 1 month ({price})\n0. Exit"),
-                Map.entry("ussd.confirm", "{plan} for {price}\n1. Send M-Pesa request to {phone}\n0. Cancel"),
+                Map.entry("ussd.confirm", "{plan} for {price}\n1. Send {pay} request to {phone}\n0. Cancel"),
                 Map.entry("ussd.unknownDate", "unknown"),
                 Map.entry("status.active", "Active"),
                 Map.entry("status.notActive", "Not active"),
@@ -73,7 +73,7 @@ public class Messages {
                 Map.entry("state.used", "used"),
                 Map.entry("state.expired", "expired"),
                 // --- Portal API replies ---
-                Map.entry("pay.checkPhone", "Check your phone and enter your M-Pesa PIN"),
+                Map.entry("pay.checkPhone", "Check your phone and enter your {pay} PIN"),
                 Map.entry("pay.openingCheckout", "Opening a secure page to complete your payment"),
                 Map.entry("pay.noGateway", "No automatic payment method is set up yet."),
                 Map.entry("recover.sent", "We've sent your access code by SMS to that number."),
@@ -91,7 +91,7 @@ public class Messages {
                         + "please contact support.")));
 
         CATALOGUE.put(Language.FR, Map.ofEntries(
-                Map.entry("ussd.menu", "1. Acheter du WiFi\n2. Mon code\n3. Mon compte\n4. Payer par M-Pesa"),
+                Map.entry("ussd.menu", "1. Acheter du WiFi\n2. Mon code\n3. Mon compte\n4. Payer par {pay}"),
                 Map.entry("ussd.badOption", "Désolé, ce n'est pas une des options. Veuillez composer à nouveau."),
                 Map.entry("ussd.error", "Désolé, une erreur est survenue. Veuillez réessayer dans un instant."),
                 Map.entry("ussd.noPlans", "Aucun forfait n'est disponible pour le moment. "
@@ -101,11 +101,11 @@ public class Messages {
                 Map.entry("ussd.cancelled", "Annulé. Rien n'a été débité."),
                 Map.entry("ussd.noNumber", "Nous n'avons pas pu lire votre numéro. "
                         + "Veuillez acheter depuis la page WiFi."),
-                Map.entry("ussd.payFailed", "Nous n'avons pas pu lancer le paiement M-Pesa. "
+                Map.entry("ussd.payFailed", "Nous n'avons pas pu lancer le paiement {pay}. "
                         + "Veuillez réessayer dans un instant."),
-                Map.entry("ussd.checkPhone", "Vérifiez la demande M-Pesa sur votre téléphone. "
+                Map.entry("ussd.checkPhone", "Vérifiez la demande {pay} sur votre téléphone. "
                         + "Votre code WiFi arrive par SMS une fois payé."),
-                Map.entry("ussd.checkPhoneRenew", "Vérifiez la demande M-Pesa sur votre téléphone. "
+                Map.entry("ussd.checkPhoneRenew", "Vérifiez la demande {pay} sur votre téléphone. "
                         + "Votre connexion reste active une fois le paiement effectué."),
                 Map.entry("ussd.noCode", "Aucun code WiFi trouvé pour ce numéro. "
                         + "Composez à nouveau et choisissez 1 pour en acheter un."),
@@ -114,7 +114,7 @@ public class Messages {
                 Map.entry("ussd.noAccount", "Aucune ligne domicile ou bureau n'est enregistrée sur ce numéro. "
                         + "Choisissez 1 pour acheter un forfait WiFi."),
                 Map.entry("ussd.accountScreen", "{status}, payé jusqu'au {date}\n1. Renouveler 1 mois ({price})\n0. Quitter"),
-                Map.entry("ussd.confirm", "{plan} pour {price}\n1. Envoyer la demande M-Pesa au {phone}\n0. Annuler"),
+                Map.entry("ussd.confirm", "{plan} pour {price}\n1. Envoyer la demande {pay} au {phone}\n0. Annuler"),
                 Map.entry("ussd.unknownDate", "inconnue"),
                 Map.entry("status.active", "Actif"),
                 Map.entry("status.notActive", "Inactif"),
@@ -132,7 +132,7 @@ public class Messages {
                 Map.entry("state.notActive", "inactif"),
                 Map.entry("state.used", "utilisé"),
                 Map.entry("state.expired", "expiré"),
-                Map.entry("pay.checkPhone", "Vérifiez votre téléphone et saisissez votre code M-Pesa"),
+                Map.entry("pay.checkPhone", "Vérifiez votre téléphone et saisissez votre code {pay}"),
                 Map.entry("pay.openingCheckout", "Ouverture d'une page sécurisée pour finaliser votre paiement"),
                 Map.entry("pay.noGateway", "Aucun moyen de paiement automatique n'est encore configuré."),
                 Map.entry("recover.sent", "Nous avons envoyé votre code d'accès par SMS à ce numéro."),
@@ -152,7 +152,7 @@ public class Messages {
                         + "veuillez contacter le support.")));
 
         CATALOGUE.put(Language.SW, Map.ofEntries(
-                Map.entry("ussd.menu", "1. Nunua WiFi\n2. Msimbo wangu\n3. Akaunti yangu\n4. Lipa kwa M-Pesa"),
+                Map.entry("ussd.menu", "1. Nunua WiFi\n2. Msimbo wangu\n3. Akaunti yangu\n4. Lipa kwa {pay}"),
                 Map.entry("ussd.badOption", "Samahani, hiyo si mojawapo ya chaguo. Tafadhali piga tena."),
                 Map.entry("ussd.error", "Samahani, kumetokea hitilafu. Tafadhali jaribu tena baadaye kidogo."),
                 Map.entry("ussd.noPlans", "Hakuna vifurushi vinavyouzwa kwa sasa. Tafadhali jaribu tena baadaye."),
@@ -161,11 +161,11 @@ public class Messages {
                 Map.entry("ussd.cancelled", "Imeghairiwa. Hujatozwa chochote."),
                 Map.entry("ussd.noNumber", "Hatukuweza kusoma nambari yako. "
                         + "Tafadhali nunua kutoka ukurasa wa WiFi."),
-                Map.entry("ussd.payFailed", "Hatukuweza kuanzisha malipo ya M-Pesa. "
+                Map.entry("ussd.payFailed", "Hatukuweza kuanzisha malipo ya {pay}. "
                         + "Tafadhali jaribu tena baadaye kidogo."),
-                Map.entry("ussd.checkPhone", "Angalia simu yako kwa ujumbe wa M-Pesa. "
+                Map.entry("ussd.checkPhone", "Angalia simu yako kwa ujumbe wa {pay}. "
                         + "Msimbo wako wa WiFi utafika kwa SMS ukishalipa."),
-                Map.entry("ussd.checkPhoneRenew", "Angalia simu yako kwa ujumbe wa M-Pesa. "
+                Map.entry("ussd.checkPhoneRenew", "Angalia simu yako kwa ujumbe wa {pay}. "
                         + "Intaneti yako itaendelea ukishalipa."),
                 Map.entry("ussd.noCode", "Hakuna msimbo wa WiFi uliopatikana kwa nambari hii. "
                         + "Piga tena na uchague 1 kununua."),
@@ -174,7 +174,7 @@ public class Messages {
                 Map.entry("ussd.noAccount", "Hakuna laini ya nyumbani au ofisini iliyosajiliwa kwa nambari hii. "
                         + "Chagua 1 kununua kifurushi cha WiFi."),
                 Map.entry("ussd.accountScreen", "{status}, imelipiwa hadi {date}\n1. Lipia mwezi 1 ({price})\n0. Toka"),
-                Map.entry("ussd.confirm", "{plan} kwa {price}\n1. Tuma ombi la M-Pesa kwa {phone}\n0. Ghairi"),
+                Map.entry("ussd.confirm", "{plan} kwa {price}\n1. Tuma ombi la {pay} kwa {phone}\n0. Ghairi"),
                 Map.entry("ussd.unknownDate", "haijulikani"),
                 Map.entry("status.active", "Inatumika"),
                 Map.entry("status.notActive", "Haitumiki"),
@@ -192,7 +192,7 @@ public class Messages {
                 Map.entry("state.notActive", "haitumiki"),
                 Map.entry("state.used", "imetumika"),
                 Map.entry("state.expired", "imeisha"),
-                Map.entry("pay.checkPhone", "Angalia simu yako na uweke PIN yako ya M-Pesa"),
+                Map.entry("pay.checkPhone", "Angalia simu yako na uweke PIN yako ya {pay}"),
                 Map.entry("pay.openingCheckout", "Tunafungua ukurasa salama ili kukamilisha malipo yako"),
                 Map.entry("pay.noGateway", "Hakuna njia ya malipo ya kiotomatiki iliyowekwa bado."),
                 Map.entry("recover.sent", "Tumetuma msimbo wako kwa SMS kwenye nambari hiyo."),
@@ -211,7 +211,7 @@ public class Messages {
                         + "tafadhali wasiliana na usaidizi.")));
 
         CATALOGUE.put(Language.PT, Map.ofEntries(
-                Map.entry("ussd.menu", "1. Comprar WiFi\n2. O meu código\n3. A minha conta\n4. Pagar por M-Pesa"),
+                Map.entry("ussd.menu", "1. Comprar WiFi\n2. O meu código\n3. A minha conta\n4. Pagar por {pay}"),
                 Map.entry("ussd.badOption", "Desculpe, essa não é uma das opções. Por favor, ligue novamente."),
                 Map.entry("ussd.error", "Desculpe, ocorreu um erro. Por favor, tente novamente daqui a pouco."),
                 Map.entry("ussd.noPlans", "Não há pacotes à venda neste momento. "
@@ -221,11 +221,11 @@ public class Messages {
                 Map.entry("ussd.cancelled", "Cancelado. Nada foi cobrado."),
                 Map.entry("ussd.noNumber", "Não conseguimos ler o seu número. "
                         + "Por favor, compre a partir da página WiFi."),
-                Map.entry("ussd.payFailed", "Não conseguimos iniciar o pagamento M-Pesa. "
+                Map.entry("ussd.payFailed", "Não conseguimos iniciar o pagamento {pay}. "
                         + "Por favor, tente novamente daqui a pouco."),
-                Map.entry("ussd.checkPhone", "Verifique o pedido M-Pesa no seu telemóvel. "
+                Map.entry("ussd.checkPhone", "Verifique o pedido {pay} no seu telemóvel. "
                         + "O seu código WiFi chega por SMS assim que pagar."),
-                Map.entry("ussd.checkPhoneRenew", "Verifique o pedido M-Pesa no seu telemóvel. "
+                Map.entry("ussd.checkPhoneRenew", "Verifique o pedido {pay} no seu telemóvel. "
                         + "A sua internet continua ligada assim que for pago."),
                 Map.entry("ussd.noCode", "Nenhum código WiFi encontrado para este número. "
                         + "Ligue novamente e escolha 1 para comprar um."),
@@ -234,7 +234,7 @@ public class Messages {
                 Map.entry("ussd.noAccount", "Nenhuma linha de casa ou escritório está registada neste número. "
                         + "Escolha 1 para comprar um pacote WiFi."),
                 Map.entry("ussd.accountScreen", "{status}, pago até {date}\n1. Renovar 1 mês ({price})\n0. Sair"),
-                Map.entry("ussd.confirm", "{plan} por {price}\n1. Enviar pedido M-Pesa para {phone}\n0. Cancelar"),
+                Map.entry("ussd.confirm", "{plan} por {price}\n1. Enviar pedido {pay} para {phone}\n0. Cancelar"),
                 Map.entry("ussd.unknownDate", "desconhecida"),
                 Map.entry("status.active", "Ativo"),
                 Map.entry("status.notActive", "Inativo"),
@@ -252,7 +252,7 @@ public class Messages {
                 Map.entry("state.notActive", "inativo"),
                 Map.entry("state.used", "usado"),
                 Map.entry("state.expired", "expirado"),
-                Map.entry("pay.checkPhone", "Verifique o seu telemóvel e introduza o seu PIN M-Pesa"),
+                Map.entry("pay.checkPhone", "Verifique o seu telemóvel e introduza o seu PIN {pay}"),
                 Map.entry("pay.openingCheckout", "A abrir uma página segura para concluir o seu pagamento"),
                 Map.entry("pay.noGateway", "Ainda não há nenhum método de pagamento automático configurado."),
                 Map.entry("recover.sent", "Enviámos o seu código de acesso por SMS para esse número."),
@@ -304,7 +304,29 @@ public class Messages {
         return Language.of(requested);
     }
 
+    /** What paying is called for this operator: their own word, or the country's. */
+    public String paymentBrand() {
+        try {
+            var settings = portalSettings.settings();
+            if (settings.getPaymentBrand() != null && !settings.getPaymentBrand().isBlank()) {
+                return settings.getPaymentBrand().trim();
+            }
+            return Country.of(settings.getCountry()).paymentBrand();
+        } catch (Exception e) {
+            return "M-Pesa";
+        }
+    }
+
+    /** Raw lookup, placeholders untouched — the two-arg form fills {pay} in. */
+    String raw(Language language, String key) {
+        return lookup(language, key);
+    }
+
     public String get(Language language, String key) {
+        return lookup(language, key).replace("{pay}", paymentBrand());
+    }
+
+    private String lookup(Language language, String key) {
         Map<String, String> bundle = CATALOGUE.get(language == null ? Language.fallback() : language);
         String value = bundle == null ? null : bundle.get(key);
         if (value != null) {
@@ -323,7 +345,7 @@ public class Messages {
 
     /** The same, with {placeholders} filled in. */
     public String get(Language language, String key, Map<String, String> values) {
-        String body = get(language, key);
+        String body = get(language, key).replace("{pay}", paymentBrand());
         if (values == null) {
             return body;
         }

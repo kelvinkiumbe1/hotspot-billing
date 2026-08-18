@@ -31,7 +31,7 @@ public class NotificationService {
                     "You've reached your {business} fair-use limit of {capMb}MB. "
                             + "Reply to top up and keep browsing at full speed."),
             Map.entry(NotificationTemplate.Key.DUNNING_RETRY,
-                    "We couldn't complete your {business} renewal yet. We've sent a fresh M-Pesa request "
+                    "We couldn't complete your {business} renewal yet. We've sent a fresh payment request "
                             + "for {currency} {amount} — enter your PIN to stay connected, or pay here: {payUrl}"),
             Map.entry(NotificationTemplate.Key.VOUCHER_ISSUED,
                     "Your {business} access code is {code}. Use it as both WiFi username and password. Thank you!"),

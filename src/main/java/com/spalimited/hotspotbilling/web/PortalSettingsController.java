@@ -78,6 +78,12 @@ public class PortalSettingsController {
         // operator has turned that off they mean it, and the browser must not
         // quietly override them on the one screen they cannot see.
         out.put("followCustomerLanguage", s.isFollowCustomerLanguage());
+        // What paying is called here. The portal prints this on nearly every
+        // screen, so it has to arrive with the branding rather than after it —
+        // otherwise a Ghanaian customer reads "M-Pesa" for a moment before it
+        // corrects itself, which is worse than either.
+        out.put("country", s.getCountry());
+        out.put("paymentBrand", paymentBrand(s));
         return out;
     }
 
@@ -119,6 +125,21 @@ public class PortalSettingsController {
         return portalSettings.settings();
     }
 
+    /** The operator's own wording if they set one, else the country's default. */
+    static String paymentBrand(PortalSettings s) {
+        if (s.getPaymentBrand() != null && !s.getPaymentBrand().isBlank()) {
+            return s.getPaymentBrand().trim();
+        }
+        return com.spalimited.hotspotbilling.service.i18n.Country
+                .of(s.getCountry()).paymentBrand();
+    }
+
+    /** Every country the picker offers, with what each one implies. */
+    @GetMapping("/api/countries")
+    public List<Map<String, Object>> countries() {
+        return com.spalimited.hotspotbilling.service.i18n.Country.describeAll();
+    }
+
     public record SettingsRequest(
             @NotBlank String businessName,
             String headline,
@@ -137,7 +158,12 @@ public class PortalSettingsController {
             boolean currencySuffix,
             @Min(0) @Max(4) int currencyDecimals,
             String language,
-            boolean followCustomerLanguage) {
+            boolean followCustomerLanguage,
+            // Where the operator is, and what paying is called there. The
+            // second defaults from the first but can be overruled — an
+            // operator knows their own market better than a table does.
+            String country,
+            String paymentBrand) {
     }
 
     @PreAuthorize("hasAuthority('SETTINGS')")
@@ -160,6 +186,8 @@ public class PortalSettingsController {
                 .currencyDecimals(request.currencyDecimals())
                 .language(request.language())
                 .followCustomerLanguage(request.followCustomerLanguage())
+                .country(request.country())
+                .paymentBrand(request.paymentBrand())
                 .build());
     }
 

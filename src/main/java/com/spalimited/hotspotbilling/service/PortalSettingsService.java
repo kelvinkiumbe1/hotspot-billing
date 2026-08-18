@@ -56,6 +56,16 @@ public class PortalSettingsService {
             current.setCurrencySuffix(updated.isCurrencySuffix());
             current.setCurrencyDecimals(Math.max(0, Math.min(4, updated.getCurrencyDecimals())));
         }
+        // Country, on the same "blank means leave it" rule as currency.
+        if (updated.getCountry() != null && !updated.getCountry().isBlank()) {
+            current.setCountry(com.spalimited.hotspotbilling.service.i18n.Country
+                    .of(updated.getCountry()).name());
+        }
+        // Blank clears the override and falls back to the country's default,
+        // which is what an operator means when they empty the box.
+        current.setPaymentBrand(updated.getPaymentBrand() == null
+                || updated.getPaymentBrand().isBlank() ? null : updated.getPaymentBrand().trim());
+
         // Language, on the same "blank means leave it" rule and for the same
         // reason: a form that predates this field must not reset an operator
         // in Abidjan to English by saving something else.

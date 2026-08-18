@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -63,6 +64,33 @@ public class PaystackProvider implements PaymentProvider {
                 .orElse(null);
     }
 
+    /**
+     * The payment methods worth showing, ordered by what people there use.
+     *
+     * <p>Keyed on currency rather than the operator's country setting, because
+     * Paystack itself only enables methods the merchant account is licensed
+     * for — offering mobile money on a NGN account would simply be ignored,
+     * while getting the order wrong on a GHS one costs real sales.
+     *
+     * <p>Empty means "let Paystack decide", which is the right answer for a
+     * currency this does not know about.
+     */
+    static List<String> channelsFor(String currency) {
+        if (currency == null) {
+            return List.of();
+        }
+        return switch (currency.toUpperCase(java.util.Locale.ROOT)) {
+            // Mobile money first; card kept as the fallback for the minority
+            // who have one, rather than removed.
+            case "GHS", "KES" -> List.of("mobile_money", "card");
+            // Nigeria is the exception: bank transfer and USSD are what people
+            // reach for, and mobile money barely registers.
+            case "NGN" -> List.of("bank_transfer", "card", "ussd", "bank");
+            case "ZAR" -> List.of("card", "eft");
+            default -> List.of();
+        };
+    }
+
     @Override
     public Charge charge(ChargeRequest request) {
         String secret = secret();
@@ -81,6 +109,16 @@ public class PaystackProvider implements PaymentProvider {
         if (request.phoneNumber() != null) {
             body.put("metadata", Map.of("phone", request.phoneNumber(),
                     "description", request.description() == null ? "" : request.description()));
+        }
+        // Which methods to offer, and in what order.
+        //
+        // Left unset, Paystack leads with a card form. In Ghana or Kenya that
+        // is the wrong first screen for almost everybody — mobile money is what
+        // people actually use, and a customer who opens a page asking for a
+        // 16-digit card number concludes they cannot pay and closes it.
+        List<String> channels = channelsFor(request.currency());
+        if (!channels.isEmpty()) {
+            body.put("channels", channels);
         }
 
         JsonNode response;
