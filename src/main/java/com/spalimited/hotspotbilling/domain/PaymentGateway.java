@@ -62,7 +62,12 @@ public class PaymentGateway {
          * OneMoney handset directly, so it behaves like M-Pesa rather than
          * like a card processor.
          */
-        PAYNOW
+        PAYNOW,
+        /**
+         * Airtel Money across fourteen markets. A USSD push, so it prompts the
+         * handset like M-Pesa rather than opening a checkout page.
+         */
+        AIRTEL_MONEY
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -171,6 +176,9 @@ public class PaymentGateway {
             // Paynow needs both halves: the id names the merchant, the key
             // salts every hash it sends and checks.
             case PAYNOW -> filled(consumerKey) && filled(secretKey);
+            // An OAuth2 client id and secret. Nothing else: the market and its
+            // currency follow the operator country rather than being typed in.
+            case AIRTEL_MONEY -> filled(consumerKey) && filled(consumerSecret);
         };
     }
 
@@ -182,7 +190,8 @@ public class PaymentGateway {
     @Transient
     public boolean isAutomatic() {
         return switch (kind) {
-            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW -> true;
+            case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
+                    AIRTEL_MONEY -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -199,7 +208,7 @@ public class PaymentGateway {
     @Transient
     public boolean isLive() {
         return switch (kind) {
-            case MPESA_API, MTN_MOMO -> environment == Environment.PRODUCTION;
+            case MPESA_API, MTN_MOMO, AIRTEL_MONEY -> environment == Environment.PRODUCTION;
             case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA -> !isTestKey(secretKey);
             default -> true;
         };

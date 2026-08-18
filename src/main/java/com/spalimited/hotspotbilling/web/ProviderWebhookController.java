@@ -2,6 +2,7 @@ package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.service.PaymentService;
 import com.spalimited.hotspotbilling.service.payments.FlutterwaveProvider;
+import com.spalimited.hotspotbilling.service.payments.AirtelProvider;
 import com.spalimited.hotspotbilling.service.payments.ChapaProvider;
 import com.spalimited.hotspotbilling.service.payments.MtnMomoProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
@@ -43,6 +44,7 @@ public class ProviderWebhookController {
     private final MtnMomoProvider mtnMomo;
     private final ChapaProvider chapa;
     private final PaynowProvider paynow;
+    private final AirtelProvider airtel;
     private final FlutterwaveProvider flutterwave;
     private final StripeProvider stripe;
     private final PaymentService payments;
@@ -95,6 +97,17 @@ public class ProviderWebhookController {
     public ResponseEntity<String> paynow(@RequestBody(required = false) byte[] body,
                                          HttpServletRequest request) {
         return handle("Paynow", paynow, body, request);
+    }
+
+    /**
+     * Airtel Money. Its optional hash varies by market, so the body is read
+     * only far enough to find the transaction id and the verdict comes from an
+     * enquiry — an unverified body must never be able to mark a payment paid.
+     */
+    @PostMapping("/airtel/webhook")
+    public ResponseEntity<String> airtel(@RequestBody(required = false) byte[] body,
+                                         HttpServletRequest request) {
+        return handle("Airtel", airtel, body, request);
     }
 
     /**

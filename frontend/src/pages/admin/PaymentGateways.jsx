@@ -90,6 +90,18 @@ const GATEWAYS = [
     secretHint: 'The secret hash you set on their webhook page — you choose it',
   },
   {
+    kind: 'AIRTEL_MONEY',
+    name: 'Airtel Money',
+    provider: 'Kenya · Tanzania · Uganda · Rwanda · Zambia · Malawi · DR Congo · Nigeria',
+    badge: 'API KEYS',
+    chips: ['Prompt on phone', 'No web page', 'Automatic'],
+    settlement: 'Instant, confirmed by asking Airtel',
+    icon: 'smartphone',
+    blurb: 'A USSD push, so the customer gets a prompt and enters their PIN. Reaches Airtel customers only — where another wallet also has a big share, an aggregator covers more people.',
+    webhook: '/api/payments/airtel/webhook',
+    telco: true,
+  },
+  {
     kind: 'PAYNOW',
     name: 'Paynow',
     provider: 'Zimbabwe',
@@ -133,6 +145,8 @@ const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA']
 // Prompts the handset instead of opening a page, so it is set up like
 // Daraja rather than like a card processor.
 const MOMO_KIND = 'MTN_MOMO'
+// Same shape of setup as MoMo: an id, a secret, an environment.
+const TELCO_KINDS = ['MTN_MOMO', 'AIRTEL_MONEY']
 
 /** Copies a webhook URL and says so, because a silent copy reads as a dead button. */
 function CopyUrl({ url }) {

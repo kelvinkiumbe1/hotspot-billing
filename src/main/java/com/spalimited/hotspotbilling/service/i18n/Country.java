@@ -40,7 +40,7 @@ public enum Country {
             List.of("Card", "Instant EFT"), "27", 9, List.of()),
     ZM("Zambia", "ZMW", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Airtel Money", "Zamtel Kwacha"), "260", 9, List.of()),
-    MW("Malawi", "MWK", "en", "Mobile Money", Rail.FLUTTERWAVE,
+    MW("Malawi", "MWK", "en", "Airtel Money", Rail.AIRTEL_MONEY,
             List.of("Airtel Money", "TNM Mpamba"), "265", 9, List.of()),
     MZ("Mozambique", "MZN", "pt", "M-Pesa", Rail.FLUTTERWAVE,
             List.of("M-Pesa", "e-Mola", "mKesh"), "258", 9, List.of()),
@@ -61,8 +61,19 @@ public enum Country {
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
-    /** Which of the built rails actually serves this country. */
-    public enum Rail { MPESA, MTN_MOMO, PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE }
+    /**
+     * Which of the built rails actually serves this country.
+     *
+     * <p>A direct telco rail is cheaper and prompts the handset, but it only
+     * reaches that telco's own customers. So it is the right default only where
+     * one network dominates — MTN in Ghana, Airtel in Malawi, Safaricom in
+     * Kenya. Tanzania and the DRC keep an aggregator on purpose: no single
+     * wallet has a majority there, and since exactly one gateway can be active
+     * at a time, picking one telco would leave most customers unable to pay.
+     */
+    public enum Rail {
+        MPESA, MTN_MOMO, AIRTEL_MONEY, PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE
+    }
 
     private final String countryName;
     private final String currency;

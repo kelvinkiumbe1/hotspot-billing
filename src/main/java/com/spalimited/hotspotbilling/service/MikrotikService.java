@@ -487,14 +487,25 @@ public class MikrotikService {
             } catch (Exception exists) {
                 connection.execute(String.format("/ppp/profile/set [find name=%s]%s", profile, rateLimit));
             }
+            // A static address, where IPAM has allocated one. On RouterOS this
+            // is remote-address on the secret: PPPoE negotiates the address in
+            // IPCP rather than over DHCP, so the customer's own router still
+            // asks for one automatically and simply always gets the same one.
+            //
+            // Set here as well as over RADIUS because an operator not running
+            // RADIUS would otherwise have IPAM assign an address that nothing
+            // ever hands out — the allocation looks done and the customer still
+            // gets a pool address.
+            String remote = sub.getStaticIp() != null && !sub.getStaticIp().isBlank()
+                    ? " remote-address=" + sub.getStaticIp().trim() : "";
             try {
                 connection.execute(String.format(
-                        "/ppp/secret/add name=%s password=%s service=pppoe profile=%s",
-                        sub.getPppoeUsername(), sub.getPppoePassword(), profile));
+                        "/ppp/secret/add name=%s password=%s service=pppoe profile=%s%s",
+                        sub.getPppoeUsername(), sub.getPppoePassword(), profile, remote));
             } catch (Exception exists) {
                 connection.execute(String.format(
-                        "/ppp/secret/set [find name=%s] password=%s profile=%s disabled=no",
-                        sub.getPppoeUsername(), sub.getPppoePassword(), profile));
+                        "/ppp/secret/set [find name=%s] password=%s profile=%s disabled=no%s",
+                        sub.getPppoeUsername(), sub.getPppoePassword(), profile, remote));
             }
         } catch (Exception e) {
             throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
