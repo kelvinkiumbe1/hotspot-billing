@@ -28,6 +28,7 @@ public class SubscriptionService {
     private static final int DAYS_PER_MONTH = 30;
 
     private final SubscriberRepository subscribers;
+    private final com.spalimited.hotspotbilling.service.payments.MandateService mandates;
     private final RouterRepository routers;
     private final SubscriptionPaymentRepository payments;
     private final MikrotikService mikrotikService;
@@ -412,7 +413,11 @@ public class SubscriptionService {
                 // Auto-renewal: one day before expiry, fire an STK prompt so the
                 // customer only has to enter their M-Pesa PIN. Once per cycle.
                 if (sub.getPaidUntil().isBefore(now.plus(1, ChronoUnit.DAYS))
-                        && !sub.getPaidUntil().equals(sub.getAutoStkForExpiry())) {
+                        && !sub.getPaidUntil().equals(sub.getAutoStkForExpiry())
+                        // A standing order collects on its own. Prompting as
+                        // well asks the customer to pay a bill already being
+                        // paid, and two payments is worse than none.
+                        && !mandates.collectsAutomatically(sub.getId())) {
                     sub.setAutoStkForExpiry(sub.getPaidUntil());
                     subscribers.save(sub);
                     try {
@@ -474,6 +479,16 @@ public class SubscriptionService {
                     && sub.getPaidUntil().isAfter(sub.getDunningCycle())) {
                 clearDunning(sub);
                 subscribers.save(sub);
+                continue;
+            }
+            // A standing order set up mid-cycle means the chase is now pointless.
+            // Left running, it texts a customer about a payment that is already
+            // arranged, which reads as the operator not knowing their own books.
+            if (mandates.collectsAutomatically(sub.getId())) {
+                clearDunning(sub);
+                subscribers.save(sub);
+                log.info("Stopped chasing {} — a standing order collects for them",
+                        sub.getPppoeUsername());
                 continue;
             }
             int attempt = sub.getDunningAttempts(); // 0-based index of the retry to send now

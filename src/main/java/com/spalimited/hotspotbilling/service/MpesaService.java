@@ -299,4 +299,52 @@ public class MpesaService {
         }
         return response.get("access_token").asText();
     }
+
+    /**
+     * Asks Safaricom to create an M-Pesa Ratiba standing order.
+     *
+     * <p>The customer then approves it on their handset, which is neither
+     * instant nor guaranteed — so this returning successfully means "asked",
+     * not "agreed". Nothing may stop chasing them until Safaricom says the
+     * order is live.
+     *
+     * <p>Unverified against a live paybill. Standing orders have to be enabled
+     * on the shortcode by Safaricom before any of this does anything, and the
+     * failure mode when they are not is a 200 with an error inside it.
+     */
+    public void createStandingOrder(com.spalimited.hotspotbilling.domain.PaymentMandate mandate,
+                                    String phoneNumber) {
+        PaymentGatewayService.DarajaConfig cfg = gatewayService.daraja();
+        if (!cfg.usable()) {
+            throw new IllegalStateException("M-Pesa is not configured");
+        }
+        java.util.Map<String, Object> body =
+                com.spalimited.hotspotbilling.service.payments.Ratiba.request(
+                        mandate, phoneNumber, cfg.shortCode(), false,
+                        phoneNumber, props.callbackUrl());
+
+        JsonNode response;
+        try {
+            response = clientFor(cfg.baseUrl()).post()
+                    .uri("/standingorder/v1/createStandingOrderExternal")
+                    .header("Authorization", "Bearer " + fetchAccessToken(cfg))
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            log.warn("Ratiba create failed: {}", e.getMessage());
+            throw new IllegalStateException("could not reach Safaricom");
+        }
+        // Ratiba answers 200 with the outcome inside a header object, so the
+        // HTTP status proves nothing on its own.
+        String code = response == null ? null
+                : response.path("ResponseHeader").path("responseCode").asString(null);
+        if (code == null || !code.startsWith("200")) {
+            String description = response == null ? "no response"
+                    : response.path("ResponseHeader").path("responseDescription").asString("refused");
+            throw new IllegalStateException(description);
+        }
+    }
+
 }
