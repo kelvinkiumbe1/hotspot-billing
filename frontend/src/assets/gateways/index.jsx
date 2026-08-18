@@ -28,6 +28,15 @@
  * command-line request and open perfectly in a browser, so a failed fetch there
  * means bot-blocking, not a dead page.
  *
+ * What a direct fetch of each site did and did not yield, so nobody repeats it:
+ *
+ *   Paynow       its real SVG wordmark, /Content/landing/images/paynow-logo-blue.svg
+ *   Wave         only /img/nav-logo.png, 230x101 raster -- blurs when scaled
+ *   Paystack     nothing usable; the one self-identifying inline SVG on their
+ *                home page is a 93 KB world map, not the wordmark
+ *   Flutterwave  nothing logo-named; the vector assets served are merchant logos
+ *   Chapa        no inline or linked SVG at all
+ *
  * <h2>Adding one</h2>
  *
  * Save the SVG beside this file and register it below. Note this project is
@@ -71,6 +80,22 @@ export const GATEWAY_LOGOS = {
   AIRTEL_MONEY: mark(airtel, 'Airtel Money'),
   ORANGE_MONEY: mark(orange, 'Orange Money'),
 }
+
+/**
+ * Wordmarks: correct, and the wrong shape for the gateway chip.
+ *
+ * Paynow publishes its logo as an 88x19 SVG wordmark. The chip on a gateway
+ * card is a 44px square, so object-contain renders that wordmark about five
+ * pixels tall -- legible to nobody. An illegible logo is worse than the clean
+ * generic glyph it would replace, so this is deliberately not in
+ * GATEWAY_LOGOS; it is here for the places that have horizontal room, like a
+ * "works with" strip.
+ *
+ * Its single fill (#175FF8) measures 3.3:1 against the dark chip background,
+ * which clears the 3:1 threshold for non-text, so colour was never the problem
+ * -- only the aspect ratio.
+ */
+export { default as paynowWordmark } from './paynow.svg'
 
 /**
  * Card-network marks, kept for the "cards accepted" row on the checkout and the
