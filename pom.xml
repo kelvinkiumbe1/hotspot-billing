@@ -79,6 +79,16 @@
 			<version>3.0.7</version>
 		</dependency>
 
+		<!-- SNMP: how everything that isn't a MikroTik gets monitored. v3's
+		     USM (engine discovery, HMAC auth, AES privacy) is not something to
+		     hand-roll, and v2c alone would mean asking operators to send
+		     community strings in clear text as the only option. -->
+		<dependency>
+			<groupId>org.snmp4j</groupId>
+			<artifactId>snmp4j</artifactId>
+			<version>3.9.7</version>
+		</dependency>
+
 		<!-- WebAuthn / passkeys: vetted ceremony + signature verification.
 		     Hand-rolling COSE/CBOR crypto for a login path would be reckless. -->
 		<dependency>

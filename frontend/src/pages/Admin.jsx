@@ -9,6 +9,7 @@ import ChatThread from '../components/ChatThread.jsx'
 import zidiLogo from '../assets/zidi-logo.png'
 import zidiLogoDark from '../assets/zidi-logo-dark.png'
 import RoutersPage from './admin/Routers.jsx'
+import DevicesPage from './admin/Devices.jsx'
 import FinancePage from './admin/Finance.jsx'
 import BranchesPage from './admin/Branches.jsx'
 import PayBillPage from './admin/PayBill.jsx'
@@ -467,6 +468,7 @@ const NAV_GROUPS = [
       { key: 'active', label: 'Live Sessions', icon: 'wifi_tethering', need: 'NETWORK' },
       { key: 'plans', label: 'Plans', icon: 'inventory_2', need: 'PRICING' },
       { key: 'routers', label: 'Routers', icon: 'router', need: 'NETWORK' },
+      { key: 'devices', label: 'Devices', icon: 'device_hub', need: 'NETWORK' },
       { key: 'equipment', label: 'Equipment', icon: 'inventory_2', need: 'NETWORK' },
       { key: 'fiber', label: 'Fiber Map', icon: 'polyline', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
@@ -724,6 +726,7 @@ const TAB_TITLES = {
   assurance: 'Revenue Guard',
   finance: 'Billing',
   routers: 'Routers',
+  devices: 'Devices',
   branches: 'Branches',
   support: 'Tickets',
   maintenance: 'Maintenance',
@@ -1246,6 +1249,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'assurance' && <RevenueAuditPage auth={auth} />}
         {tab === 'finance' && <FinancePage auth={auth} />}
         {tab === 'routers' && <RoutersPage auth={auth} />}
+        {tab === 'devices' && <DevicesPage auth={auth} />}
         {tab === 'branches' && <BranchesPage auth={auth} />}
         {tab === 'promos' && <BrandingPage auth={auth} />}
         {tab === 'audit' && <AuditLogPage auth={auth} />}
