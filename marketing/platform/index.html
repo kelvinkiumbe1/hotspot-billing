@@ -122,6 +122,33 @@
     .step .num{width:42px;height:42px;border-radius:999px;background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#161200;font-weight:800;display:grid;place-items:center;margin-bottom:14px}
     .step h3{font-size:19px}.step p{color:var(--muted);margin-top:6px}
 
+
+    /* Proof strip. Numbers rather than adjectives, and every one of them is
+       checkable against the code -- 31 country entries, 13 gateway kinds, four
+       customer-facing languages. A landing page that rounds these up is a page
+       an operator catches out on their first call. */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+    @media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr)}}
+    .stat{background:var(--bg);padding:28px 22px;text-align:center}
+    .stat b{display:block;font-size:clamp(28px,3.4vw,36px);font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--yellow-2),var(--yellow-deep));-webkit-background-clip:text;background-clip:text;color:transparent}
+    .stat span{display:block;color:var(--muted);font-size:13px;font-weight:600;margin-top:8px;line-height:1.4}
+
+    /* Full-bleed photo divider. The page was twenty-two cards in a row with no
+       change of rhythm anywhere, which is what made it read as a wall however
+       good the individual cards were. These break it and carry one line each. */
+    .divider{position:relative;height:clamp(210px,26vw,330px);overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0}
+    .divider img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.4}
+    .divider .cap{position:relative;height:100%;display:grid;place-items:center;text-align:center;padding:0 24px;background:linear-gradient(180deg,rgba(6,6,8,.7),rgba(6,6,8,.88))}
+    .divider .cap p{font-size:clamp(19px,2.5vw,27px);font-weight:700;letter-spacing:-.015em;max-width:28ch;line-height:1.3}
+    .divider .cap small{display:block;color:var(--muted);font-weight:600;margin-top:10px;font-size:14px}
+
+    /* Outside Africa. A dashed edge on purpose: it is a real capability and not
+       the headline, and pretending otherwise would be the overclaim. */
+    .reach{margin-top:22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding:24px 26px;border:1px dashed var(--line);border-radius:18px;background:var(--surface)}
+    .reach .globe{width:44px;height:44px;border-radius:12px;background:rgba(253,191,45,.14);color:var(--yellow);display:grid;place-items:center;flex:0 0 auto}
+    .reach p{color:var(--muted);font-size:15px;max-width:66ch;line-height:1.65}
+    .reach b{color:var(--fg)}
+
     /* image band */
     .band{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line)}
     .band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
@@ -204,6 +231,19 @@
     </section>
 
     <!-- FEATURES -->
+    <!-- Proof, immediately after the hero, before any feature copy. A B2B page
+         with no numbers on it reads as a brochure. -->
+    <section style="padding-top:0">
+      <div class="wrap">
+        <div class="stats reveal">
+          <div class="stat"><b>31</b><span>countries, each with its own currency, language and number format</span></div>
+          <div class="stat"><b>13</b><span>ways to be paid, several live at once</span></div>
+          <div class="stat"><b>4</b><span>languages your customers can buy in</span></div>
+          <div class="stat"><b>2</b><span>network stacks &mdash; MikroTik API and RADIUS</span></div>
+        </div>
+      </div>
+    </section>
+
     <section id="features">
       <div class="wrap">
         <div class="head reveal">
@@ -243,6 +283,16 @@
     </section>
 
     <!-- AUTOMATIONS -->
+    <div class="divider reveal">
+      <img src="images/photo-market.jpg" alt="" aria-hidden="true" loading="lazy" />
+      <div class="cap">
+        <div>
+          <p>Built for the towns where the customer pays in cash-sized amounts.</p>
+          <small>Five shillings for an hour. A month at a time. Whatever your market actually buys.</small>
+        </div>
+      </div>
+    </div>
+
     <!-- Coverage. Deliberately grouped by what the *customer* experiences rather
          than by provider name: an ISP choosing a rail cares whether their
          customer types a PIN or opens a page, not whose API sits behind it. -->
@@ -289,6 +339,14 @@
             you discover it after your first customer cannot pay.
           </p>
         </div>
+
+        <div class="reach reveal">
+          <div class="globe"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+          <p><b>Outside Africa, Zidi still bills.</b> Card payments work anywhere Stripe does, and an
+          operator in a country not listed above gets the generic setup &mdash; their own currency,
+          English, and cards. What Africa gets on top is the local rails: the wallet your customers
+          already keep their money in, rather than a card most of them do not have.</p>
+        </div>
       </div>
     </section>
 
@@ -315,6 +373,16 @@
     </section>
 
     <!-- HOW IT WORKS -->
+    <div class="divider reveal">
+      <img src="images/photo-tech.jpg" alt="" aria-hidden="true" loading="lazy" />
+      <div class="cap">
+        <div>
+          <p>One person can run a network this way.</p>
+          <small>Provisioning, suspension, reconnection and chasing all happen without anybody logging in.</small>
+        </div>
+      </div>
+    </div>
+
     <section id="how">
       <div class="wrap">
         <div class="head reveal"><div class="kicker">Getting started</div><h2>Live in days, not months</h2></div>
