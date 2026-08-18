@@ -155,15 +155,19 @@ function Skeleton({ className = '' }) {
 /* Root: login gate                                                    */
 /* ------------------------------------------------------------------ */
 
-export default function Admin() {
+export default function Admin({ demo = false }) {
   const [auth, setAuth] = useState(sessionStorage.getItem('adminAuth'))
   const [demoLoading, setDemoLoading] = useState(false)
+  const [demoError, setDemoError] = useState(null)
 
-  // The landing page's "Live demo" button opens /admin?demo=1; sign into the
-  // read-only demo automatically so a prospect never sees a login wall.
+  // Sign into the read-only demo automatically so a prospect never meets a
+  // login wall. Reached by the /demo route, or by the older /admin?demo=1 that
+  // links in the wild still point at.
+  const wantsDemo = demo
+    || new URLSearchParams(window.location.search).get('demo') === '1'
+
   useEffect(() => {
-    if (auth) return
-    if (new URLSearchParams(window.location.search).get('demo') !== '1') return
+    if (auth || !wantsDemo) return
     setDemoLoading(true)
     api('/auth/demo', { method: 'POST' })
       .then((res) => {
@@ -171,9 +175,16 @@ export default function Admin() {
         sessionStorage.setItem('adminAuth', a)
         setAuth(a)
       })
-      .catch(() => {})
+      .catch(() => {
+        // Deliberately not silent. This fails on every real ISP deployment,
+        // where demo mode is off by design — and swallowing it dropped a
+        // prospect on a staff login form with no explanation, which reads as a
+        // broken product rather than a link pointed at the wrong host.
+        setDemoError('This deployment is not the demo. '
+          + 'The live demo runs on its own address — try the link on zidi.co.ke.')
+      })
       .finally(() => setDemoLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [wantsDemo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function logout() {
     // Best-effort server-side revocation; the session ends locally regardless.
@@ -186,7 +197,19 @@ export default function Admin() {
     return (
       <div className="admin-theme bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center gap-3">
         <Icon name="progress_activity" className="animate-spin text-primary text-[32px]!" />
-        <p className="text-sm text-on-surface-variant">Loading the live demo…</p>
+        <p className="text-sm text-on-surface-variant">Opening the live demo…</p>
+      </div>
+    )
+  }
+
+  if (demoError) {
+    return (
+      <div className="admin-theme bg-inverse-surface text-on-background min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <Icon name="info" className="text-primary text-[32px]!" />
+        <p className="text-sm text-on-surface-variant max-w-md">{demoError}</p>
+        <a href="/admin" className="text-sm font-semibold text-primary underline">
+          Staff sign-in instead
+        </a>
       </div>
     )
   }
@@ -1121,8 +1144,12 @@ function Shell({ auth, onLogout }) {
   // refresh returns you where you were instead of to the overview.
   const navigate = useNavigate()
   const location = useLocation()
-  const tab = location.pathname.replace(/^\/admin\/?/, '').split('/')[0] || 'overview'
-  const setTab = (key) => navigate(key === 'overview' ? '/admin' : `/admin/${key}`)
+  // The shell is mounted under /admin for staff and /demo for prospects, so the
+  // base cannot be hardcoded: derived from the URL, a nav click inside the demo
+  // used to navigate to /admin and drop the visitor straight out of it.
+  const base = location.pathname.startsWith('/demo') ? '/demo' : '/admin'
+  const tab = location.pathname.slice(base.length).replace(/^\//, '').split('/')[0] || 'overview'
+  const setTab = (key) => navigate(key === 'overview' ? base : `${base}/${key}`)
   const [drawer, setDrawer] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [installOpen, setInstallOpen] = useState(false)
@@ -1158,9 +1185,9 @@ function Shell({ auth, onLogout }) {
     if (!me) return
     const item = NAV.find((i) => i.key === tab)
     if (item?.need && !me.permissions.includes(item.need)) {
-      navigate('/admin', { replace: true })
+      navigate(base, { replace: true })
     }
-  }, [me, tab])
+  }, [me, tab, base])
 
   useEffect(() => {
     const load = () =>

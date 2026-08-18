@@ -30,6 +30,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Portal />} />
           <Route path="/admin/*" element={<Admin />} />
+          {/* A path rather than a query flag. "/demo" is what goes on a slide,
+              in an email and in a WhatsApp message, and it survives being
+              copied without the ?demo=1 falling off. Deep links work too, so
+              /demo/settings/payments lands where it says it does. */}
+          <Route path="/demo/*" element={<Admin demo />} />
           <Route path="/tech/*" element={<Tech />} />
           <Route path="/pay" element={<PayPortal />} />
           <Route path="/my-account" element={<MyAccount />} />

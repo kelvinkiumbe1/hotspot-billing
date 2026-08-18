@@ -22,6 +22,28 @@
   <meta property="og:image" content="https://zidi.co.ke/images/dashboard.png" />
   <meta name="theme-color" content="#0a0a0c" />
 
+  <!-- Outfit for headings and figures, Inter for everything read at length.
+       The page ran on system-ui, which is safe and anonymous. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" />
+
+  <!-- Flag glyphs. Windows renders regional-indicator pairs as bare letters
+       ("KE" instead of the Kenyan flag), which looks broken on a page whose
+       whole point is which countries it covers. This font fixes exactly that,
+       and if it fails to load the letters are a legible fallback rather than
+       an empty box. -->
+  <style>
+    @font-face{
+      font-family:"Twemoji Country Flags";
+      unicode-range:U+1F1E6-1F1FF,U+1F3F4,U+E0062-E0063,U+E0065,U+E0067,
+                    U+E006C,U+E006E,U+E0073-E0074,U+E0077,U+E007F;
+      src:url("https://cdn.jsdelivr.net/npm/country-flag-emoji-polyfill@0.1/dist/TwemojiCountryFlags.woff2") format("woff2");
+      font-display:swap;
+    }
+  </style>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -44,7 +66,7 @@
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
-    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    body{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
     a{color:inherit;text-decoration:none}
     .wrap{max-width:var(--wrap);margin:0 auto;padding:0 20px}
     .btn{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding:13px 22px;border-radius:12px;cursor:pointer;border:0;white-space:nowrap;transition:transform .25s var(--ease),filter .2s var(--ease),box-shadow .25s var(--ease)}
@@ -95,7 +117,7 @@
     section{padding:84px 0;position:relative}
     .head{text-align:center;max-width:700px;margin:0 auto 52px}
     .kicker{color:var(--yellow);font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
-    .head h2{font-size:clamp(28px,3.8vw,42px);letter-spacing:-.02em;margin-top:10px}
+    .head h2{font-family:"Outfit","Inter",system-ui,sans-serif;font-weight:700;font-size:clamp(28px,3.8vw,42px);letter-spacing:-.025em;margin-top:10px}
     .head p{color:var(--muted);margin-top:12px;font-size:17px}
 
     .grid{display:grid;gap:18px}
@@ -130,7 +152,7 @@
     .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
     @media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr)}}
     .stat{background:var(--bg);padding:28px 22px;text-align:center}
-    .stat b{display:block;font-size:clamp(28px,3.4vw,36px);font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--yellow-2),var(--yellow-deep));-webkit-background-clip:text;background-clip:text;color:transparent}
+    .stat b{font-family:"Outfit","Inter",system-ui,sans-serif;display:block;font-size:clamp(28px,3.4vw,36px);font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--yellow-2),var(--yellow-deep));-webkit-background-clip:text;background-clip:text;color:transparent}
     .stat span{display:block;color:var(--muted);font-size:13px;font-weight:600;margin-top:8px;line-height:1.4}
 
     /* Full-bleed photo divider. The page was twenty-two cards in a row with no
@@ -148,6 +170,38 @@
     .reach .globe{width:44px;height:44px;border-radius:12px;background:rgba(253,191,45,.14);color:var(--yellow);display:grid;place-items:center;flex:0 0 auto}
     .reach p{color:var(--muted);font-size:15px;max-width:66ch;line-height:1.65}
     .reach b{color:var(--fg)}
+
+
+    /* Country marquee. Two rows travelling opposite ways: one long line either
+       scrolls too slowly to read or too fast to follow. */
+    .marquee-wrap{margin-top:22px;display:flex;flex-direction:column;gap:12px}
+    .mq{overflow:hidden;position:relative;
+        /* Feathered edges so names do not hard-cut at the container. */
+        -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+        mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+    .mq-track{display:flex;width:max-content}
+    .mq-set{display:flex;gap:10px;padding-right:10px;flex:0 0 auto}
+    /* Travels exactly one copy's width, so the seam never shows. */
+    @keyframes mq-l{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @keyframes mq-r{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+    .mq-left{animation:mq-l var(--mq-dur,48s) linear infinite}
+    .mq-right{animation:mq-r var(--mq-dur,56s) linear infinite}
+    .mq:hover .mq-track{animation-play-state:paused}
+    .flagchip{display:inline-flex;align-items:center;gap:9px;padding:9px 15px;border-radius:999px;
+              background:var(--surface);border:1px solid var(--line);white-space:nowrap;
+              font-family:"Outfit","Inter",system-ui,sans-serif;font-weight:600;font-size:15px;
+              color:var(--fg);letter-spacing:-.01em}
+    .flagchip .fl{font-family:"Twemoji Country Flags",system-ui,sans-serif;font-style:normal;
+                  font-size:17px;line-height:1}
+    /* Motion that conveys nothing must not be forced on anybody who asked for
+       less of it -- the list still reads, it simply stops moving and wraps. */
+    @media(prefers-reduced-motion:reduce){
+      .mq-left,.mq-right{animation:none}
+      .mq{-webkit-mask-image:none;mask-image:none;overflow:visible}
+      .mq-track{flex-wrap:wrap;width:auto}
+      .mq-set{flex-wrap:wrap;gap:8px}
+      .mq-set[aria-hidden="true"]{display:none}
+    }
 
     /* image band */
     .band{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line)}
@@ -337,12 +391,20 @@
             <h3 style="font-size:18px">Countries Zidi knows how to bill in</h3>
             <span style="color:var(--muted);font-size:13px;font-weight:600">31 markets · currency, language and phone format for each</span>
           </div>
-          <p style="color:var(--muted);margin-top:12px;font-size:15px;line-height:1.75">
-            Benin · Botswana · Burkina&nbsp;Faso · Cameroon · Chad · Congo-Brazzaville · Côte&nbsp;d&rsquo;Ivoire ·
-            DR&nbsp;Congo · Eswatini · Ethiopia · Gabon · Gambia · Ghana · Guinea · Kenya · Madagascar ·
-            Malawi · Mali · Mozambique · Niger · Nigeria · Rwanda · Senegal · Sierra&nbsp;Leone ·
-            South&nbsp;Africa · South&nbsp;Sudan · Tanzania · Uganda · Zambia · Zimbabwe · Angola
-          </p>
+        <div class="marquee-wrap reveal">
+        <div class="mq" style="--mq-dur:48s">
+          <div class="mq-track mq-left">
+            <div class="mq-set"><span class="flagchip"><i class="fl">🇰🇪</i>Kenya</span><span class="flagchip"><i class="fl">🇹🇿</i>Tanzania</span><span class="flagchip"><i class="fl">🇺🇬</i>Uganda</span><span class="flagchip"><i class="fl">🇷🇼</i>Rwanda</span><span class="flagchip"><i class="fl">🇬🇭</i>Ghana</span><span class="flagchip"><i class="fl">🇳🇬</i>Nigeria</span><span class="flagchip"><i class="fl">🇿🇦</i>South&nbsp;Africa</span><span class="flagchip"><i class="fl">🇿🇲</i>Zambia</span><span class="flagchip"><i class="fl">🇲🇼</i>Malawi</span><span class="flagchip"><i class="fl">🇲🇿</i>Mozambique</span><span class="flagchip"><i class="fl">🇦🇴</i>Angola</span><span class="flagchip"><i class="fl">🇸🇳</i>Senegal</span><span class="flagchip"><i class="fl">🇨🇮</i>Côte&nbsp;d&rsquo;Ivoire</span><span class="flagchip"><i class="fl">🇨🇲</i>Cameroon</span><span class="flagchip"><i class="fl">🇨🇩</i>DR&nbsp;Congo</span><span class="flagchip"><i class="fl">🇪🇹</i>Ethiopia</span></div>
+            <div class="mq-set" aria-hidden="true"><span class="flagchip"><i class="fl">🇰🇪</i>Kenya</span><span class="flagchip"><i class="fl">🇹🇿</i>Tanzania</span><span class="flagchip"><i class="fl">🇺🇬</i>Uganda</span><span class="flagchip"><i class="fl">🇷🇼</i>Rwanda</span><span class="flagchip"><i class="fl">🇬🇭</i>Ghana</span><span class="flagchip"><i class="fl">🇳🇬</i>Nigeria</span><span class="flagchip"><i class="fl">🇿🇦</i>South&nbsp;Africa</span><span class="flagchip"><i class="fl">🇿🇲</i>Zambia</span><span class="flagchip"><i class="fl">🇲🇼</i>Malawi</span><span class="flagchip"><i class="fl">🇲🇿</i>Mozambique</span><span class="flagchip"><i class="fl">🇦🇴</i>Angola</span><span class="flagchip"><i class="fl">🇸🇳</i>Senegal</span><span class="flagchip"><i class="fl">🇨🇮</i>Côte&nbsp;d&rsquo;Ivoire</span><span class="flagchip"><i class="fl">🇨🇲</i>Cameroon</span><span class="flagchip"><i class="fl">🇨🇩</i>DR&nbsp;Congo</span><span class="flagchip"><i class="fl">🇪🇹</i>Ethiopia</span></div>
+          </div>
+        </div>
+        <div class="mq" style="--mq-dur:56s">
+          <div class="mq-track mq-right">
+            <div class="mq-set"><span class="flagchip"><i class="fl">🇿🇼</i>Zimbabwe</span><span class="flagchip"><i class="fl">🇲🇱</i>Mali</span><span class="flagchip"><i class="fl">🇧🇫</i>Burkina&nbsp;Faso</span><span class="flagchip"><i class="fl">🇳🇪</i>Niger</span><span class="flagchip"><i class="fl">🇬🇳</i>Guinea</span><span class="flagchip"><i class="fl">🇸🇱</i>Sierra&nbsp;Leone</span><span class="flagchip"><i class="fl">🇧🇼</i>Botswana</span><span class="flagchip"><i class="fl">🇹🇩</i>Chad</span><span class="flagchip"><i class="fl">🇬🇦</i>Gabon</span><span class="flagchip"><i class="fl">🇨🇬</i>Congo-Brazzaville</span><span class="flagchip"><i class="fl">🇲🇬</i>Madagascar</span><span class="flagchip"><i class="fl">🇬🇲</i>Gambia</span><span class="flagchip"><i class="fl">🇧🇯</i>Benin</span><span class="flagchip"><i class="fl">🇸🇿</i>Eswatini</span><span class="flagchip"><i class="fl">🇸🇸</i>South&nbsp;Sudan</span></div>
+            <div class="mq-set" aria-hidden="true"><span class="flagchip"><i class="fl">🇿🇼</i>Zimbabwe</span><span class="flagchip"><i class="fl">🇲🇱</i>Mali</span><span class="flagchip"><i class="fl">🇧🇫</i>Burkina&nbsp;Faso</span><span class="flagchip"><i class="fl">🇳🇪</i>Niger</span><span class="flagchip"><i class="fl">🇬🇳</i>Guinea</span><span class="flagchip"><i class="fl">🇸🇱</i>Sierra&nbsp;Leone</span><span class="flagchip"><i class="fl">🇧🇼</i>Botswana</span><span class="flagchip"><i class="fl">🇹🇩</i>Chad</span><span class="flagchip"><i class="fl">🇬🇦</i>Gabon</span><span class="flagchip"><i class="fl">🇨🇬</i>Congo-Brazzaville</span><span class="flagchip"><i class="fl">🇲🇬</i>Madagascar</span><span class="flagchip"><i class="fl">🇬🇲</i>Gambia</span><span class="flagchip"><i class="fl">🇧🇯</i>Benin</span><span class="flagchip"><i class="fl">🇸🇿</i>Eswatini</span><span class="flagchip"><i class="fl">🇸🇸</i>South&nbsp;Sudan</span></div>
+          </div>
+        </div>
+        </div>
           <p style="color:var(--muted);margin-top:14px;font-size:14px;line-height:1.7">
             Thirty of those have a rail that collects on its own. Angola is on the list because Zidi
             knows its currency and number format — Multicaixa Express has no open API, so collection
