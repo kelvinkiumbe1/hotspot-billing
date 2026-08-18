@@ -203,6 +203,38 @@
       .mq-set[aria-hidden="true"]{display:none}
     }
 
+
+    /* Bento: two cards that carry the argument, then supporting rows. Ten equal
+       cards in one grid made the two strongest ones invisible. */
+    /* Asymmetric on purpose. Two equal cards are not a bento, and the flagship
+       -- renewals collecting themselves -- is the one that changes an operator's
+       week, so it gets the wider column. */
+    .bento{grid-template-columns:1.22fr 1fr}
+    @media(max-width:860px){.bento{grid-template-columns:1fr}}
+    .f2{grid-template-columns:repeat(2,1fr)}
+    @media(max-width:860px){.f2{grid-template-columns:1fr}}
+    .card-lead{padding:32px;background:
+        radial-gradient(120% 140% at 0% 0%,rgba(253,191,45,.10),transparent 60%),var(--surface)}
+    .card-lead h3{font-family:"Outfit","Inter",system-ui,sans-serif;font-size:23px;letter-spacing:-.02em}
+    .card-lead p{font-size:16px;margin-top:9px}
+    .card-lead .ic{width:54px;height:54px;border-radius:15px;
+        background:linear-gradient(135deg,rgba(253,191,45,.22),rgba(253,191,45,.07));
+        border:1px solid rgba(253,191,45,.22)}
+    .card-lead .ic svg{width:27px;height:27px}
+    .card h3{font-family:"Outfit","Inter",system-ui,sans-serif;letter-spacing:-.015em}
+    /* A hairline that lights up on hover, rather than a border that shifts layout. */
+    .card{position:relative}
+    .card::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
+        box-shadow:inset 0 0 0 1px transparent;transition:box-shadow .3s var(--ease)}
+    .card:hover::after{box-shadow:inset 0 0 0 1px rgba(253,191,45,.32)}
+
+    /* Group labels: three named runs read as an argument, ten peers read as a list. */
+    .grouplabel{display:flex;align-items:center;gap:14px;margin:38px 0 16px}
+    .grouplabel span{font-family:"Outfit","Inter",system-ui,sans-serif;font-weight:700;font-size:13px;
+        letter-spacing:.09em;text-transform:uppercase;color:var(--yellow);white-space:nowrap}
+    .grouplabel::after{content:"";flex:1;height:1px;
+        background:linear-gradient(90deg,rgba(253,191,45,.28),transparent)}
+
     /* image band */
     .band{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line)}
     .band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
@@ -427,20 +459,80 @@
       <div class="wrap">
         <div class="head reveal">
           <div class="kicker">Runs while you sleep</div>
-          <h2>Automations that protect and grow your revenue</h2>
-          <p>Zidi doesn't just take payments — it chases the money you'd otherwise lose, wins customers back, enforces your rules and keeps you compliant, all on its own.</p>
+          <h2>The work that keeps a small ISP small</h2>
+          <p>Chasing renewals, catching shared codes, policing data caps, filing tax. Zidi does all of it on its own — which is the difference between running a hundred customers and running a thousand.</p>
         </div>
+
+        <!-- The two that actually change the economics get the room.
+
+             Icons throughout this section are Lucide (lucide.dev), ISC licence,
+             Copyright (c) for portions Copyright (c) 2013-2022 Cole Bemis.
+             Inlined from lucide-static rather than redrawn: approximated paths
+             look subtly wrong at 24px, and inlining keeps the page free of a
+             CDN dependency for its own iconography. -->
+        <div class="grid bento">
+          <div class="card card-lead reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M3 9h18" /> <path d="m9 15 2 2 4-4" /></svg></div>
+            <h3>Renewals that collect themselves</h3>
+            <p>A customer agrees once and the monthly payment simply arrives — an M-Pesa standing order they approve on their handset, or a saved card or wallet Zidi charges on the day. No prompt, no reminder, no chasing, because there is nothing to chase. <span class="tag">New</span></p>
+          </div>
+          <div class="card card-lead reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /></svg></div>
+            <h3>Recovers the payments that fail</h3>
+            <p>A renewal that does not go through is not a lost customer, it is a customer who had no float at the wrong moment. Zidi retries on an escalating schedule with a tap-to-pay prompt, and stops the instant they pay. <span class="tag">New</span></p>
+          </div>
+        </div>
+
+        <div class="grouplabel reveal"><span>Money you would otherwise lose</span></div>
+        <div class="grid f2">
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.414 14.414C21 12.828 22 11.5 22 9.5a5.5 5.5 0 0 0-9.591-3.676.6.6 0 0 1-.818.001A5.5 5.5 0 0 0 2 9.5c0 2.3 1.5 4 3 5.5l5.535 5.362a2 2 0 0 0 2.879.052 2.12 2.12 0 0 0-.004-3 2.124 2.124 0 1 0 3-3 2.124 2.124 0 0 0 3.004 0 2 2 0 0 0 0-2.828l-1.881-1.882a2.41 2.41 0 0 0-3.409 0l-1.71 1.71a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.823-2.762" /></svg></div>
+            <h3>Wins back lapsed customers</h3>
+            <p>Gone quiet? A come-back series reaches out over the following weeks on its own — and stops the moment they return.</p>
+          </div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M22 8c0-2.3-.8-4.3-2-6" /> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /> <path d="M4 2C2.8 3.7 2 5.7 2 8" /></svg></div>
+            <h3>Top-up nudges before they notice</h3>
+            <p>A heads-up just before time or data runs out. A reply on WhatsApp tops them up without logging in anywhere.</p>
+          </div>
+        </div>
+
+        <div class="grouplabel reveal"><span>Your rules, enforced without you</span></div>
         <div class="grid f3">
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></div><h3>Recovers failed payments</h3><p>When an auto-renewal doesn't go through, Zidi retries on a smart schedule with a tap-to-pay prompt — so a customer who simply had no float doesn't quietly churn. <span class="tag">New</span></p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></div><h3>Renewals that collect themselves</h3><p>A customer agrees once and the monthly payment simply arrives — an M-Pesa standing order they approve on their handset, or a saved method Zidi charges on the day. Nobody gets chased, because there is nothing to chase. <span class="tag">New</span></p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.5 4.04 3 5.5l7 7Z"/></svg></div><h3>Wins back lapsed customers</h3><p>Gone quiet? An escalating come-back series reaches out automatically over the following weeks — and stops the instant they return.</p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div><h3>Smart top-up nudges</h3><p>Customers get a heads-up just before their time <em>or</em> data runs out — a reply on WhatsApp tops them up without logging in again.</p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></div><h3>Fair-use, enforced</h3><p>Set a data cap once. At the limit Zidi throttles, blocks or just notifies — whichever you chose — with no manual policing.</p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3>Catches code sharing</h3><p>One voucher lighting up several devices at once? You're flagged the moment it happens — protect the revenue you're owed. <span class="tag">New</span></p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg></div><h3>Self-healing network</h3><p>After a router reboot, paid customers reconnect with their remaining time and lapsed ones stay locked out — the network puts itself right.</p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></div><h3>KRA eTIMS, built in</h3><p>Every sale is turned into a signed KRA tax invoice automatically — stay compliant without lifting a finger. <span class="tag">Kenya</span></p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></div><h3>WhatsApp self-service</h3><p>Customers buy, check status, renew and get support entirely inside WhatsApp — your always-on sales desk. <span class="tag">Unique</span></p></div>
-          <div class="card reveal" data-tilt><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></div><h3>AI ops copilot</h3><p>A daily read on who's lapsing, what's selling and what needs attention — with one-tap actions to act on it.</p></div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14 4-4" /> <path d="M3.34 19a10 10 0 1 1 17.32 0" /></svg></div>
+            <h3>Fair-use, enforced</h3>
+            <p>Set a cap once. At the limit Zidi throttles, blocks or simply notifies — whichever you chose — with nobody policing it.</p>
+          </div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="M12 8v4" /> <path d="M12 16h.01" /></svg></div>
+            <h3>Catches code sharing</h3>
+            <p>One voucher lighting up several devices at once? Flagged the moment it happens, so you keep the revenue you are owed. <span class="tag">New</span></p>
+          </div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg></div>
+            <h3>A network that rights itself</h3>
+            <p>After a router reboot, paid customers reconnect with the time they still have and lapsed ones stay locked out. Nobody has to be on site.</p>
+          </div>
+        </div>
+
+        <div class="grouplabel reveal"><span>And the work nobody wants to do</span></div>
+        <div class="grid f3">
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /> <path d="M8 12h.01" /> <path d="M12 12h.01" /> <path d="M16 12h.01" /></svg></div>
+            <h3>WhatsApp does the selling</h3>
+            <p>Customers buy, check status, renew and get help entirely inside WhatsApp — an always-on sales desk you do not have to staff. <span class="tag">Unique</span></p>
+          </div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 16H8" /> <path d="M14 8H8" /> <path d="M16 12H8" /> <path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z" /></svg></div>
+            <h3>KRA eTIMS, built in</h3>
+            <p>Every sale becomes a signed KRA tax invoice automatically. Compliance without a spreadsheet. <span class="tag">Kenya</span></p>
+          </div>
+          <div class="card reveal" data-tilt>
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /> <path d="M20 2v4" /> <path d="M22 4h-4" /> <circle cx="4" cy="20" r="2" /></svg></div>
+            <h3>An ops copilot, every morning</h3>
+            <p>Who is lapsing, what is selling, what needs attention — with one tap to act on each of them.</p>
+          </div>
         </div>
       </div>
     </section>
