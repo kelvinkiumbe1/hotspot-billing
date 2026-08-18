@@ -132,9 +132,9 @@ class MtnMomoTest {
     @Test
     @DisplayName("Each MTN market has the name MTN itself uses")
     void targetEnvironments() {
-        assertThat(MtnMomoProvider.targetFor(Country.GH)).isEqualTo("mtnghana");
-        assertThat(MtnMomoProvider.targetFor(Country.UG)).isEqualTo("mtnuganda");
-        assertThat(MtnMomoProvider.targetFor(Country.CI)).isEqualTo("mtnivorycoast");
+        assertThat(MtnMomoProvider.targetFor(Country.GH, null)).isEqualTo("mtnghana");
+        assertThat(MtnMomoProvider.targetFor(Country.UG, null)).isEqualTo("mtnuganda");
+        assertThat(MtnMomoProvider.targetFor(Country.CI, null)).isEqualTo("mtnivorycoast");
     }
 
     @Test
@@ -142,7 +142,30 @@ class MtnMomoTest {
     void unsupportedMarket() {
         // Kenya is M-Pesa's. Guessing a target here would send live charges
         // into a market the operator has no agreement with.
-        assertThat(MtnMomoProvider.targetFor(Country.KE)).isNull();
-        assertThat(MtnMomoProvider.targetFor(Country.NG)).isNull();
+        assertThat(MtnMomoProvider.targetFor(Country.KE, null)).isNull();
+        assertThat(MtnMomoProvider.targetFor(Country.NG, null)).isNull();
+        assertThat(MtnMomoProvider.targetFor(Country.KE, "  ")).isNull();
+    }
+
+    @Test
+    @DisplayName("A newer MTN market is reachable by pasting what MTN issued")
+    void configuredTargetUnlocksNewMarkets() {
+        // Benin, Eswatini and South Sudan are real MTN MoMo markets whose target
+        // environment this code cannot derive. Guessing per country was the
+        // alternative, and a wrong string is refused by MTN with an error that
+        // explains nothing.
+        assertThat(MtnMomoProvider.targetFor(Country.BJ, null)).isNull();
+        assertThat(MtnMomoProvider.targetFor(Country.BJ, "mtnbenin")).isEqualTo("mtnbenin");
+        assertThat(MtnMomoProvider.targetFor(Country.SS, " mtnsouthsudan "))
+                .isEqualTo("mtnsouthsudan");
+    }
+
+    @Test
+    @DisplayName("What the operator pasted beats what this code assumed")
+    void configuredWins() {
+        // MTN has changed a market's target before. The operator reading it off
+        // their own dashboard is right and this table is not.
+        assertThat(MtnMomoProvider.targetFor(Country.GH, "mtnghana2"))
+                .isEqualTo("mtnghana2");
     }
 }

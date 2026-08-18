@@ -213,4 +213,41 @@ class PhoneNumbersTest {
         assertThat(phones.country()).isEqualTo(Country.KE);
         assertThat(phones.normalise("0712345678")).isEqualTo("254712345678");
     }
+
+    @Test
+    @DisplayName("Every newly added market normalises a real local number")
+    void newMarketsNormalise() {
+        // A wrong national length rejects a real paying customer and tells them
+        // their number does not exist, so each of these is a number as somebody
+        // in that country would actually type it.
+        String[][] cases = {
+            {"ML", "76123456", "22376123456"},
+            {"BF", "70123456", "22670123456"},
+            {"NE", "90123456", "22790123456"},
+            {"GN", "622123456", "224622123456"},
+            {"SL", "76123456", "23276123456"},
+            {"BW", "71123456", "26771123456"},
+            {"TD", "66123456", "23566123456"},
+            {"MG", "0321234567", "261321234567"},
+            {"GM", "3012345", "2203012345"},
+            {"SZ", "76123456", "26876123456"},
+            {"SS", "921234567", "211921234567"},
+        };
+        for (String[] c : cases) {
+            assertThat(PhoneNumbers.normalise(c[1], Country.of(c[0])))
+                    .as("%s: %s", c[0], c[1])
+                    .isEqualTo(c[2]);
+        }
+    }
+
+    @Test
+    @DisplayName("Benin, Gabon and Congo keep the zero their numbers start with")
+    void leadingZeroIsPartOfTheNumber() {
+        // These three have no trunk prefix -- the leading zero belongs to the
+        // number. Stripping it, which is the right thing nearly everywhere else,
+        // would silently turn a customer's number into somebody else's.
+        assertThat(PhoneNumbers.normalise("0166123456", Country.BJ)).isEqualTo("2290166123456");
+        assertThat(PhoneNumbers.normalise("06123456", Country.GA)).isEqualTo("24106123456");
+        assertThat(PhoneNumbers.normalise("061234567", Country.CG)).isEqualTo("242061234567");
+    }
 }

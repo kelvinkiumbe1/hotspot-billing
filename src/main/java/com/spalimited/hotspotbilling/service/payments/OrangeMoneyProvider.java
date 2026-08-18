@@ -81,14 +81,19 @@ public class OrangeMoneyProvider implements PaymentProvider {
     /**
      * The Orange Money markets this system also knows about.
      *
-     * <p>Orange Money runs in more countries than these; these are the ones in
-     * the country table. Mali, Burkina Faso and Guinea are all Orange Money
-     * strongholds and are absent from that table, so they are absent here —
-     * adding a market means adding the country, its currency and its dialling
-     * rules, not just a name in this set.
+     * <p>Every Orange Money country this system also knows about. The payment
+     * path segment is the lowercase ISO code, so a new market needs no string
+     * anybody has to look up — which is why these could be added without
+     * touching the request-building code at all.
+     *
+     * <p>Still not the full list: Orange Money also runs in Liberia,
+     * Guinea-Bissau, the Central African Republic and across North Africa, and
+     * those are absent because the country table does not name them yet.
      */
     private static final Set<Country> MARKETS = Set.of(
-            Country.SN, Country.CI, Country.CM, Country.CD);
+            Country.SN, Country.CI, Country.CM, Country.CD,
+            Country.ML, Country.BF, Country.GN, Country.SL, Country.NE,
+            Country.MG, Country.BW);
 
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;

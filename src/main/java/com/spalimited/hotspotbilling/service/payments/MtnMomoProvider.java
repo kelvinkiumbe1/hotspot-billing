@@ -108,7 +108,11 @@ public class MtnMomoProvider implements PaymentProvider {
             return null;
         }
         boolean live = g.getEnvironment() == PaymentGateway.Environment.PRODUCTION;
-        String target = live ? targetFor(country()) : "sandbox";
+        // The operator's own value wins. MTN issues a target environment during
+        // merchant onboarding and it is not always the "mtn<country>" the older
+        // markets use, so a market this code has no entry for is reachable by
+        // pasting it rather than waiting for someone to guess the string.
+        String target = live ? targetFor(country(), g.getShortCode()) : "sandbox";
         if (target == null) {
             // Live, but in a country MTN MoMo does not serve. Refusing here is
             // better than sending a charge that fails for an unexplained reason.
@@ -127,13 +131,33 @@ public class MtnMomoProvider implements PaymentProvider {
         }
     }
 
-    static String targetFor(Country country) {
+    /**
+     * The target environment header MTN expects.
+     *
+     * <p>MTN issues this per merchant, and for the older markets it is
+     * predictably {@code mtnghana}, {@code mtnuganda} and so on. For Benin,
+     * Eswatini, South Sudan and anywhere MTN opens next it is not something this
+     * code can derive — and a wrong value is refused with an error that says
+     * nothing about why. So a configured value always wins, and a market with
+     * neither is refused rather than guessed at.
+     */
+    static String targetFor(Country country, String configured) {
+        if (configured != null && !configured.isBlank()) {
+            return configured.trim();
+        }
         return TARGETS.get(country);
     }
 
-    /** True where MTN MoMo is worth offering at all. */
+    /**
+     * True where MTN MoMo is worth offering at all.
+     *
+     * <p>Takes the configured target into account: an operator in a market this
+     * code has no entry for has MTN available the moment they paste theirs.
+     */
     public boolean availableHere() {
-        return TARGETS.containsKey(country());
+        String configured = gateways.find(PaymentGateway.Kind.MTN_MOMO)
+                .map(PaymentGateway::getShortCode).orElse(null);
+        return targetFor(country(), configured) != null;
     }
 
     @Override

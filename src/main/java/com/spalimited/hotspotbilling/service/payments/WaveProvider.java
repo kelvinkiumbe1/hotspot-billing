@@ -60,13 +60,13 @@ public class WaveProvider implements PaymentProvider {
     /**
      * The Wave markets this system also knows about.
      *
-     * <p>Deliberately short. Wave operates in more countries than these, but
-     * Mali, Burkina Faso and the Gambia are not in the country table, and a
-     * market listed here without its currency and dialling rules would offer a
-     * customer a rail that cannot charge them. Adding one means adding the
-     * country properly rather than a name in this set.
+     * <p>Wave's markets, now that the country table names them. A market listed
+     * here without its currency and dialling rules would offer a customer a rail
+     * that cannot charge them, so adding one always means adding the country
+     * properly rather than a name in this set.
      */
-    private static final Set<Country> MARKETS = Set.of(Country.SN, Country.CI);
+    private static final Set<Country> MARKETS = Set.of(
+            Country.SN, Country.CI, Country.ML, Country.BF, Country.GM);
 
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;

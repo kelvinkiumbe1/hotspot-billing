@@ -66,6 +66,57 @@ public enum Country {
             List.of("Telebirr", "CBE Birr", "M-Pesa", "Amole"), "251", 9, List.of()),
     ZW("Zimbabwe", "USD", "en", "EcoCash", Rail.PAYNOW,
             List.of("EcoCash", "OneMoney", "InnBucks", "Zimswitch"), "263", 9, List.of()),
+
+    // --- Countries the rails already built reach, added without new integrations ---
+    //
+    // Each of these needed a table entry and a line in one provider's market
+    // set, nothing more. The rails were already written and tested; these
+    // markets were unreachable only because this file did not name them.
+
+    // Orange Money country, and Wave competing on price the way it does in Senegal.
+    ML("Mali", "XOF", "fr", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "Moov Money", "Wave"), "223", 8, List.of()),
+    BF("Burkina Faso", "XOF", "fr", "Mobile Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "Moov Money", "Wave"), "226", 8, List.of()),
+    // Airtel is the largest network here; Orange Money also operates.
+    NE("Niger", "XOF", "fr", "Mobile Money", Rail.AIRTEL_MONEY,
+            List.of("Airtel Money", "Orange Money", "Moov Money"), "227", 8, List.of()),
+    // GNF has no minor unit, like the CFA francs.
+    GN("Guinea", "GNF", "fr", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "MTN MoMo"), "224", 9, List.of()),
+    // SLE, the leone as redenominated in 2022 — not the old SLL.
+    SL("Sierra Leone", "SLE", "en", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "Afrimoney"), "232", 8, List.of()),
+    BW("Botswana", "BWP", "en", "Mobile Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "MyZaka", "Smega"), "267", 8, List.of()),
+
+    TD("Chad", "XAF", "fr", "Airtel Money", Rail.AIRTEL_MONEY,
+            List.of("Airtel Money", "Moov Money"), "235", 8, List.of()),
+    GA("Gabon", "XAF", "fr", "Airtel Money", Rail.AIRTEL_MONEY,
+            List.of("Airtel Money", "Moov Money"), "241", 8, List.of()),
+    CG("Congo-Brazzaville", "XAF", "fr", "Mobile Money", Rail.AIRTEL_MONEY,
+            List.of("Airtel Money", "MTN MoMo"), "242", 9, List.of()),
+    // The honest caveat here: MVola is the biggest wallet in Madagascar and no
+    // built rail reaches it. Airtel and Orange are reachable, so an operator can
+    // sell — to some of the market, not most of it. Said plainly in the brand,
+    // which stays generic rather than naming a wallet that cannot be charged.
+    MG("Madagascar", "MGA", "fr", "Mobile Money", Rail.AIRTEL_MONEY,
+            List.of("MVola", "Orange Money", "Airtel Money"), "261", 9, List.of()),
+
+    GM("Gambia", "GMD", "en", "Wave", Rail.WAVE,
+            List.of("Wave", "Africell Money", "QMoney"), "220", 7, List.of()),
+
+    // MTN markets. These need the target environment MTN issues the merchant,
+    // pasted under Settings — see MtnMomoProvider. Guessing the string per
+    // country was the alternative, and a wrong one is refused by MTN with an
+    // error that says nothing about why.
+    BJ("Benin", "XOF", "fr", "MTN MoMo", Rail.MTN_MOMO,
+            List.of("MTN MoMo", "Moov Money"), "229", 10, List.of()),
+    SZ("Eswatini", "SZL", "en", "MTN MoMo", Rail.MTN_MOMO,
+            List.of("MTN MoMo"), "268", 8, List.of()),
+    SS("South Sudan", "SSP", "en", "Mobile Money", Rail.MTN_MOMO,
+            List.of("MTN MoMo", "m-Gurush"), "211", 9, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 

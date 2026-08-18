@@ -16,7 +16,13 @@ const DIALLING = {
   GH: ['233', 9], NG: ['234', 10], ZA: ['27', 9], ZM: ['260', 9],
   MW: ['265', 9], MZ: ['258', 9], AO: ['244', 9], SN: ['221', 9],
   CI: ['225', 10], CM: ['237', 9], CD: ['243', 9], ET: ['251', 9],
-  ZW: ['263', 9], OTHER: ['', 0],
+  ZW: ['263', 9],
+  // Countries the built rails already reach, added with no new integration.
+  ML: ['223', 8], BF: ['226', 8], NE: ['227', 8], GN: ['224', 9],
+  SL: ['232', 8], BW: ['267', 8], TD: ['235', 8], GA: ['241', 8],
+  CG: ['242', 9], MG: ['261', 9], GM: ['220', 7], BJ: ['229', 10],
+  SZ: ['268', 8], SS: ['211', 9],
+  OTHER: ['', 0],
 }
 
 // Kenya until the server says otherwise, matching the backend default, so an

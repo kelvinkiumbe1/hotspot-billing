@@ -61,7 +61,8 @@ public class AirtelProvider implements PaymentProvider {
      */
     private static final Set<Country> MARKETS = Set.of(
             Country.KE, Country.TZ, Country.UG, Country.RW,
-            Country.ZM, Country.MW, Country.CD, Country.NG);
+            Country.ZM, Country.MW, Country.CD, Country.NG,
+            Country.NE, Country.TD, Country.GA, Country.CG, Country.MG);
 
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;
