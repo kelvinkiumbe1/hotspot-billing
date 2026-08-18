@@ -57,23 +57,46 @@ public class NotificationService {
                             + "Reconnect today: {payUrl}"));
 
     private final NotificationTemplateRepository templates;
+    private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
     private final SmsService smsService;
     private final MoneyService money;
 
+    /** The operator's language, or English if anything about that is unclear. */
+    private String language() {
+        try {
+            return messages.operatorLanguage().code();
+        } catch (Exception e) {
+            return "en";
+        }
+    }
+
+    private NotificationTemplate.TemplateId id(NotificationTemplate.Key key, String language) {
+        return new NotificationTemplate.TemplateId(key, language);
+    }
+
     @Transactional
     public List<NotificationTemplate> all() {
+        String language = language();
         DEFAULTS.forEach((key, body) -> {
-            if (templates.findById(key).isEmpty()) {
-                templates.save(NotificationTemplate.builder().templateKey(key).body(body).build());
+            if (templates.findById(id(key, language)).isEmpty()) {
+                templates.save(NotificationTemplate.builder()
+                        .templateKey(key).language(language).body(body).build());
             }
         });
-        return templates.findAll();
+        // Only this language's wording. Showing every language's rows in one
+        // list would present the operator with four copies of each message and
+        // no way to tell which one their customers actually receive.
+        return templates.findAll().stream()
+                .filter(t -> language.equals(t.getLanguage()))
+                .toList();
     }
 
     @Transactional
     public NotificationTemplate update(NotificationTemplate.Key key, String body, boolean enabled) {
-        NotificationTemplate template = templates.findById(key)
-                .orElseGet(() -> NotificationTemplate.builder().templateKey(key).build());
+        String language = language();
+        NotificationTemplate template = templates.findById(id(key, language))
+                .orElseGet(() -> NotificationTemplate.builder()
+                        .templateKey(key).language(language).build());
         template.setBody(body);
         template.setEnabled(enabled);
         return templates.save(template);
@@ -82,7 +105,14 @@ public class NotificationService {
     /** Renders the template and sends it; silently skips if disabled. */
     @Transactional(readOnly = true)
     public void send(NotificationTemplate.Key key, String phoneNumber, Map<String, String> values) {
-        NotificationTemplate template = templates.findById(key).orElse(null);
+        String language = language();
+        NotificationTemplate template = templates.findById(id(key, language)).orElse(null);
+        if (template == null && !"en".equals(language)) {
+            // Nothing written in this language yet. The English row is still a
+            // real message an operator wrote; sending it beats sending nothing,
+            // and sending nothing is what a customer notices.
+            template = templates.findById(id(key, "en")).orElse(null);
+        }
         String body = template != null ? template.getBody() : DEFAULTS.get(key);
         if (template != null && !template.isEnabled()) {
             log.debug("Template {} is disabled — not sending", key);

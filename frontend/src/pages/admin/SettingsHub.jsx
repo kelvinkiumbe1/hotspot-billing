@@ -474,9 +474,12 @@ function HotspotSection({ auth }) {
       </div>
       <div>
         <label className={LABEL_CLS}>Default portal language</label>
-        <p className="text-xs text-on-surface-variant mb-2">Customers can still switch language themselves on the portal.</p>
-        <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
-          {[['EN', 'English'], ['SW', 'Kiswahili']].map(([code, name]) => {
+        <p className="text-xs text-on-surface-variant mb-2">
+          Where the portal starts. A customer whose phone is set to one of these opens in it anyway,
+          and whatever they pick is remembered — so this is the answer for everyone else.
+        </p>
+        <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden flex-wrap">
+          {[['EN', 'English'], ['SW', 'Kiswahili'], ['FR', 'Français'], ['PT', 'Português']].map(([code, name]) => {
             const active = (form.defaultLanguage || 'EN') === code
             return (
               <button type="button" key={code}

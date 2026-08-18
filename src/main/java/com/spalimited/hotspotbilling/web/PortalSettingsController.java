@@ -74,6 +74,10 @@ public class PortalSettingsController {
                 "symbol", s.getCurrencySymbol() == null ? "" : s.getCurrencySymbol(),
                 "suffix", s.isCurrencySuffix(),
                 "decimals", s.getCurrencyDecimals()));
+        // Whether the portal may follow the customer's own phone. When an
+        // operator has turned that off they mean it, and the browser must not
+        // quietly override them on the one screen they cannot see.
+        out.put("followCustomerLanguage", s.isFollowCustomerLanguage());
         return out;
     }
 
@@ -124,7 +128,16 @@ public class PortalSettingsController {
             String supportPhone,
             String termsText,
             boolean trialEnabled,
-            @Min(1) @Max(1440) int trialMinutes) {
+            @Min(1) @Max(1440) int trialMinutes,
+            // Money and language. Both were settings the system already
+            // honoured and nothing could set, so every operator was stuck on
+            // shillings and English whatever the database could hold.
+            String currencyCode,
+            String currencySymbol,
+            boolean currencySuffix,
+            @Min(0) @Max(4) int currencyDecimals,
+            String language,
+            boolean followCustomerLanguage) {
     }
 
     @PreAuthorize("hasAuthority('SETTINGS')")
@@ -141,6 +154,12 @@ public class PortalSettingsController {
                 .termsText(request.termsText())
                 .trialEnabled(request.trialEnabled())
                 .trialMinutes(request.trialMinutes())
+                .currencyCode(request.currencyCode())
+                .currencySymbol(request.currencySymbol())
+                .currencySuffix(request.currencySuffix())
+                .currencyDecimals(request.currencyDecimals())
+                .language(request.language())
+                .followCustomerLanguage(request.followCustomerLanguage())
                 .build());
     }
 

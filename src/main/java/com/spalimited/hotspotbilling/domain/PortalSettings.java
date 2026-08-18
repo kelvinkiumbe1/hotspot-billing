@@ -61,6 +61,29 @@ public class PortalSettings {
     @Column(nullable = false)
     private int currencyDecimals = 0;
 
+    /**
+     * The language customers are served in, as a two-letter code.
+     *
+     * <p>Separate from currency because the two do not travel together: an
+     * operator in Abidjan quotes francs and speaks French, one in Kampala
+     * quotes shillings and speaks English, and one in Nairobi may want
+     * Swahili with the same shillings as their neighbour using English.
+     */
+    @Builder.Default
+    @Column(nullable = false, length = 8)
+    private String language = "en";
+
+    /**
+     * Whether a customer's own phone or browser overrides the setting above.
+     *
+     * <p>Changes nothing for a deployment where everyone reads the same
+     * language. For a bilingual city it is the difference between one choice
+     * that suits half the customers and each customer reading their own.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean followCustomerLanguage = true;
+
     private String headline;
 
     private String subheadline;

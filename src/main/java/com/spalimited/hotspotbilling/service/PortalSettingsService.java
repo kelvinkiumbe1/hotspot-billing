@@ -56,6 +56,14 @@ public class PortalSettingsService {
             current.setCurrencySuffix(updated.isCurrencySuffix());
             current.setCurrencyDecimals(Math.max(0, Math.min(4, updated.getCurrencyDecimals())));
         }
+        // Language, on the same "blank means leave it" rule and for the same
+        // reason: a form that predates this field must not reset an operator
+        // in Abidjan to English by saving something else.
+        if (updated.getLanguage() != null && !updated.getLanguage().isBlank()) {
+            current.setLanguage(com.spalimited.hotspotbilling.service.i18n.Language
+                    .of(updated.getLanguage()).code());
+            current.setFollowCustomerLanguage(updated.isFollowCustomerLanguage());
+        }
         current.setTrialEnabled(updated.isTrialEnabled());
         current.setTrialMinutes(updated.getTrialMinutes() > 0 ? updated.getTrialMinutes() : 15);
         if (updated.getLogoFilename() != null) {

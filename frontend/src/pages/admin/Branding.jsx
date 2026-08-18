@@ -56,6 +56,12 @@ export default function Branding({ auth }) {
         termsText: s.termsText || '',
         trialEnabled: !!s.trialEnabled,
         trialMinutes: s.trialMinutes || 15,
+        currencyCode: s.currencyCode || 'KES',
+        currencySymbol: s.currencySymbol || '',
+        currencySuffix: !!s.currencySuffix,
+        currencyDecimals: s.currencyDecimals ?? 0,
+        language: s.language || 'en',
+        followCustomerLanguage: s.followCustomerLanguage !== false,
       })
       setLogoUrl(s.logoFilename ? `/api/uploads/${s.logoFilename}` : null)
     }).catch(() => {})
@@ -70,7 +76,15 @@ export default function Branding({ auth }) {
     setBusy(true)
     setMsg(null)
     try {
-      await api('/admin/portal-settings', { method: 'PUT', auth, body: { ...form, trialMinutes: Number(form.trialMinutes) || 15 } })
+      await api('/admin/portal-settings', {
+        method: 'PUT', auth,
+        body: {
+          ...form,
+          trialMinutes: Number(form.trialMinutes) || 15,
+          currencyCode: (form.currencyCode || 'KES').toUpperCase(),
+          currencyDecimals: Number(form.currencyDecimals) || 0,
+        },
+      })
       setMsg({ ok: true, text: 'Saved!' })
     } catch (err) {
       setMsg({ ok: false, text: err.message })
@@ -152,6 +166,88 @@ export default function Branding({ auth }) {
               <div className="md:col-span-2">
                 <label className={LABEL_CLS}>Sub-headline</label>
                 <input className={INPUT_CLS} value={form.subheadline} onChange={(e) => set('subheadline', e.target.value)} />
+              </div>
+            </div>
+          </section>
+
+          {/* Both of these were settings the system honoured but nothing could
+              set — so every operator was stuck on shillings and English no
+              matter what the database could hold. */}
+          <section className="bg-surface-container-lowest rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-on-surface mb-1">Money &amp; language</h3>
+            <p className="text-xs text-on-surface-variant mb-4">
+              How prices are written and what customers are spoken to in. Staff screens stay in English.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLS}>Currency code</label>
+                <input className={INPUT_CLS} maxLength={3} value={form.currencyCode}
+                  onChange={(e) => set('currencyCode', e.target.value.toUpperCase())}
+                  placeholder="KES" />
+                <p className="text-xs text-on-surface-variant mt-1">e.g. KES, NGN, GHS, XOF, USD.</p>
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Symbol <span className="normal-case font-normal">(optional)</span></label>
+                <input className={INPUT_CLS} value={form.currencySymbol}
+                  onChange={(e) => set('currencySymbol', e.target.value)} placeholder="₦, $, FCFA…" />
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Left blank, the code is shown instead.
+                </p>
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Decimal places</label>
+                <select className={INPUT_CLS} value={form.currencyDecimals}
+                  onChange={(e) => set('currencyDecimals', Number(e.target.value))}>
+                  <option value={0}>None — 1,200</option>
+                  <option value={2}>Two — 1,200.00</option>
+                </select>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Shillings and naira are quoted whole; dollars and euros are not.
+                </p>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors w-full">
+                  <input type="checkbox" checked={form.currencySuffix}
+                    onChange={(e) => set('currencySuffix', e.target.checked)}
+                    className="w-4 h-4 accent-[#fdbf2d]" />
+                  <span className="text-sm text-on-surface">Unit goes after the number (2,500 FCFA)</span>
+                </label>
+              </div>
+
+              <div className="md:col-span-2 pt-2 border-t border-outline-variant/50">
+                <label className={LABEL_CLS}>Customer language</label>
+                <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden flex-wrap">
+                  {[['en', 'English'], ['sw', 'Kiswahili'], ['fr', 'Français'], ['pt', 'Português']]
+                    .map(([code, name]) => (
+                      <button type="button" key={code} onClick={() => set('language', code)}
+                        className={`px-4 py-2 text-sm font-medium cursor-pointer transition-colors ${
+                          form.language === code
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-surface text-on-surface-variant hover:bg-surface-container'
+                        }`}>
+                        {name}
+                      </button>
+                    ))}
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2">
+                  Used for USSD, the WhatsApp bot and the messages you send — none of which carry
+                  any hint of what language the customer reads.
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
+                  <input type="checkbox" checked={form.followCustomerLanguage}
+                    onChange={(e) => set('followCustomerLanguage', e.target.checked)}
+                    className="w-4 h-4 accent-[#fdbf2d]" />
+                  <span className="text-sm text-on-surface">
+                    Let the portal follow each customer&rsquo;s own phone
+                  </span>
+                </label>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Changes nothing where everyone reads the same language. In a bilingual city it is
+                  the difference between one choice that suits half your customers and each of them
+                  reading their own.
+                </p>
               </div>
             </div>
           </section>

@@ -17,7 +17,19 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@IdClass(NotificationTemplate.TemplateId.class)
 public class NotificationTemplate {
+
+    /** The composite key: one wording per message, per language. */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    public static class TemplateId implements java.io.Serializable {
+        private Key templateKey;
+        private String language;
+    }
 
     /** Every message the system sends on its own. */
     public enum Key {
@@ -39,6 +51,18 @@ public class NotificationTemplate {
     @Id
     @Enumerated(EnumType.STRING)
     private Key templateKey;
+
+    /**
+     * Which language this wording is in.
+     *
+     * <p>Part of the key rather than a column, because a bilingual operator
+     * needs both at once. Before this they had to choose, and half their
+     * customers got messages they could not read.
+     */
+    @Id
+    @Builder.Default
+    @Column(nullable = false, length = 8)
+    private String language = "en";
 
     @Column(nullable = false, length = 640)
     private String body;

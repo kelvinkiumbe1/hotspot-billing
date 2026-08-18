@@ -51,6 +51,7 @@ public class UssdService {
     private final PaymentGatewayService gateways;
     /** Named cash rather than money, since money(Plan) already meant something here. */
     private final MoneyService cash;
+    private final com.spalimited.hotspotbilling.service.i18n.Messages messages;
 
     /**
      * Handles one USSD request. {@code text} is everything the caller has
@@ -71,11 +72,11 @@ public class UssdService {
                 case "2" -> lastCode(phone);
                 case "3" -> account(phone, steps);
                 case "4" -> payInstructions();
-                default -> "END Sorry, that isn't one of the options. Please dial again.";
+                default -> "END " + say("ussd.badOption");
             };
         } catch (Exception e) {
             log.warn("USSD failed for {}: {}", phoneNumber, e.getMessage());
-            return "END Sorry, something went wrong. Please try again shortly.";
+            return "END " + say("ussd.error");
         }
     }
 
@@ -84,10 +85,10 @@ public class UssdService {
     private String buy(String phone, String[] steps) {
         List<Plan> live = livePlans();
         if (live.isEmpty()) {
-            return "END No packages are on sale right now. Please try again later.";
+            return "END " + say("ussd.noPlans");
         }
         if (steps.length == 1) {
-            StringBuilder sb = new StringBuilder("CON Choose a package:");
+            StringBuilder sb = new StringBuilder("CON " + say("ussd.choosePlan"));
             for (int i = 0; i < live.size(); i++) {
                 Plan p = live.get(i);
                 sb.append("\n").append(i + 1).append(". ").append(p.getName())
@@ -98,29 +99,31 @@ public class UssdService {
 
         Integer choice = asInt(steps[1]);
         if (choice == null || choice < 1 || choice > live.size()) {
-            return "END That wasn't one of the packages. Please dial again.";
+            return "END " + say("ussd.badPlan");
         }
         Plan plan = live.get(choice - 1);
 
         // A confirmation screen before any money moves: one stray keypress on a
         // basic handset should not charge somebody's M-Pesa.
         if (steps.length == 2) {
-            return "CON " + plan.getName() + " for " + cash.format(price(plan))
-                    + "\n1. Send M-Pesa request to " + phone + "\n0. Cancel";
+            return "CON " + say("ussd.confirm", Map.of(
+                    "plan", plan.getName(),
+                    "price", cash.format(price(plan)),
+                    "phone", phone == null ? "" : phone));
         }
         if (!"1".equals(steps[2])) {
-            return "END Cancelled. Nothing has been charged.";
+            return "END " + say("ussd.cancelled");
         }
         if (phone == null) {
-            return "END We couldn't read your number. Please buy from the WiFi page instead.";
+            return "END " + say("ussd.noNumber");
         }
         try {
             payments.initiateStkPush(phone, plan.getId());
         } catch (Exception e) {
             log.warn("USSD STK failed for {}: {}", phone, e.getMessage());
-            return "END We couldn't start the M-Pesa payment. Please try again shortly.";
+            return "END " + say("ussd.payFailed");
         }
-        return "END Check your phone for the M-Pesa prompt. Your WiFi code arrives by SMS once paid.";
+        return "END " + say("ussd.checkPhone");
     }
 
     // --- 2. My code ---
@@ -129,15 +132,15 @@ public class UssdService {
         Voucher v = phone == null ? null
                 : vouchers.findByPhoneNumberOrderByCreatedAtDesc(phone).stream().findFirst().orElse(null);
         if (v == null) {
-            return "END No WiFi code found for this number. Dial again and choose 1 to buy one.";
+            return "END " + say("ussd.noCode");
         }
-        String state = switch (v.getStatus()) {
-            case UNUSED -> "ready to use";
-            case ACTIVE -> "in use";
-            case EXPIRED -> "finished";
-        };
-        return "END Your code is " + v.getCode() + " (" + v.getPlan().getName() + ", " + state
-                + "). Use it as both username and password.";
+        String state = say(switch (v.getStatus()) {
+            case UNUSED -> "state.ready";
+            case ACTIVE -> "state.inUse";
+            case EXPIRED -> "state.finished";
+        });
+        return "END " + say("ussd.yourCode", Map.of(
+                "code", v.getCode(), "plan", v.getPlan().getName(), "state", state));
     }
 
     // --- 3. My account ---
@@ -146,27 +149,28 @@ public class UssdService {
         Subscriber sub = phone == null ? null
                 : subscribers.findByPhoneNumber(phone).stream().findFirst().orElse(null);
         if (sub == null) {
-            return "END No home or office line is registered on this number. Choose 1 to buy a WiFi package.";
+            return "END " + say("ussd.noAccount");
         }
         boolean active = sub.getStatus() == Subscriber.Status.ACTIVE
                 && sub.getPaidUntil() != null && sub.getPaidUntil().isAfter(Instant.now());
-        String until = sub.getPaidUntil() != null ? DATE.format(sub.getPaidUntil()) : "unknown";
+        String until = sub.getPaidUntil() != null ? DATE.format(sub.getPaidUntil()) : say("ussd.unknownDate");
 
         if (steps.length == 1) {
-            return "CON " + (active ? "Active" : "Not active") + ", paid to " + until
-                    + "\n1. Renew 1 month (" + cash.format(sub.getMonthlyFee()) + ")"
-                    + "\n0. Exit";
+            return "CON " + say("ussd.accountScreen", Map.of(
+                    "status", say(active ? "status.active" : "status.notActive"),
+                    "date", until,
+                    "price", cash.format(sub.getMonthlyFee())));
         }
         if (!"1".equals(steps[1])) {
-            return "END Thank you.";
+            return "END " + say("ussd.thanks");
         }
         try {
             subscriptions.initiateStk(sub.getId(), 1);
         } catch (Exception e) {
             log.warn("USSD renew failed for subscriber {}: {}", sub.getId(), e.getMessage());
-            return "END We couldn't start the M-Pesa payment. Please try again shortly.";
+            return "END " + say("ussd.payFailed");
         }
-        return "END Check your phone for the M-Pesa prompt. Your internet stays on once it is paid.";
+        return "END " + say("ussd.checkPhoneRenew");
     }
 
     // --- 4. Pay by M-Pesa ---
@@ -176,16 +180,32 @@ public class UssdService {
         Object paybill = manual.get("paybillNumber");
         Object till = manual.get("tillNumber");
         if (paybill != null) {
-            return "END Go to M-Pesa > Pay Bill. Business no: " + paybill
-                    + ". Account: your phone number. Your code arrives by SMS.";
+            return "END " + say("ussd.paybill", Map.of("paybill", String.valueOf(paybill)));
         }
         if (till != null) {
-            return "END Go to M-Pesa > Buy Goods. Till no: " + till + ". Your code arrives by SMS.";
+            return "END " + say("ussd.till", Map.of("till", String.valueOf(till)));
         }
-        return "END Please buy from the WiFi page, or call support for payment details.";
+        return "END " + say("ussd.noPayDetails");
     }
 
     // --- helpers ---
+
+    /**
+     * One line of USSD, in the operator's language.
+     *
+     * <p>Not the caller's: USSD carries no language hint at all — no header,
+     * no browser, nothing but a phone number. So this is the one customer
+     * surface where the operator's setting genuinely is the best available
+     * answer rather than a fallback.
+     */
+    private String say(String key) {
+        return messages.get(key);
+    }
+
+    private String say(String key, Map<String, String> values) {
+        return messages.get(key, values);
+    }
+
 
     private List<Plan> livePlans() {
         return plans.findByActiveTrueOrderByPriceAsc().stream()

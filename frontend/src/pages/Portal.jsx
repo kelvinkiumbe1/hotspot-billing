@@ -232,6 +232,228 @@ const STRINGS = {
     'foot.powered': 'Inaendeshwa na SPA Limited',
     'promo.endsIn': 'Inaisha baada ya',
   },
+  FR: {
+    'hero.title': 'Connectez-vous en quelques secondes',
+    'hero.sub': 'Un internet rapide et fiable dans toute la ville.',
+    'hero.minTitle': 'Connectez-vous',
+    'hero.minSub': 'Choisissez un forfait et payez avec M-Pesa.',
+    'breeze.hi': 'Bienvenue — connectons-vous.',
+    'breeze.sub': 'Choisissez un forfait, payez avec M-Pesa, et vous naviguez en moins d’une minute.',
+    'tab.all': 'Tous',
+    'steps.heading': 'Comment vous connecter',
+    'steps.1': 'Choisissez un forfait internet ci-dessous',
+    'steps.2': 'Saisissez votre numéro M-Pesa et envoyez la demande',
+    'steps.3': 'Validez le paiement sur votre téléphone',
+    'steps.4': 'Connectez-vous avec le code d’accès envoyé par SMS',
+    'steps.plans': 'Forfaits internet',
+    'matrix.hint': 'Touchez un forfait pour l’acheter avec M-Pesa.',
+    'poster.tag': 'Internet à l’heure, à la journée et au mois.',
+    'neon.online': 'réseau : en ligne',
+    'neon.select': 'sélectionnez un forfait pour continuer',
+    'card.buyShort': 'Acheter',
+    'pay.checkout': 'Paiement M-Pesa sécurisé',
+    'pay.total': 'Total',
+    'pay.payNow': 'Payer {n}',
+    'ok.granted': 'Accès accordé',
+    'wait.printing': 'Préparation de votre forfait',
+    'poster.paid': 'PAYÉ',
+    'steps.of': 'Étape {n} sur {m}',
+    'neon.confirmed': 'paiement confirmé',
+    'neon.grant': 'ACCÈS ACCORDÉ',
+    'recover.q': 'Déjà payé mais pas connecté ?',
+    'recover.hint': 'Saisissez le numéro avec lequel vous avez payé et nous vous enverrons votre code par SMS.',
+    'recover.phone': 'Numéro utilisé pour payer',
+    'recover.btn': 'Envoyer mon code',
+    'recover.sending': 'Vérification…',
+    'verify.q': 'Payé par Paybill ou Till ?',
+    'verify.hint': 'Saisissez votre code M-Pesa et le numéro utilisé — nous le vérifions et vous envoyons votre code d’accès par SMS.',
+    'verify.code': 'Code M-Pesa',
+    'verify.btn': 'Vérifier le paiement',
+    'verify.sending': 'Vérification…',
+    'group.Hourly': 'Forfaits à l’heure',
+    'group.Daily': 'Forfaits à la journée',
+    'group.Weekly': 'Forfaits à la semaine',
+    'group.Monthly': 'Forfaits au mois',
+    'plans.retry': 'Réessayer',
+    'plans.offline': 'Nous ne pouvons pas joindre le serveur pour le moment. Vérifiez votre connexion et réessayez.',
+    'voucher.label': 'Vous avez un bon ou un code M-Pesa ?',
+    'voucher.placeholder': 'Saisissez le code, ou collez votre message M-Pesa',
+    'voucher.redeem': 'Utiliser',
+    'voucher.checking': 'Vérification…',
+    'nav.connect': 'Se connecter',
+    'nav.plans': 'Forfaits',
+    'nav.help': 'Aide',
+    'card.popular': 'LE PLUS POPULAIRE',
+    'card.price': 'Prix',
+    'card.buy': 'Acheter avec M-Pesa',
+    'card.devices': 'appareil',
+    'card.devices_plural': 'appareils',
+    'custom.heading': 'Forfait sur mesure',
+    'custom.title': 'Besoin de peu de temps ?',
+    'custom.perHour': '{n}/heure, facturé à la minute',
+    'custom.minutes': 'Minutes dont vous avez besoin',
+    'custom.youPay': 'Vous payez',
+    'custom.range': 'Choisissez entre {min} et {max} minutes.',
+    'custom.buy': 'Acheter {dur} avec M-Pesa',
+    'pay.complete': 'Finaliser le paiement',
+    'pay.sub': 'Transaction M-Pesa rapide et sécurisée.',
+    'pay.summary': 'Récapitulatif du forfait choisi',
+    'pay.access': 'Accès {name}',
+    'pay.phone': 'Numéro de téléphone M-Pesa',
+    'pay.info': 'Vous recevrez une demande M-Pesa sur votre téléphone. Saisissez votre code PIN pour finaliser la transaction.',
+    'pay.send': 'Envoyer la demande de paiement',
+    'pay.sending': 'Envoi de la demande…',
+    'wait.title': 'En attente du paiement',
+    'wait.sub': 'Vérifiez la demande M-Pesa sur votre téléphone.',
+    'wait.sent': 'Demande envoyée',
+    'wait.pin': 'Saisissez votre code PIN M-Pesa',
+    'wait.activating': 'Activation de votre accès',
+    'wait.cancel': 'Annuler le paiement',
+    'ok.title': 'Vous êtes connecté !',
+    'ok.codeLabel': 'Code d’accès',
+    'ok.usePre': 'Utilisez ce code comme',
+    'ok.username': 'nom d’utilisateur',
+    'ok.and': 'et',
+    'ok.password': 'mot de passe',
+    'ok.copyConnect': 'Copier le code et se connecter',
+    'ok.copied': 'Code copié !',
+    'ok.continue': 'Continuer',
+    'ok.return': 'Retour à l’accueil',
+    'ok.closingRedirect': 'Nous vous redirigeons dans {n}s — connectez-vous d’abord avec votre code.',
+    'ok.closing': 'Cette page se fermera dans {n}s — connectez-vous au WiFi avec votre code.',
+    'ok.closed': 'Vous pouvez maintenant vous connecter au WiFi avec votre code.',
+    'err.title': 'Échec du paiement',
+    'err.badge': 'Erreur',
+    'err.retry': 'Réessayer le paiement',
+    'err.choose': 'Choisir un autre forfait',
+    'err.support': 'Assistance :',
+    'rewards.title': 'Récompenses',
+    'rewards.phone': 'Votre numéro, ex. 0712…',
+    'rewards.check': 'Vérifier',
+    'rewards.youHave': 'Vous avez',
+    'rewards.points': 'point(s) — jusqu’à',
+    'rewards.freeMin': 'minutes gratuites.',
+    'rewards.minutesLabel': 'Minutes à échanger',
+    'rewards.costs': 'coûte {n} pts',
+    'rewards.redeem': 'Échanger',
+    'rewards.needMore': 'Encore un petit effort — il vous faut au moins {n} points pour échanger.',
+    'rewards.unavailable': 'Les récompenses ne sont pas disponibles pour le moment.',
+    'foot.terms': 'Conditions',
+    'foot.help': 'Aide',
+    'foot.powered': 'Propulsé par SPA Limited',
+    'promo.endsIn': 'Se termine dans',
+  },
+  PT: {
+    'hero.title': 'Fique ligado em segundos',
+    'hero.sub': 'Internet rápida e fiável em toda a cidade.',
+    'hero.minTitle': 'Fique ligado',
+    'hero.minSub': 'Escolha um passe e pague com M-Pesa.',
+    'breeze.hi': 'Bem-vindo — vamos ligá-lo.',
+    'breeze.sub': 'Escolha um passe, pague com M-Pesa, e está a navegar em menos de um minuto.',
+    'tab.all': 'Todos',
+    'steps.heading': 'Como se ligar',
+    'steps.1': 'Escolha um passe de internet abaixo',
+    'steps.2': 'Introduza o seu número M-Pesa e envie o pedido',
+    'steps.3': 'Aprove o pagamento no seu telemóvel',
+    'steps.4': 'Ligue-se com o código de acesso enviado por SMS',
+    'steps.plans': 'Passes de internet',
+    'matrix.hint': 'Toque num plano para o comprar com M-Pesa.',
+    'poster.tag': 'Internet à hora, ao dia e ao mês.',
+    'neon.online': 'rede: online',
+    'neon.select': 'selecione um passe para continuar',
+    'card.buyShort': 'Comprar',
+    'pay.checkout': 'Pagamento M-Pesa seguro',
+    'pay.total': 'Total',
+    'pay.payNow': 'Pagar {n}',
+    'ok.granted': 'Acesso concedido',
+    'wait.printing': 'A preparar o seu passe',
+    'poster.paid': 'PAGO',
+    'steps.of': 'Passo {n} de {m}',
+    'neon.confirmed': 'pagamento confirmado',
+    'neon.grant': 'ACESSO CONCEDIDO',
+    'recover.q': 'Já pagou mas não está ligado?',
+    'recover.hint': 'Introduza o número com que pagou e enviamos-lhe o código de acesso por SMS.',
+    'recover.phone': 'Número com que pagou',
+    'recover.btn': 'Enviar o meu código',
+    'recover.sending': 'A verificar…',
+    'verify.q': 'Pagou por Paybill ou Till?',
+    'verify.hint': 'Introduza o seu código M-Pesa e o número com que pagou — verificamos e enviamos o código de acesso por SMS.',
+    'verify.code': 'Código M-Pesa',
+    'verify.btn': 'Verificar pagamento',
+    'verify.sending': 'A verificar…',
+    'group.Hourly': 'Passes à hora',
+    'group.Daily': 'Passes diários',
+    'group.Weekly': 'Passes semanais',
+    'group.Monthly': 'Passes mensais',
+    'plans.retry': 'Tentar novamente',
+    'plans.offline': 'Não conseguimos contactar o servidor neste momento. Verifique a sua ligação e tente novamente.',
+    'voucher.label': 'Tem um voucher ou código M-Pesa?',
+    'voucher.placeholder': 'Introduza o código, ou cole a sua mensagem M-Pesa',
+    'voucher.redeem': 'Utilizar',
+    'voucher.checking': 'A verificar…',
+    'nav.connect': 'Ligar',
+    'nav.plans': 'Planos',
+    'nav.help': 'Ajuda',
+    'card.popular': 'MAIS POPULAR',
+    'card.price': 'Preço',
+    'card.buy': 'Comprar com M-Pesa',
+    'card.devices': 'dispositivo',
+    'card.devices_plural': 'dispositivos',
+    'custom.heading': 'Passe personalizado',
+    'custom.title': 'Só precisa de pouco tempo?',
+    'custom.perHour': '{n}/hora, cobrado ao minuto',
+    'custom.minutes': 'Minutos de que precisa',
+    'custom.youPay': 'Paga',
+    'custom.range': 'Escolha entre {min} e {max} minutos.',
+    'custom.buy': 'Comprar {dur} com M-Pesa',
+    'pay.complete': 'Concluir pagamento',
+    'pay.sub': 'Transação M-Pesa rápida e segura.',
+    'pay.summary': 'Resumo do plano escolhido',
+    'pay.access': 'Acesso {name}',
+    'pay.phone': 'Número de telemóvel M-Pesa',
+    'pay.info': 'Vai receber um pedido M-Pesa no seu telemóvel. Introduza o seu PIN para concluir a transação.',
+    'pay.send': 'Enviar pedido de pagamento',
+    'pay.sending': 'A enviar pedido…',
+    'wait.title': 'A aguardar pagamento',
+    'wait.sub': 'Verifique o pedido M-Pesa no seu telemóvel.',
+    'wait.sent': 'Pedido enviado',
+    'wait.pin': 'Introduza o seu PIN M-Pesa',
+    'wait.activating': 'A ativar o seu acesso',
+    'wait.cancel': 'Cancelar pagamento',
+    'ok.title': 'Está ligado!',
+    'ok.codeLabel': 'Código de acesso',
+    'ok.usePre': 'Use este código como',
+    'ok.username': 'nome de utilizador',
+    'ok.and': 'e',
+    'ok.password': 'palavra-passe',
+    'ok.copyConnect': 'Copiar código e ligar',
+    'ok.copied': 'Código copiado!',
+    'ok.continue': 'Continuar',
+    'ok.return': 'Voltar ao início',
+    'ok.closingRedirect': 'A encaminhá-lo em {n}s — ligue-se primeiro com o seu código.',
+    'ok.closing': 'Esta página fecha em {n}s — ligue-se ao WiFi com o seu código.',
+    'ok.closed': 'Já pode ligar-se ao WiFi com o seu código.',
+    'err.title': 'Pagamento falhou',
+    'err.badge': 'Erro',
+    'err.retry': 'Tentar pagar novamente',
+    'err.choose': 'Escolher outro plano',
+    'err.support': 'Apoio:',
+    'rewards.title': 'Recompensas',
+    'rewards.phone': 'O seu número, ex. 0712…',
+    'rewards.check': 'Verificar',
+    'rewards.youHave': 'Tem',
+    'rewards.points': 'ponto(s) — até',
+    'rewards.freeMin': 'minutos grátis.',
+    'rewards.minutesLabel': 'Minutos a trocar',
+    'rewards.costs': 'custa {n} pts',
+    'rewards.redeem': 'Trocar',
+    'rewards.needMore': 'Falta pouco — precisa de pelo menos {n} pontos para trocar.',
+    'rewards.unavailable': 'As recompensas não estão disponíveis neste momento.',
+    'foot.terms': 'Termos',
+    'foot.help': 'Ajuda',
+    'foot.powered': 'Desenvolvido por SPA Limited',
+    'promo.endsIn': 'Termina em',
+  },
 }
 
 const LangContext = createContext({ lang: 'EN', setLang: () => {}, design: 'CLASSIC', brand: { name: '', logoUrl: null, headline: '', subheadline: '' } })
@@ -250,17 +472,100 @@ function useT() {
   return { t, lang, setLang, design, designVars: design.vars, brand: brand || {} }
 }
 
+/**
+ * Each language listed in its own name, never translated.
+ *
+ * A French speaker looking for their language scans for "Français", not for
+ * whatever the current language happens to call French — which is exactly the
+ * word they cannot read.
+ */
+const LANGUAGES = [
+  ['EN', 'English'],
+  ['SW', 'Kiswahili'],
+  ['FR', 'Français'],
+  ['PT', 'Português'],
+]
+
+const LANG_KEY = 'portal.lang'
+
+/** What the customer chose last time, if anything. */
+function storedLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY)
+    return LANGUAGES.some(([code]) => code === saved) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The language to open in, before the server has said anything.
+ *
+ * Their own choice first, then their phone's language, then English. Reading
+ * the phone matters more here than on most sites: a captive portal is often
+ * the first screen someone sees on a network, with no time to hunt for a
+ * picker before deciding the WiFi is not for them.
+ */
+const initialLang = (() => {
+  const saved = storedLang()
+  if (saved) return saved
+  const preferred = (navigator.languages && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language || ''])
+  for (const tag of preferred) {
+    const base = String(tag).slice(0, 2).toUpperCase()
+    if (LANGUAGES.some(([code]) => code === base)) return base
+  }
+  return 'EN'
+})()
+
 function LangToggle() {
   const { lang, setLang } = useContext(LangContext)
+  const [open, setOpen] = useState(false)
+  const current = LANGUAGES.find(([code]) => code === lang) || LANGUAGES[0]
+
+  // A two-way toggle worked for two languages and cannot work for four.
   return (
-    <button
-      type="button"
-      onClick={() => setLang(lang === 'EN' ? 'SW' : 'EN')}
-      className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:bg-surface-container transition-colors cursor-pointer"
-      aria-label="Switch language"
-    >
-      {lang === 'EN' ? 'Kiswahili' : 'English'}
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:bg-surface-container transition-colors cursor-pointer"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Choose language"
+      >
+        {current[1]}
+      </button>
+      {open && (
+        <>
+          {/* Tapping anywhere else closes it — on a phone there is no Escape key. */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>
+          <ul
+            role="listbox"
+            className="absolute right-0 top-full mt-1 z-50 min-w-[9rem] rounded-lg border border-outline-variant bg-surface-container-lowest shadow-[0_8px_24px_rgba(15,23,42,0.15)] overflow-hidden"
+          >
+            {LANGUAGES.map(([code, name]) => (
+              <li key={code}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={code === lang}
+                  onClick={() => { setLang(code); setOpen(false) }}
+                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors ${
+                    code === lang
+                      ? 'bg-primary-container text-on-primary-container font-semibold'
+                      : 'hover:bg-surface-container'
+                  }`}
+                >
+                  {name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -378,8 +683,11 @@ export default function Portal() {
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   // The ISP's own brand for this captive portal (each tenant sets their own).
   const [brand, setBrand] = useState({ name: '', logoUrl: null, headline: '', subheadline: '' })
-  const [lang, setLang] = useState('EN')
-  const langChosen = useRef(false)
+  const [lang, setLang] = useState(initialLang)
+  // True once the customer has picked for themselves — either just now, or on
+  // a previous visit. A returning customer's choice must outrank the
+  // operator's default, or every visit undoes what they chose last time.
+  const langChosen = useRef(!!storedLang())
   const pollRef = useRef(null)
   // ?design=KEY lets the admin gallery open a live preview of any design
   // without having to save it first.
@@ -399,12 +707,27 @@ export default function Portal() {
         headline: s.headline || '',
         subheadline: s.subheadline || '',
       })
-      // Honour the operator's default only until the customer picks for themselves.
-      if (!langChosen.current && s.defaultLanguage) setLang(s.defaultLanguage)
+      // The operator's default holds until the customer picks for themselves —
+      // unless they have said their choice is the only one, in which case it
+      // overrides even a returning customer's saved preference.
+      if (s.followCustomerLanguage === false) {
+        if (s.defaultLanguage) setLang(s.defaultLanguage)
+      } else if (!langChosen.current && s.defaultLanguage) {
+        setLang(s.defaultLanguage)
+      }
     }).catch(() => {})
   }
 
-  const chooseLang = (l) => { langChosen.current = true; setLang(l) }
+  const chooseLang = (l) => {
+    langChosen.current = true
+    setLang(l)
+    try {
+      localStorage.setItem(LANG_KEY, l)
+    } catch {
+      // Private browsing, or storage full. Their choice still holds for this
+      // visit, which is better than refusing to change language at all.
+    }
+  }
 
   useEffect(() => {
     loadPlans()
