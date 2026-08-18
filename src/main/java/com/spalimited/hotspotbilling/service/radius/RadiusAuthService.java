@@ -192,9 +192,36 @@ public class RadiusAuthService {
         // No Session-Timeout: a monthly subscriber's access ends on a date, not
         // after a number of seconds, and sending one would drop them nightly.
         addRateLimit(attributes, client, subscriber.getBandwidth());
+        // A static address, where IPAM has allocated one. This is what makes an
+        // address follow the customer rather than the session — without it the
+        // pool picks a different one each login and nothing they host is
+        // reachable twice.
+        addStaticIp(attributes, subscriber.getStaticIp());
 
         return new Decision(true, "ok", attributes, null, subscriber.getId(),
                 com.spalimited.hotspotbilling.domain.RadiusSession.Kind.PPPOE);
+    }
+
+    /**
+     * Framed-IP-Address, when the customer has one of their own.
+     *
+     * <p>Sent as four bytes, not as text: a NAS reading an address attribute
+     * expects the packed form, and a dotted string is silently ignored — which
+     * looks exactly like IPAM having done nothing.
+     */
+    private void addStaticIp(List<RadiusPacket.Attribute> attributes, String staticIp) {
+        if (staticIp == null || staticIp.isBlank()) {
+            return;
+        }
+        try {
+            long value = com.spalimited.hotspotbilling.service.ipam.Cidr.toLong(staticIp.trim());
+            attributes.add(RadiusPacket.number(RadiusPacket.FRAMED_IP_ADDRESS, value));
+        } catch (IllegalArgumentException e) {
+            // An unreadable stored address must not stop the login. They get a
+            // pool address instead, which is worse than intended and far better
+            // than being refused.
+            log.warn("Subscriber static IP '{}' is not an address; using the pool", staticIp);
+        }
     }
 
     /**

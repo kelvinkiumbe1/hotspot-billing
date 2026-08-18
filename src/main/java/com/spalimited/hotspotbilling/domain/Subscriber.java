@@ -43,6 +43,16 @@ public class Subscriber {
     /** MikroTik rate limit, e.g. "10M/10M". */
     private String bandwidth;
 
+    /**
+     * A fixed address for this customer, allocated from IPAM.
+     *
+     * <p>Null means "whatever the pool gives them", which is what almost every
+     * customer wants. When set, RADIUS hands it out as Framed-IP-Address at
+     * login, so the address follows the customer rather than the session.
+     */
+    @Column(length = 64)
+    private String staticIp;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal monthlyFee;
 
