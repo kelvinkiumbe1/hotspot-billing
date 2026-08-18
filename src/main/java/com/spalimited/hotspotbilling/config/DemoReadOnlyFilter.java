@@ -28,7 +28,11 @@ public class DemoReadOnlyFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && isDemo(auth) && isMutating(request) && isGuardedPath(request)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            // UTF-8 explicitly. Without it the servlet default is
+            // ISO-8859-1, and the em dash in the message below went out as
+            // "?" -- the response advertised a charset it was not written in.
             response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
             response.getWriter().write(
                     "{\"message\":\"This is a read-only demo — changes are disabled. "
                             + "Create your own account to go live.\"}");

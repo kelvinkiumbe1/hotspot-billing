@@ -126,6 +126,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws IOException {
         response.setStatus(429);
         response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
         response.setHeader("Retry-After", String.valueOf(window.toSeconds()));
         response.getWriter().write("{\"message\":\"" + message + "\"}");
     }

@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.authenticationEntryPoint((request, response, ex) -> {
                     response.setStatus(401);
                     response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
                     response.getWriter().write("{\"message\":\"Wrong username or password\"}");
                 }))
                 // A signed-in user reaching for something their role does not
@@ -85,6 +86,7 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, denied) -> {
                     response.setStatus(403);
                     response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
                     response.getWriter().write(
                             "{\"message\":\"Your role does not allow that. Ask an owner if you need access.\"}");
                 }))

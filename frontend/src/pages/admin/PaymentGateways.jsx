@@ -787,8 +787,26 @@ export default function PaymentGatewaysPage({ auth }) {
     try {
       const r = await api(`/admin/settings/payments/${kind}/activate`, { method: 'POST', auth })
       setMsg(r.live
-        ? { ok: true, text: 'Switched. Customers now pay through this gateway.' }
-        : { ok: false, text: 'Switched, but this gateway is on sandbox — it will not collect real money.' })
+        ? { ok: true, text: 'Switched on. Customers can now pay through this gateway.' }
+        : { ok: false, text: 'Switched on, but this gateway is on sandbox — it will not collect real money.' })
+      load()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    }
+  }
+
+  /**
+   * Switching one off, which this screen had no way to do at all — the endpoint
+   * existed and nothing called it, so gateways could be turned on and never off.
+   *
+   * The server refuses to switch off the last one and says why; that message is
+   * shown as-is rather than being second-guessed here.
+   */
+  async function deactivate(kind) {
+    try {
+      const r = await api(`/admin/settings/payments/${kind}/deactivate`, { method: 'POST', auth })
+      setMsg({ ok: true, text: r.message
+        || 'Switched off. Customers are no longer offered this one.' })
       load()
     } catch (err) {
       setMsg({ ok: false, text: err.message })
@@ -798,26 +816,36 @@ export default function PaymentGatewaysPage({ auth }) {
   if (!data) return <Skeleton className="h-64" />
 
   const saved = Object.fromEntries(data.gateways.map((g) => [g.kind, g]))
-  const activeKind = data.activeKind
+  // Plural. The API still returns activeKind for anything reading the old
+  // shape, but several gateways run at once now and a screen that names only
+  // the first tells an operator two thirds of their setup is not working.
+  const offered = data.offered || (data.activeKind ? [data.activeKind] : [])
+  // Short names for the summary. The card titles carry qualifiers that read as
+  // errors once comma-separated -- "live: Paybill - no API keys" looks like a
+  // complaint rather than a list of what is switched on.
+  const offeredNames = offered
+    .map((k) => GATEWAYS.find((g) => g.kind === k)?.name || k)
+    .map((n) => n.split(/\s+[-—]\s+|\s+\/\s+/)[0])
 
   return (
     <div>
       <PageHeader
         title="Payments"
-        subtitle="Pick one gateway so customers can pay you. Only one is active at a time — switching keeps saved credentials."
+        subtitle="Switch on as many as your customers actually use. They pick at checkout, and whichever is first is what USSD and the WhatsApp bot use. Leaving a field blank keeps the saved credential."
       />
 
       <p className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-4">
         {data.available} gateways available · {data.connected > 0 ? `${data.connected} set up` : 'none connected'}
-        {activeKind && ` · ${GATEWAYS.find((g) => g.kind === activeKind)?.name} is live`}
+        {offeredNames.length > 0 && ` · live: ${offeredNames.join(', ')}`}
       </p>
 
       {msg && <p className={`mb-4 text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
 
-      {!activeKind && (
+      {offered.length === 0 && (
         <div className="mb-6 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
           <p className="text-sm text-[#b45309]">
-            No gateway is active, so nobody can pay you yet. Set one up below and switch it on.
+            Nothing is switched on, so nobody can pay you yet. Set one up below and switch it on —
+            you can have several running at once.
           </p>
         </div>
       )}
@@ -841,7 +869,7 @@ export default function PaymentGatewaysPage({ auth }) {
                     </span>
                     {isActive && (
                       <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold tracking-wider">
-                        {s.live ? 'ACTIVE' : CARD_KINDS.includes(g.kind) ? 'ACTIVE · TEST KEYS' : 'ACTIVE · SANDBOX'}
+                        {s.live ? 'ON' : CARD_KINDS.includes(g.kind) ? 'ON · TEST KEYS' : 'ON · SANDBOX'}
                       </span>
                     )}
                   </div>
@@ -860,10 +888,19 @@ export default function PaymentGatewaysPage({ auth }) {
               <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-outline-variant/50">
                 <span className="text-xs text-on-surface-variant">{g.settlement}</span>
                 <div className="flex gap-2">
+                  {/* A toggle, not an exclusive choice. "Make active" read as
+                      "switch the others off", which is exactly what this stopped
+                      doing when several gateways became possible at once. */}
                   {s.configured && !isActive && (
                     <button onClick={() => activate(g.kind)}
                       className="px-3 py-1.5 rounded-md border border-outline-variant text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
-                      Make active
+                      Switch on
+                    </button>
+                  )}
+                  {isActive && (
+                    <button onClick={() => deactivate(g.kind)}
+                      className="px-3 py-1.5 rounded-md border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer">
+                      Switch off
                     </button>
                   )}
                   <button onClick={() => setOpenKind(g.kind)}
