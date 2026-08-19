@@ -98,7 +98,13 @@ public class PaymentGateway {
          * and bank cards. Nothing else here collects dinars: Stripe does not
          * serve Tunisia and the pan-African aggregators do not reach it.
          */
-        KONNECT
+        KONNECT,
+        /**
+         * WaafiPay — Somalia, via Hormuud's EVC Plus. Prompts the handset, and
+         * the only rail here whose purchase is settled where it is made: there
+         * is no webhook and no status service to ask.
+         */
+        WAAFIPAY
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -261,6 +267,9 @@ public class PaymentGateway {
             // and not because Konnect signs badly -- it does not sign at all, so
             // the settlement path re-queries rather than trusting the callback.
             case KONNECT -> filled(secretKey) && filled(shortCode);
+            // Three, all issued together by Hormuud, and all three travel in the
+            // body of every request -- there is no token to exchange them for.
+            case WAAFIPAY -> filled(shortCode) && filled(consumerKey) && filled(secretKey);
         };
     }
 
@@ -274,7 +283,7 @@ public class PaymentGateway {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
                     AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
-                    KONNECT -> true;
+                    KONNECT, WAAFIPAY -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }

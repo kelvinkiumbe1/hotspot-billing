@@ -157,6 +157,15 @@ public enum Country {
     TN("Tunisia", "TND", "fr", "wallet or card", Rail.KONNECT,
             List.of("Konnect", "Flouci", "e-DINAR", "Card"), "216", 8, List.of()),
 
+    // Somalia. Mobile money is more universal here than in Kenya and the
+    // country is full of small independent ISPs, none of which any aggregator
+    // reaches -- which makes this worth far more than the population suggests.
+    //
+    // The currency is USD and that is not a shortcut: Somalia is dollarised in
+    // practice, EVC Plus prices in dollars, and the shilling barely circulates.
+    SO("Somalia", "USD", "en", "EVC Plus", Rail.WAAFIPAY,
+            List.of("EVC Plus", "Zaad", "Sahal"), "252", 9, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
@@ -176,7 +185,7 @@ public enum Country {
      */
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
-        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, NONE
+        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY, NONE
     }
 
     private final String countryName;

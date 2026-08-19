@@ -141,7 +141,7 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "PAYMOB", "KONNECT", "NONE");
+                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -205,6 +205,15 @@ class CountryTest {
         // and every other minor-unit rail in this system uses a hundred -- so
         // this is the currency most likely to be charged wrong by a tenth.
         assertThat(Country.TN.currency()).isEqualTo("TND");
+    }
+
+    @Test
+    @DisplayName("Somalia is reached, and it prices in dollars")
+    void somaliaIsCovered() {
+        assertThat(Country.SO.rail()).isEqualTo(Country.Rail.WAAFIPAY);
+        // Not the shilling. Somalia is dollarised in practice, EVC Plus prices in
+        // dollars, and a rail set up expecting SOS would refuse every payment.
+        assertThat(Country.SO.currency()).isEqualTo("USD");
     }
 
     @Test

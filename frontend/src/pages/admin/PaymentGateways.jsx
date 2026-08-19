@@ -151,6 +151,18 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'WAAFIPAY',
+    name: 'EVC Plus (WaafiPay)',
+    provider: 'Somalia',
+    badge: 'API KEYS',
+    chips: ['Prompt on phone', 'No web page', 'Automatic'],
+    settlement: 'Confirmed in the same call — there is no callback',
+    icon: 'smartphone',
+    blurb: 'Hormuud’s EVC Plus, and the only way to take a Somali payment — no aggregator '
+      + 'reaches the country. The customer approves on their handset and the answer comes '
+      + 'back straight away, so a payment is settled the moment it is made.',
+  },
+  {
     kind: 'KONNECT',
     name: 'Konnect',
     provider: 'Tunisia',
@@ -217,6 +229,15 @@ const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA', 'WAVE']
  * and a secret, but they are not called the same things, and a MoMo label on an
  * Airtel form is how somebody pastes a subscription key into a client id.
  */
+/**
+ * Rails that pick sandbox against live by which address is called.
+ *
+ * Everything else in TELCO_FIELDS does. WaafiPay does not, so it is absent and
+ * gets a sentence instead of a toggle.
+ */
+const HAS_ENVIRONMENT = ['MTN_MOMO', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'VODACOM_MPESA',
+  'PAYMOB', 'KONNECT']
+
 const TELCO_FIELDS = {
   MTN_MOMO: [
     { key: 'secretKey', label: 'Subscription key', secret: true, wide: true,
@@ -237,6 +258,16 @@ const TELCO_FIELDS = {
     { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
+  ],
+  WAAFIPAY: [
+    { key: 'shortCode', label: 'Merchant UID',
+      placeholder: 'e.g. M0910291',
+      hint: 'Issued by Hormuud with the two below.' },
+    { key: 'consumerKey', label: 'API user ID',
+      placeholder: 'e.g. 1000416' },
+    { key: 'secretKey', label: 'API key', secret: true, wide: true,
+      placeholder: 'e.g. API-675418888AHX',
+      hint: 'All three travel with every request — there is no token to exchange them for.' },
   ],
   KONNECT: [
     { key: 'secretKey', label: 'API key', secret: true, wide: true,
@@ -576,6 +607,10 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
         </>
       ) : telcoFields ? (
         <>
+          {/* Not every rail has one. WaafiPay serves both from a single address
+              and the credentials Hormuud issued decide whether money moves, so a
+              Sandbox toggle there would claim a choice that does not exist. */}
+          {HAS_ENVIRONMENT.includes(gateway.kind) ? (
           <div>
             <label className={LABEL_CLS}>Environment</label>
             <div className="flex gap-2">
@@ -595,6 +630,12 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               <p className="text-xs text-[#b45309] mt-1.5">{SANDBOX_NOTE[gateway.kind]}</p>
             )}
           </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant">
+              There is no sandbox to switch to &mdash; {gateway.name} serves testing and live
+              from one address, and the credentials you were issued decide which you get.
+            </p>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {telcoFields.map((f) => (

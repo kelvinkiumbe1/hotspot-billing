@@ -131,6 +131,13 @@ public class PaymentService {
         }
         payment.setCheckoutRequestId(started.providerRef() == null ? reference : started.providerRef());
         Payment saved = paymentRepository.save(payment);
+        // A rail that answered in the same breath. Nothing will call back and
+        // nothing can be asked, so settling here is the only chance this payment
+        // gets -- leaving it pending would have the sweep fail a customer who
+        // has already paid.
+        if (started.settledNow() != null && started.settledNow().paid()) {
+            completeSuccess(saved, started.settledNow().receipt());
+        }
         // Not stored: single-use, stale within minutes, and only ever an answer
         // to "I just pressed pay".
         saved.setCheckoutUrl(started.checkoutUrl());

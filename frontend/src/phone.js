@@ -29,6 +29,8 @@ const DIALLING = {
   EG: ['20', 10],
   // Tunisia. Eight digits, no trunk zero in the national form.
   TN: ['216', 8],
+  // Somalia. Nine digits -- Hormuud numbers start 61, 62, 63.
+  SO: ['252', 9],
   OTHER: ['', 0],
 }
 

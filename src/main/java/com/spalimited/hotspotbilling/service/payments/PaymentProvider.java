@@ -37,8 +37,24 @@ public interface PaymentProvider {
      * A started payment. {@code providerRef} is what the webhook will quote
      * back; {@code checkoutUrl} is null for rails that prompt the phone
      * directly.
+     *
+     * <p>{@code settledNow} is normally null and means what it says: this rail
+     * answered whether the money moved in the same breath as being asked to move
+     * it, and nothing will ever call back or answer a status query. Hormuud's
+     * WaafiPay is the case — a synchronous purchase with no webhook and, as its
+     * own API confirms when asked, no transaction-status service at all. Without
+     * this the payment would sit pending until the sweep gave up on it, and a
+     * customer who had paid would be told they had not.
+     *
+     * <p>Only ever set for a payment that succeeded. A rail certain the money did
+     * not move throws from {@link #charge} instead, because that is what tells
+     * the customer standing there.
      */
-    record Charge(String providerRef, String checkoutUrl) {
+    record Charge(String providerRef, String checkoutUrl, Settlement settledNow) {
+
+        public Charge(String providerRef, String checkoutUrl) {
+            this(providerRef, checkoutUrl, null);
+        }
     }
 
     /**

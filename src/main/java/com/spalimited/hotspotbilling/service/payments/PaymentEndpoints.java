@@ -71,6 +71,16 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.konnect-production:https://api.konnect.network/api/v2}")
     private String konnectProduction;
 
+    /**
+     * One address for both environments, because WaafiPay has one.
+     *
+     * <p>{@code sandbox.waafipay.net} resolves to the same service and answers
+     * identically — checked — so test against live is decided by which
+     * credentials Hormuud issued, not by which host is called.
+     */
+    @Value("${payments.base-url.waafipay:https://api.waafipay.net/asm}")
+    private String waafipay;
+
     public String paystack() {
         return paystack;
     }
@@ -123,6 +133,10 @@ public class PaymentEndpoints {
      */
     public String paymob() {
         return paymob;
+    }
+
+    public String waafipay() {
+        return waafipay;
     }
 
     /** Konnect picks its environment by host, the way Daraja and MTN do. */

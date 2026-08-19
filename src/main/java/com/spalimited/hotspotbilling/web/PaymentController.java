@@ -145,6 +145,7 @@ public class PaymentController {
     private static final java.util.Set<PaymentGateway.Kind> PROMPTS_PHONE = java.util.Set.of(
             PaymentGateway.Kind.MPESA_API,
             PaymentGateway.Kind.VODACOM_MPESA,
+            PaymentGateway.Kind.WAAFIPAY,
             PaymentGateway.Kind.MTN_MOMO,
             PaymentGateway.Kind.AIRTEL_MONEY,
             PaymentGateway.Kind.PAYNOW);
@@ -176,6 +177,7 @@ public class PaymentController {
             // beside it, because "Paymob" means nothing to a customer.
             case PAYMOB -> "Vodafone Cash or card";
             case KONNECT -> "Wallet or card";
+            case WAAFIPAY -> "EVC Plus";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

@@ -78,11 +78,55 @@ class PaymentSettlementTest {
 
         when(paymentRepository.findByCheckoutRequestId("TX-1")).thenReturn(Optional.of(payment));
         when(paymentRepository.findByCheckoutRequestId("")).thenReturn(Optional.empty());
-        when(paymentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        // Assigns an id the way a real save does. Needed because start() builds
+        // a fresh Payment and the notification and webhook payloads read its id.
+        when(paymentRepository.save(any())).thenAnswer(i -> {
+            Payment p = i.getArgument(0);
+            if (p.getId() == null) {
+                p.setId(99L);
+            }
+            return p;
+        });
         when(voucherService.issue(any(), any()))
                 .thenReturn(Voucher.builder().code("ABC123").build());
         when(portalSettingsService.settings())
                 .thenReturn(PortalSettings.builder().businessName("Test ISP").build());
+    }
+
+    @Test
+    @DisplayName("A rail that answers in the same breath gets its customer online at once")
+    void aSelfSettlingChargeIssuesItsVoucher() {
+        // WaafiPay in Somalia. Its purchase is synchronous, it has no webhook,
+        // and its own API confirms there is no status service to ask -- so this
+        // is the only chance the payment gets. Before Charge carried a
+        // settlement, it sat PENDING until the sweep failed a customer who had
+        // paid.
+        var provider = org.mockito.Mockito.mock(
+                com.spalimited.hotspotbilling.service.payments.PaymentProvider.class);
+        when(provider.kind()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PaymentGateway.Kind.WAAFIPAY);
+        when(providers.chosen(any())).thenReturn(Optional.of(provider));
+        when(money.code()).thenReturn("USD");
+        when(planRepository.findById(any())).thenReturn(Optional.of(
+                com.spalimited.hotspotbilling.domain.Plan.builder()
+                        .id(3L).name("1 hour").price(new BigDecimal("1.50")).durationMinutes(60)
+                        .active(true).build()));
+        when(promotionService.apply(any())).thenAnswer(i -> i.getArgument(0));
+        when(creditService.outstandingFor(any())).thenReturn(BigDecimal.ZERO);
+        when(provider.charge(any())).thenAnswer(i -> {
+            var req = (com.spalimited.hotspotbilling.service.payments.PaymentProvider.ChargeRequest)
+                    i.getArgument(0);
+            return new com.spalimited.hotspotbilling.service.payments.PaymentProvider.Charge(
+                    "7264827", null,
+                    new com.spalimited.hotspotbilling.service.payments.PaymentProvider.Settlement(
+                            "7264827", req.reference(), true, new BigDecimal("1.50"), "USD",
+                            "7264827", null));
+        });
+
+        Payment started = service.initiateStkPush("252611234567", 3L, "WAAFIPAY");
+
+        assertThat(started.getStatus()).isEqualTo(Payment.Status.SUCCESS);
+        assertThat(started.getVoucher()).isNotNull();
     }
 
     @Test

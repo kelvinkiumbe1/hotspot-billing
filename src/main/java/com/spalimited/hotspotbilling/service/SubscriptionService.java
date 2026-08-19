@@ -219,6 +219,16 @@ public class SubscriptionService {
             payment.setCheckoutRequestId(started.providerRef() == null
                     ? reference : started.providerRef());
             checkoutUrl = started.checkoutUrl();
+            // Same reason as PaymentService.start: a rail that answers
+            // synchronously and can never be asked again has to be settled here
+            // or not at all.
+            if (started.settledNow() != null && started.settledNow().paid()) {
+                payment.setStatus(SubscriptionPayment.Status.SUCCESS);
+                payment.setCompletedAt(Instant.now());
+                payments.save(payment);
+                extend(sub, months, payment.getProvider());
+                return new Started(payments.save(payment), checkoutUrl);
+            }
         } catch (RuntimeException e) {
             payment.setStatus(SubscriptionPayment.Status.FAILED);
             payment.setCompletedAt(Instant.now());
