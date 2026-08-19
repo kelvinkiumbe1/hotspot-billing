@@ -1119,6 +1119,15 @@ function LoyaltySection({ auth }) {
   )
 }
 
+/**
+ * Kept in step with AiSettings.DEFAULT_MODEL on the backend.
+ *
+ * Only ever a placeholder and a suggestion — the field is free text because
+ * Groq's catalogue turns over faster than this app ships, and the previous
+ * default was retired out from under it.
+ */
+const DEFAULT_AI_MODEL = 'openai/gpt-oss-120b'
+
 function AiSection({ auth }) {
   const [form, setForm] = useState(null)
   const [saved, setSaved] = useState(null)
@@ -1132,7 +1141,7 @@ function AiSection({ auth }) {
     setSaved(d)
     setForm({
       enabled: d.enabled,
-      model: d.model || 'llama-3.3-70b-versatile',
+      model: d.model || DEFAULT_AI_MODEL,
       apiKey: '',
       draftTicketReplies: !!d.draftTicketReplies,
     })
@@ -1192,7 +1201,13 @@ function AiSection({ auth }) {
               <div>
                 <label className={LABEL_CLS}>Model</label>
                 <input className={INPUT_CLS} value={form.model}
-                  onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="llama-3.3-70b-versatile" />
+                  onChange={(e) => setForm({ ...form, model: e.target.value })}
+                  placeholder={DEFAULT_AI_MODEL} />
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Groq retires models from time to time. If the assistant starts saying the model
+                  doesn&rsquo;t exist, that is what happened &mdash; put{' '}
+                  <code className="font-mono">{DEFAULT_AI_MODEL}</code> here.
+                </p>
               </div>
             </div>
           )}

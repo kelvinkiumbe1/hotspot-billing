@@ -84,11 +84,20 @@ public class AiService {
                 + "if the operator asks you to, tell them where to do it themselves.\n"
                 + "Answer as somebody who knows this system, not as somebody reading a report about "
                 + "it. Never mention these notes, their section headings, or that you were given "
-                + "them.\n\n"
+                + "them.\n"
+                + "Reply in plain sentences. No markdown tables, headings, bullet lists or bold: "
+                + "this is shown in a small chat bubble that renders none of it, so a table arrives "
+                + "as a wall of pipe characters. Left to themselves these models answer everything "
+                + "with a table, and the same habit ran the reply past its length limit and cut it "
+                + "off mid-sentence.\n\n"
                 + systemContext.forAssistant()
                 + "\nCURRENT DATA:\n" + snapshot();
 
-        return chat(system, question, 700, 0.3);
+        // 1000 rather than 700. With the no-markdown instruction a full answer
+        // runs to about 200 tokens, so this is headroom rather than a budget --
+        // and running out mid-sentence is the one failure here that looks like
+        // the assistant broke rather than like it was brief.
+        return chat(system, question, 1000, 0.3);
     }
 
     /**
@@ -124,20 +133,57 @@ public class AiService {
             JsonNode root = mapper.readTree(response.body());
             if (response.statusCode() >= 300) {
                 String msg = root.path("error").path("message").asString("");
+                String code = root.path("error").path("code").asString("");
+                // Groq retires models faster than this codebase changes, and its
+                // own message says only that the model does not exist. Adding
+                // where to change it turns a dead end into a ten-second fix.
+                String hint = "model_not_found".equals(code) || "model_decommissioned".equals(code)
+                        ? " Groq no longer serves that model — pick another under "
+                          + "Settings \u2192 Assistant. \"" + AiSettings.DEFAULT_MODEL
+                          + "\" works today."
+                        : "";
                 throw new IllegalStateException("The assistant could not answer"
-                        + (msg.isBlank() ? " (HTTP " + response.statusCode() + ")" : ": " + msg));
+                        + (msg.isBlank() ? " (HTTP " + response.statusCode() + ")" : ": " + msg)
+                        + hint);
             }
             JsonNode choices = root.path("choices");
             if (!choices.isArray() || choices.isEmpty()) {
                 throw new IllegalStateException("The assistant returned an empty reply");
             }
-            return choices.get(0).path("message").path("content").asString("").trim();
+            return withoutThinking(choices.get(0).path("message").path("content").asString(""));
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             log.warn("AI request failed: {}", e.getMessage());
             throw new IllegalStateException("Could not reach the assistant right now. Try again shortly.");
         }
+    }
+
+    /**
+     * The answer, with any chain of thought taken out of it.
+     *
+     * <p>Groq's gpt-oss models return their reasoning in a field of its own, so
+     * this does nothing for them. It exists because the model is free text: an
+     * operator who types a Qwen model gets its whole train of thought wrapped in
+     * {@code <think>} tags at the top of the answer, which reads as the
+     * assistant having a conversation with itself.
+     *
+     * <p>An unclosed tag drops everything after it rather than showing it. A
+     * truncated answer whose thinking never finished has no answer in it, and
+     * showing the thinking instead would be worse than showing nothing.
+     */
+    static String withoutThinking(String answer) {
+        if (answer == null) {
+            return "";
+        }
+        String out = answer;
+        int open;
+        while ((open = out.indexOf("<think>")) >= 0) {
+            int close = out.indexOf("</think>", open);
+            out = close < 0 ? out.substring(0, open)
+                    : out.substring(0, open) + out.substring(close + "</think>".length());
+        }
+        return out.trim();
     }
 
     /** A short, plain-text digest of the operator's live numbers for grounding. */
