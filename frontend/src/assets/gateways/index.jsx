@@ -14,6 +14,16 @@
  * owners — CC0 covers the drawing, not permission to imply a relationship.
  * Each file keeps the official brand colour and is otherwise untouched.
  *
+ * <h2>Added later, for the North and Horn of Africa rails</h2>
+ *
+ *   Konnect      konnect.network/logo.png — their own app icon
+ *   Hormuud      commons.wikimedia.org — File:Hormuud logo.png, CC0
+ *   EMIS         emis.co.ao/media/irgmivwb/logo_emis.svg — their own vector
+ *
+ * Each was opened and looked at before being wired up, which is how the Paymob
+ * mistake below was caught rather than shipped. simpleicons has none of these
+ * five brands; that was checked per slug and not assumed.
+ *
  * <h2>Wikimedia Commons, for the official marks</h2>
  *
  * M-Pesa, MTN and Paystack are on Commons as public domain -- these logos are
@@ -31,8 +41,25 @@
  *
  * <h2>What is still missing</h2>
  *
- * Only BANK_TRANSFER, which has no logo by nature — it is "any bank", so the
- * generic glyph is the correct answer rather than a gap.
+ * BANK_TRANSFER, which has no logo by nature — it is "any bank", so the generic
+ * glyph is the correct answer rather than a gap.
+ *
+ * And two that were looked for properly and not found:
+ *
+ *   PAYMOB   Wikimedia has two Paymob files and both are CC BY-SA 4.0, which is
+ *            share-alike and not something to pull into this app. Their own site
+ *            serves several square logos under /uploads/paymob/logos/ and they
+ *            are their partner banks, not Paymob — the first one opened turned
+ *            out to be SAIB. Shipping that would have put a random Egyptian
+ *            bank's mark on the Paymob card, which is worse than no mark.
+ *
+ *   CMI      cmi.co.ma renders its logo in script and exposes no logo file; the
+ *            only image it offers is a 1201x631 OpenGraph banner, which is a
+ *            social card rather than a mark. Nothing on Commons, nothing on
+ *            simpleicons.
+ *
+ * Neither is a gap to be filled by drawing something close enough. Both fall
+ * back to the glyph, which is the designed state.
  *
  * Everything else now carries a real mark. If a better vector turns up for
  * Chapa, Flutterwave or Wave, replacing the PNG is a one-line change:
@@ -91,6 +118,14 @@ import paynow from './paynow.svg'
 import chapa from './chapa.png'
 import flutterwave from './flutterwave.png'
 import wave from './wave.png'
+// Konnect's own app icon, from konnect.network/logo.png -- 512 square with a
+// real alpha channel, lime on their navy. Hormuud's wordmark came off Wikimedia
+// Commons as CC0, checked via the API rather than assumed.
+import konnect from './konnect.png'
+import hormuud from './hormuud.png'
+// EMIS's own vector, from emis.co.ao. A wordmark converted to two paths in
+// their navy and orange, 160x29 -- so it renders at its real ratio.
+import emis from './emis.svg'
 
 /**
  * One mark, rendered without being interfered with.
@@ -124,6 +159,15 @@ export const GATEWAY_LOGOS = {
   CHAPA: mark(chapa, 'Chapa'),
   FLUTTERWAVE: mark(flutterwave, 'Flutterwave'),
   WAVE: mark(wave, 'Wave'),
+  KONNECT: mark(konnect, 'Konnect'),
+  // Hormuud is the company; EVC Plus is the wallet it runs and what a Somali
+  // customer would recognise. The mark is Hormuud's because that is the one
+  // that exists as a free file, and the card beside it says EVC Plus.
+  WAAFIPAY: mark(hormuud, 'Hormuud EVC Plus'),
+  // EMIS runs Multicaixa. Their corporate mark rather than a Multicaixa Express
+  // one, because Express publishes no reachable logo file -- and EMIS is whose
+  // gateway this actually calls.
+  MULTICAIXA: mark(emis, 'EMIS Multicaixa'),
 }
 
 /**

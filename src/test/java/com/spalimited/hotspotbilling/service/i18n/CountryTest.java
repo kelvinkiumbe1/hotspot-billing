@@ -58,15 +58,24 @@ class CountryTest {
     }
 
     @Test
-    @DisplayName("Only Angola has no gateway, and it is flagged rather than quietly broken")
+    @DisplayName("A country with no gateway is flagged rather than quietly broken")
     void unreachableCountriesAreNamed() {
-        // Multicaixa Express is domestic and none of the built rails touch it.
-        // An operator there needs to know before they launch, not after their
-        // first customer cannot pay.
-        assertThat(Country.AO.needsManualCollection()).isTrue();
-
+        // The mechanism, not a particular country. Angola used to be the example
+        // here and is now served through EMIS, which is why this asserts the flag
+        // works rather than naming whoever happens to be unreachable -- and why
+        // it survived that change instead of having to be rewritten.
+        assertThat(Country.AO.needsManualCollection()).isFalse();
         assertThat(Country.KE.needsManualCollection()).isFalse();
         assertThat(Country.GH.needsManualCollection()).isFalse();
+
+        // OTHER is the one that genuinely has no country behind it. It points at
+        // Stripe, so it is not flagged either -- what matters is that the flag
+        // follows Rail.NONE and nothing else.
+        for (Country c : Country.values()) {
+            assertThat(c.needsManualCollection())
+                    .as("%s: needsManualCollection must mean exactly Rail.NONE", c)
+                    .isEqualTo(c.rail() == Country.Rail.NONE);
+        }
     }
 
     @Test
@@ -141,7 +150,7 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "NONE");
+                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "MULTICAIXA", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -228,14 +237,26 @@ class CountryTest {
     }
 
     @Test
-    @DisplayName("Angola is still the only country nothing reaches")
-    void onlyAngolaIsUnreachable() {
-        // Multicaixa Express is domestic and no built rail touches it. If this
-        // ever grows a second entry, that country's operator needs telling
-        // before they launch rather than after their first customer cannot pay.
+    @DisplayName("Every country in the table can now be collected from")
+    void nothingIsUnreachable() {
+        // Angola was the last one. It sat at Rail.NONE with thirty-six million
+        // people behind it -- a country that read as supported and could collect
+        // nothing, which is the worst state in this table.
+        //
+        // If this list ever grows an entry again, that country's operator needs
+        // telling before they launch rather than after their first customer
+        // cannot pay.
         assertThat(java.util.Arrays.stream(Country.values())
                 .filter(Country::needsManualCollection)
                 .toList())
-                .containsExactly(Country.AO);
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("Angola goes through EMIS, and its money is kwanzas")
+    void angolaIsCovered() {
+        assertThat(Country.AO.rail()).isEqualTo(Country.Rail.MULTICAIXA);
+        assertThat(Country.AO.currency()).isEqualTo("AOA");
+        assertThat(Country.AO.language()).isEqualTo("pt");
     }
 }

@@ -89,6 +89,15 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.cmi:https://payment.cmi.co.ma/fim/est3Dgate}")
     private String cmi;
 
+    /**
+     * EMIS's gateway, which serves both the API and the customer's frame.
+     *
+     * <p>The path matters: {@code /portal} 301s to {@code /webframe}, and the
+     * three real operations sit at {@code /webframe/v1/frameToken}.
+     */
+    @Value("${payments.base-url.multicaixa:https://pagamentonline.emis.co.ao/online-payment-gateway/webframe}")
+    private String multicaixa;
+
     public String paystack() {
         return paystack;
     }
@@ -149,6 +158,10 @@ public class PaymentEndpoints {
 
     public String cmi() {
         return cmi;
+    }
+
+    public String multicaixa() {
+        return multicaixa;
     }
 
     /** Konnect picks its environment by host, the way Daraja and MTN do. */

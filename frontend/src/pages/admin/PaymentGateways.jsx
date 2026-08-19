@@ -151,6 +151,20 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'MULTICAIXA',
+    name: 'Multicaixa Express',
+    provider: 'Angola',
+    badge: 'API KEYS',
+    chips: ['Express wallet', 'QR code', 'Automatic'],
+    settlement: 'Instant, confirmed by asking EMIS',
+    icon: 'account_balance_wallet',
+    blurb: 'The interbank network every Angolan card and the Express wallet sit on, through '
+      + 'EMIS’s gateway. The customer opens EMIS’s own page and confirms in the Multicaixa '
+      + 'Express app on their phone. Cards are off — enabling them needs a separate '
+      + 'agreement with EMIS.',
+    webhook: '/api/payments/multicaixa/webhook',
+  },
+  {
     kind: 'CMI',
     name: 'CMI',
     provider: 'Morocco',
@@ -271,6 +285,12 @@ const TELCO_FIELDS = {
     { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
+  ],
+  MULTICAIXA: [
+    { key: 'secretKey', label: 'Merchant frame token', secret: true, wide: true,
+      placeholder: 'the token EMIS issued for your point of sale',
+      hint: 'The only credential this rail needs. EMIS calls it the frame token, and it '
+        + 'travels in the body of every request rather than a header.' },
   ],
   CMI: [
     { key: 'shortCode', label: 'Merchant ID (clientid)',

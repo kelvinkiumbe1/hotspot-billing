@@ -49,7 +49,10 @@ public enum Country {
             List.of("Airtel Money", "TNM Mpamba"), "265", 9, List.of()),
     MZ("Mozambique", "MZN", "pt", "M-Pesa", Rail.VODACOM_MPESA,
             List.of("M-Pesa", "e-Mola", "mKesh"), "258", 9, List.of()),
-    AO("Angola", "AOA", "pt", "Multicaixa", Rail.NONE,
+    // No longer the country nothing reaches. EMIS runs Multicaixa -- the
+    // interbank network every Angolan card and the Express wallet sit on -- and
+    // has a gateway; it simply took finding it in their own browser client.
+    AO("Angola", "AOA", "pt", "Multicaixa Express", Rail.MULTICAIXA,
             List.of("Multicaixa Express"), "244", 9, List.of()),
     // Wave rather than Orange Money as the default, on price: Wave arrived at a
     // flat 1% against several times that and took a very large share of
@@ -193,7 +196,7 @@ public enum Country {
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
         PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY,
-        CMI, NONE
+        CMI, MULTICAIXA, NONE
     }
 
     private final String countryName;

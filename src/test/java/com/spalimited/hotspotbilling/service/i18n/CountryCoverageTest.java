@@ -123,11 +123,14 @@ class CountryCoverageTest {
     }
 
     @Test
-    @DisplayName("Angola is still the only country nothing reaches")
-    void stillOnlyAngola() {
+    @DisplayName("No country in the table is left unreachable")
+    void nothingIsUnreachable() {
+        // Angola was the last, and is now served through EMIS. Kept as an
+        // emptiness check rather than deleted: a country added without a rail is
+        // exactly the sort of thing that reads as coverage and collects nothing.
         assertThat(java.util.Arrays.stream(Country.values())
                 .filter(Country::needsManualCollection).toList())
-                .containsExactly(Country.AO);
+                .isEmpty();
     }
 
     /** The DIALLING literal in phone.js, as code -> "dial:length". */

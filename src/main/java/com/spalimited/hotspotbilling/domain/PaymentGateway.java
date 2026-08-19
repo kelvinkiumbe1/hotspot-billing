@@ -111,7 +111,14 @@ public class PaymentGateway {
          * signed fields to CMI's 3-D Secure gateway and is posted back with a
          * signed result.
          */
-        CMI
+        CMI,
+        /**
+         * Multicaixa Express — Angola, through EMIS's online payment gateway.
+         * The interbank network every Angolan card and the Express wallet sit
+         * on. Angola was the last country in the table that read as supported
+         * and could collect nothing.
+         */
+        MULTICAIXA
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -281,6 +288,9 @@ public class PaymentGateway {
             // the security in both directions -- it salts the hash we send and
             // the one we check on the way back.
             case CMI -> filled(shortCode) && filled(secretKey);
+            // One value: the merchant frame token EMIS issues. It goes in the
+            // body of the create call rather than a header.
+            case MULTICAIXA -> filled(secretKey);
         };
     }
 
@@ -294,7 +304,7 @@ public class PaymentGateway {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
                     AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
-                    KONNECT, WAAFIPAY, CMI -> true;
+                    KONNECT, WAAFIPAY, CMI, MULTICAIXA -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }

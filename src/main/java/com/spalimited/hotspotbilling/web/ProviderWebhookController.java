@@ -10,6 +10,7 @@ import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.KonnectProvider;
+import com.spalimited.hotspotbilling.service.payments.MulticaixaProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymobProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.Signatures;
@@ -59,6 +60,7 @@ public class ProviderWebhookController {
     private final WaveProvider wave;
     private final PaymobProvider paymob;
     private final KonnectProvider konnect;
+    private final MulticaixaProvider multicaixa;
     private final PaymentService payments;
     private final MandateService mandates;
 
@@ -134,6 +136,19 @@ public class ProviderWebhookController {
     public ResponseEntity<String> konnect(@RequestBody(required = false) byte[] body,
                                           HttpServletRequest request) {
         return handle("Konnect", konnect, body, request);
+    }
+
+    /**
+     * EMIS's callback for a Multicaixa Express payment.
+     *
+     * <p>Unsigned, so it is read only for the frame id and the verdict comes from
+     * asking EMIS -- the same treatment MTN's callback gets, and for the same
+     * reason.
+     */
+    @PostMapping("/multicaixa/webhook")
+    public ResponseEntity<String> multicaixa(@RequestBody(required = false) byte[] body,
+                                             HttpServletRequest request) {
+        return handle("Multicaixa Express", multicaixa, body, request);
     }
 
     @PostMapping("/chapa/webhook")

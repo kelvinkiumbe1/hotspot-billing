@@ -179,6 +179,7 @@ public class PaymentController {
             case KONNECT -> "Wallet or card";
             case WAAFIPAY -> "EVC Plus";
             case CMI -> "Card";
+            case MULTICAIXA -> "Multicaixa Express";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

@@ -221,7 +221,7 @@ export default function Branding({ auth }) {
                             MTN_MOMO: 'MTN MoMo', AIRTEL_MONEY: 'Airtel Money',
                             ORANGE_MONEY: 'Orange Money', WAVE: 'Wave', PAYSTACK: 'Paystack',
                             FLUTTERWAVE: 'Flutterwave', STRIPE: 'Stripe',
-                            CHAPA: 'Chapa', PAYNOW: 'Paynow', PAYMOB: 'Paymob', KONNECT: 'Konnect', WAAFIPAY: 'WaafiPay (EVC Plus)', CMI: 'CMI' }[c.rail] || c.rail
+                            CHAPA: 'Chapa', PAYNOW: 'Paynow', PAYMOB: 'Paymob', KONNECT: 'Konnect', WAAFIPAY: 'WaafiPay (EVC Plus)', CMI: 'CMI', MULTICAIXA: 'Multicaixa Express' }[c.rail] || c.rail
                         }</strong> — set it up under Settings → Payments.
                       </p>
                     )}
