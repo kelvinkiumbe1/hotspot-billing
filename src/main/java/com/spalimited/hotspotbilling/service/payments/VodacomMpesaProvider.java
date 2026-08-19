@@ -7,7 +7,7 @@ import com.spalimited.hotspotbilling.service.i18n.Country;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
@@ -414,8 +414,73 @@ public class VodacomMpesaProvider implements PaymentProvider {
                  "INS-2006",  // not enough money in the wallet
                  "INS-2051",  // no such subscriber
                  "INS-2057" -> true;
-            default -> false;
+            // INS-997 is "API Not Enabled": the credentials are right, the
+            // session opens, and the C2B product has not been switched on for
+            // the app. Seen for real against the sandbox, and it was in the
+            // ambiguous bucket -- so a customer pressed Pay, nothing was ever
+            // sent to their phone, and the sweep waited a quarter of an hour
+            // before failing it. Nothing about it can resolve itself.
+            case "INS-997" -> true;
+            default -> code.startsWith("INS-99");
         };
+    }
+
+    /**
+     * Whether this rail can take a payment, asked of Vodacom rather than of the
+     * saved settings.
+     *
+     * <p>Everything {@link #usable} can see is whether three fields are filled
+     * in. Two things it cannot see will each stop every payment: a key the
+     * market does not recognise, and an app whose C2B product has never been
+     * switched on. The second is the one that hurts, because the credentials are
+     * genuinely correct and the session genuinely opens -- so the admin looks
+     * healthy and every customer times out.
+     *
+     * <p>Moves no money. It opens a session and then asks after a reference that
+     * cannot exist: a live API says it has never heard of it, a dormant one says
+     * INS-997 whatever you ask.
+     */
+    public String verify() {
+        Config cfg = config();
+        if (cfg == null) {
+            throw new IllegalStateException(availableHere()
+                    ? "Fill in the API key, the public key and the service provider code first"
+                    : "Your country is not one Vodacom M-Pesa serves — it covers "
+                      + "Tanzania, Mozambique and DR Congo");
+        }
+        // Throws with Vodacom's own words if the credentials are wrong.
+        String bearer = session(cfg);
+
+        JsonNode answer;
+        try {
+            answer = client(cfg, Duration.ofSeconds(20)).get()
+                    .uri(uri -> uri.path("/queryTransactionStatus/")
+                            .queryParam("input_QueryReference", "ZIDICHECK" + conversationId().substring(0, 8))
+                            .queryParam("input_ServiceProviderCode", cfg.serviceProviderCode())
+                            .queryParam("input_ThirdPartyConversationID", conversationId())
+                            .queryParam("input_Country", cfg.market().code())
+                            .build())
+                    .header("Authorization", "Bearer " + bearer)
+                    .header("Origin", "*")
+                    .retrieve()
+                    .onStatus(any -> true, (req, res) -> { })
+                    .body(JsonNode.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Vodacom accepted the credentials but would not answer a "
+                    + "status query. Try again shortly.");
+        }
+        String code = code(answer);
+        if ("INS-997".equals(code)) {
+            throw new IllegalStateException("Vodacom accepted the credentials, but the payment API is "
+                    + "not switched on for this app (INS-997). On the M-Pesa OpenAPI portal, open your "
+                    + "app and enable the Customer to Business Single Stage and Query Transaction "
+                    + "Status products for " + cfg.market().path() + ".");
+        }
+        // Anything else means the API answered a real question -- including
+        // telling us the invented reference does not exist, which is the answer
+        // that proves it is working.
+        return "Vodacom accepted these credentials and the payment API is live for "
+                + cfg.market().path() + ".";
     }
 
     /**
@@ -464,9 +529,25 @@ public class VodacomMpesaProvider implements PaymentProvider {
 
     // --- session and plumbing ---
 
+    /**
+     * The HTTP client, and specifically <em>not</em> the default one.
+     *
+     * <p>{@code SimpleClientHttpRequestFactory} runs on {@code HttpURLConnection},
+     * which silently drops headers on the JDK's restricted list. {@code Origin}
+     * is on that list, and Vodacom rejects every request that arrives without
+     * it: "Origin header is missing". The header was set in the code the whole
+     * time and never left the machine.
+     *
+     * <p>Nothing found this but the real API. A stand-in server does not care
+     * which headers it is missing, and the two other places that could have
+     * caught it -- a test asserting the header arrives -- did not exist until
+     * this did.
+     */
     private RestClient client(Config cfg, Duration readTimeout) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(10));
+        java.net.http.HttpClient jdk = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(jdk);
         // Bounded deliberately. The charge call holds the connection open while
         // the customer types, and without this the portal's own request would
         // wait as long as Vodacom cared to keep it.
@@ -500,8 +581,12 @@ public class VodacomMpesaProvider implements PaymentProvider {
                     .onStatus(any -> true, (req, res) -> { })
                     .body(JsonNode.class);
         } catch (Exception e) {
-            throw new IllegalStateException("Vodacom M-Pesa would not open a session — "
-                    + "check the API key and public key");
+            // Says what actually went wrong. Blaming the credentials for what
+            // may have been a network failure sends an operator to re-copy a key
+            // that was right all along.
+            log.warn("Vodacom M-Pesa getSession failed", e);
+            throw new IllegalStateException("Could not reach Vodacom M-Pesa to open a session: "
+                    + e.getMessage());
         }
         String id = response == null ? null : response.path("output_SessionID").asString(null);
         if (id == null || id.isBlank() || !"INS-0".equals(code(response))) {

@@ -30,6 +30,7 @@ public class PaymentSettingsController {
     private final AuditService audit;
     private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
     private final com.spalimited.hotspotbilling.service.payments.PublicUrls urls;
+    private final com.spalimited.hotspotbilling.service.payments.VodacomMpesaProvider vodacom;
 
     @GetMapping
     public Map<String, Object> list() {
@@ -144,6 +145,21 @@ public class PaymentSettingsController {
      * Asks Daraja for a token with the stored credentials. Finds a typo
      * during setup instead of when the first customer tries to pay.
      */
+    /**
+     * Checks a Vodacom M-Pesa setup without taking a payment.
+     *
+     * <p>Worth its own endpoint because this rail has a failure that looks like
+     * success: correct credentials on an app whose C2B product was never
+     * enabled. A session opens, the admin shows the gateway as configured, and
+     * every customer waits a quarter of an hour before their payment is failed.
+     */
+    @PostMapping("/VODACOM_MPESA/test")
+    public Map<String, Object> testVodacom(Principal principal) {
+        String message = vodacom.verify();
+        audit.record(principal, "payments.test", "Checked Vodacom M-Pesa credentials");
+        return Map.of("message", message);
+    }
+
     @PostMapping("/MPESA_API/test")
     public Map<String, Object> testDaraja() {
         PaymentGatewayService.DarajaConfig cfg = gatewayService.daraja();

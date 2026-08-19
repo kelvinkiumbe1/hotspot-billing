@@ -364,11 +364,17 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
     }
   }
 
+  // Which rails can be checked without taking a payment. Vodacom earns its
+  // place here: correct credentials on an app whose payment product was never
+  // switched on look exactly like a working setup, and the only other way to
+  // find out is a customer waiting a quarter of an hour for nothing.
+  const testable = gateway.kind === 'MPESA_API' || gateway.kind === 'VODACOM_MPESA'
+
   async function test() {
     setBusy(true)
     setMsg(null)
     try {
-      const r = await api('/admin/settings/payments/MPESA_API/test', { method: 'POST', auth })
+      const r = await api(`/admin/settings/payments/${gateway.kind}/test`, { method: 'POST', auth })
       setMsg({ ok: true, text: r.warning ? `${r.message}. ${r.warning}` : r.message })
     } catch (err) {
       setMsg({ ok: false, text: err.message })
@@ -754,7 +760,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
 
       <div className="flex flex-wrap gap-2">
         <PrimaryButton type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save'}</PrimaryButton>
-        {isApi && saved?.configured && (
+        {testable && saved?.configured && (
           <button type="button" onClick={test} disabled={busy}
             className="px-4 py-2 rounded-lg border border-primary text-primary text-sm font-semibold cursor-pointer hover:bg-primary/5 disabled:opacity-50">
             Test credentials

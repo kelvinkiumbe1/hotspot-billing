@@ -404,6 +404,49 @@ class VodacomMpesaHttpTest {
     // ------------------------------------------------- what the real API said
 
     @Test
+    @DisplayName("The Origin header actually leaves the machine")
+    void originReachesVodacom() {
+        sessionOpens();
+        vodacom.on("POST " + BASE + "/c2bPayment/singleStage/",
+                "{\"output_ResponseCode\":\"INS-0\",\"output_TransactionID\":\"6GC8ZQBJ\"}");
+        vodacom.on("GET " + BASE + "/queryTransactionStatus/",
+                "{\"output_ResponseCode\":\"INS-0\",\"output_ResponseTransactionStatus\":\"Completed\"}");
+
+        provider.charge(request());
+        provider.poll("HSZ31");
+
+        // Vodacom refuses every request without this, with "Origin header is
+        // missing". It was set in the code from the beginning and never arrived:
+        // Origin is on the JDK's restricted-header list, so the HttpURLConnection
+        // this used to run on dropped it silently. Only the real API noticed, and
+        // this is the assertion that would have noticed first.
+        for (String path : new String[]{"/getSession/", "/c2bPayment/singleStage/",
+                "/queryTransactionStatus/"}) {
+            assertThat(vodacom.call(BASE + path).header("Origin"))
+                    .as("Origin on %s", path)
+                    .isEqualTo("*");
+        }
+    }
+
+    @Test
+    @DisplayName("An API that was never switched on is not left to time out")
+    void apiNotEnabledIsRefusedOutright() {
+        sessionOpens();
+        // Verbatim from the sandbox. The credentials are correct, the session
+        // opens, and the C2B product has not been enabled for the app -- so this
+        // charge can never happen. It sat in the ambiguous bucket, which meant
+        // the customer pressed Pay, nothing reached their phone, and the sweep
+        // waited a quarter of an hour before failing it.
+        vodacom.on("POST " + BASE + "/c2bPayment/singleStage/", 400,
+                "{\"output_ResponseCode\":\"INS-997\",\"output_ResponseDesc\":\"API Not Enabled\","
+                + "\"output_ConversationID\":\"77f3c70daa3a4769beffc9aeaf7341ff\"}");
+
+        assertThatThrownBy(() -> provider.charge(request()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("API Not Enabled");
+    }
+
+    @Test
     @DisplayName("The gate's own refusal reaches the operator verbatim")
     void theRealUnauthorisedBodyIsUnderstood() {
         // Copied byte for byte from openapi.m-pesa.com. Vodacom refuses a key a
