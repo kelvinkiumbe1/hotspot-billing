@@ -147,8 +147,22 @@ public class VodacomMpesaProvider implements PaymentProvider {
     }
 
     private Config config() {
+        return config(true);
+    }
+
+    /**
+     * @param mustBeActive false when only the credentials are in question.
+     *
+     * <p>{@link #verify} passes false deliberately. Checking a setup before
+     * switching it on is the natural order, and requiring it to be active first
+     * made the Test button answer "fill in the API key, the public key and the
+     * service provider code first" about three fields that were all correctly
+     * filled in — sending an operator to re-paste credentials that were right.
+     */
+    private Config config(boolean mustBeActive) {
         PaymentGateway g = gateways.find(PaymentGateway.Kind.VODACOM_MPESA)
-                .filter(PaymentGateway::isActive).orElse(null);
+                .filter(candidate -> !mustBeActive || candidate.isActive())
+                .orElse(null);
         if (g == null || blank(g.getSecretKey()) || blank(g.getPublicKey())
                 || blank(g.getShortCode())) {
             return null;
@@ -441,12 +455,14 @@ public class VodacomMpesaProvider implements PaymentProvider {
      * INS-997 whatever you ask.
      */
     public String verify() {
-        Config cfg = config();
+        if (!availableHere()) {
+            throw new IllegalStateException("Your country is not one Vodacom M-Pesa serves — it "
+                    + "covers Tanzania, Mozambique and DR Congo");
+        }
+        Config cfg = config(false);
         if (cfg == null) {
-            throw new IllegalStateException(availableHere()
-                    ? "Fill in the API key, the public key and the service provider code first"
-                    : "Your country is not one Vodacom M-Pesa serves — it covers "
-                      + "Tanzania, Mozambique and DR Congo");
+            throw new IllegalStateException("Fill in the API key, the public key and the service "
+                    + "provider code first");
         }
         // Throws with Vodacom's own words if the credentials are wrong.
         String bearer = session(cfg);
@@ -466,8 +482,9 @@ public class VodacomMpesaProvider implements PaymentProvider {
                     .onStatus(any -> true, (req, res) -> { })
                     .body(JsonNode.class);
         } catch (Exception e) {
+            log.warn("Vodacom M-Pesa status query during verify failed", e);
             throw new IllegalStateException("Vodacom accepted the credentials but would not answer a "
-                    + "status query. Try again shortly.");
+                    + "status query: " + e.getMessage());
         }
         String code = code(answer);
         if ("INS-997".equals(code)) {

@@ -506,6 +506,65 @@ class VodacomMpesaHttpTest {
     }
 
     @Test
+    @DisplayName("Credentials can be checked before the rail is switched on")
+    void verifyWorksBeforeActivation() {
+        // The order an operator works in: paste the keys, check them, then switch
+        // it on. Requiring it to be active first made this answer "fill in the
+        // API key, the public key and the service provider code first" about
+        // three fields that were all filled in correctly -- sending somebody to
+        // re-paste credentials that were right.
+        when(gateways.find(any())).thenReturn(Optional.of(PaymentGateway.builder()
+                .kind(PaymentGateway.Kind.VODACOM_MPESA)
+                .active(false)
+                .environment(PaymentGateway.Environment.SANDBOX)
+                .secretKey(API_KEY)
+                .publicKey(Base64.getEncoder().encodeToString(keys.getPublic().getEncoded()))
+                .shortCode("000000")
+                .build()));
+        sessionOpens();
+        vodacom.on("GET " + BASE + "/queryTransactionStatus/", 404,
+                "{\"output_ResponseCode\":\"INS-25\",\"output_ResponseDesc\":\"Unable to locate transaction\"}");
+
+        // Vodacom saying it has never heard of an invented reference is the
+        // answer that proves the API is live.
+        assertThat(provider.verify()).contains("live for vodacomTZN");
+    }
+
+    @Test
+    @DisplayName("A dormant app is named as such rather than blamed on the keys")
+    void verifyNamesTheDormantApi() {
+        sessionOpens();
+        vodacom.on("GET " + BASE + "/queryTransactionStatus/", 400,
+                "{\"output_ResponseCode\":\"INS-997\",\"output_ResponseDesc\":\"API Not Enabled\"}");
+
+        assertThatThrownBy(() -> provider.verify())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("INS-997")
+                .hasMessageContaining("Customer to Business");
+    }
+
+    @Test
+    @DisplayName("Checking from a country this rail does not serve says so")
+    void verifyOutsideTheMarketsSaysWhy() {
+        country("KE");
+
+        assertThatThrownBy(() -> provider.verify())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not one Vodacom M-Pesa serves");
+        assertThat(vodacom.calls()).as("nothing should be asked of Vodacom").isEmpty();
+    }
+
+    @Test
+    @DisplayName("Checking with nothing filled in asks for the fields")
+    void verifyWithNoCredentials() {
+        when(gateways.find(any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> provider.verify())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Fill in the API key");
+    }
+
+    @Test
     @DisplayName("A public key pasted out of a web page still works")
     void aWrappedPublicKeyIsAccepted() throws Exception {
         // Copied from the portal it arrives with line breaks in it, and sometimes
