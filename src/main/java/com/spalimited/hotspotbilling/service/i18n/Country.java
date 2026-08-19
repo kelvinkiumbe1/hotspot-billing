@@ -176,6 +176,76 @@ public enum Country {
     MA("Morocco", "MAD", "fr", "card", Rail.CMI,
             List.of("Card", "CMI"), "212", 9, List.of()),
 
+    // Algeria. No mobile money to speak of: people hold an EDAHABIA card from
+    // Algerie Poste or a CIB bank card, both clearing domestically through
+    // SATIM. Chargily is the gateway with an API rather than a bank project.
+    DZ("Algeria", "DZD", "fr", "EDAHABIA or CIB", Rail.CHARGILY,
+            List.of("EDAHABIA", "CIB", "Card"), "213", 9, List.of()),
+
+    // Reachable by rails already built. For all four the credential is the
+    // proof: MTN issues a target environment and Orange a merchant key per
+    // market, so an operator who has one is in a market the provider serves.
+    LR("Liberia", "LRD", "en", "MTN MoMo", Rail.MTN_MOMO,
+            List.of("MTN MoMo", "Orange Money"), "231", 9, List.of()),
+    GW("Guinea-Bissau", "XOF", "pt", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money"), "245", 9, List.of()),
+    CF("Central African Republic", "XAF", "fr", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "Telecel Money"), "236", 8, List.of()),
+    MR("Mauritania", "MRU", "fr", "Orange Money", Rail.ORANGE_MONEY,
+            List.of("Orange Money", "Bankily", "Sedad"), "222", 8, List.of()),
+    // Togo has neither MTN, Orange nor Airtel. Moov Money and T-Money are the
+    // wallets and the aggregator is the way to both.
+    TG("Togo", "XOF", "fr", "Mobile Money", Rail.FLUTTERWAVE,
+            List.of("T-Money", "Moov Money"), "228", 8, List.of()),
+
+    // The ones nothing reaches, and saying so is the point.
+    //
+    // Each is here rather than absent because being absent is worse: an operator
+    // in Nouakchott or Port Louis who cannot find their country picks "Somewhere
+    // else" and gets dollars, English, Stripe -- which does not serve any of
+    // them -- and no phone validation at all. Listed, they get their own
+    // currency, their own dialling rules and their own language, plus the
+    // needsManualCollection flag that tells them plainly in Branding that
+    // payments have to be matched by hand.
+    //
+    // What each would need, so nobody re-researches it:
+    //   BI  Lumicash (Lumitel) and Econet Leo. No public API. Airtel is NOT
+    //       here -- Burundi is not one of Airtel Africa's fourteen markets.
+    //   CV  vinti4 / SISP, domestic only.
+    //   DJ  D-Money (Djibouti Telecom), domestic only.
+    //   ER  state telecom, no electronic payment to integrate with at all.
+    //   GQ  Muni Dinero (GETESA), domestic only.
+    //   KM  Holo (Comores Telecom), domestic only.
+    //   LY  Sadad and Moamalat, domestic, and sanctions make an account hard.
+    //   MU  MCB Juice and Peach Payments. Peach has an API and is the most
+    //       tractable of this list if Mauritius is ever worth a rail.
+    //   NA  MTC Money, FNB eWallet, DPO Group. The dollar is pegged 1:1 to the
+    //       rand but South African acquiring does not extend here.
+    //   SD  sanctions. Nothing to integrate with.
+    //   ST  Unitel STP, domestic only.
+    BI("Burundi", "BIF", "fr", "Lumicash", Rail.NONE,
+            List.of("Lumicash", "EcoCash"), "257", 8, List.of()),
+    CV("Cabo Verde", "CVE", "pt", "vinti4", Rail.NONE,
+            List.of("vinti4"), "238", 7, List.of()),
+    DJ("Djibouti", "DJF", "fr", "D-Money", Rail.NONE,
+            List.of("D-Money"), "253", 8, List.of()),
+    ER("Eritrea", "ERN", "en", "cash", Rail.NONE,
+            List.of("Cash"), "291", 7, List.of()),
+    GQ("Equatorial Guinea", "XAF", "fr", "Muni Dinero", Rail.NONE,
+            List.of("Muni Dinero"), "240", 9, List.of()),
+    KM("Comoros", "KMF", "fr", "Holo", Rail.NONE,
+            List.of("Holo", "MVola"), "269", 7, List.of()),
+    LY("Libya", "LYD", "en", "Sadad", Rail.NONE,
+            List.of("Sadad", "Moamalat"), "218", 9, List.of()),
+    MU("Mauritius", "MUR", "en", "card", Rail.NONE,
+            List.of("MCB Juice", "Card"), "230", 8, List.of()),
+    NA("Namibia", "NAD", "en", "card", Rail.NONE,
+            List.of("MTC Money", "FNB eWallet", "Card"), "264", 9, List.of()),
+    SD("Sudan", "SDG", "en", "cash", Rail.NONE,
+            List.of("Cash"), "249", 9, List.of()),
+    ST("Sao Tome and Principe", "STN", "pt", "cash", Rail.NONE,
+            List.of("Cash"), "239", 7, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
@@ -196,7 +266,7 @@ public enum Country {
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
         PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY,
-        CMI, MULTICAIXA, NONE
+        CMI, MULTICAIXA, CHARGILY, NONE
     }
 
     private final String countryName;

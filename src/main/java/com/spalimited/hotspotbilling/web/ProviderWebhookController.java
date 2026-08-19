@@ -9,6 +9,7 @@ import com.spalimited.hotspotbilling.service.payments.OrangeMoneyProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
+import com.spalimited.hotspotbilling.service.payments.ChargilyProvider;
 import com.spalimited.hotspotbilling.service.payments.KonnectProvider;
 import com.spalimited.hotspotbilling.service.payments.MulticaixaProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymobProvider;
@@ -61,6 +62,7 @@ public class ProviderWebhookController {
     private final PaymobProvider paymob;
     private final KonnectProvider konnect;
     private final MulticaixaProvider multicaixa;
+    private final ChargilyProvider chargily;
     private final PaymentService payments;
     private final MandateService mandates;
 
@@ -149,6 +151,18 @@ public class ProviderWebhookController {
     public ResponseEntity<String> multicaixa(@RequestBody(required = false) byte[] body,
                                              HttpServletRequest request) {
         return handle("Multicaixa Express", multicaixa, body, request);
+    }
+
+    /**
+     * Chargily's webhook, which is signed properly.
+     *
+     * <p>HMAC-SHA256 over the exact bytes, so this one is believed rather than
+     * treated as a hint -- the same footing as Stripe and Wave.
+     */
+    @PostMapping("/chargily/webhook")
+    public ResponseEntity<String> chargily(@RequestBody(required = false) byte[] body,
+                                           HttpServletRequest request) {
+        return handle("Chargily", chargily, body, request);
     }
 
     @PostMapping("/chapa/webhook")

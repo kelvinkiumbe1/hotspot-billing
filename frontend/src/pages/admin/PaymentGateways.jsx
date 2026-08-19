@@ -151,6 +151,21 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'CHARGILY',
+    name: 'Chargily',
+    provider: 'Algeria',
+    badge: 'API KEYS',
+    chips: ['EDAHABIA', 'CIB', 'Automatic'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'credit_card',
+    blurb: 'How Algerians actually pay — the EDAHABIA card from Algérie Poste, which tens of '
+      + 'millions hold, and CIB bank cards. Nothing international collects dinars, so this is '
+      + 'the way in. The customer picks which card on Chargily’s own page.',
+    webhook: '/api/payments/chargily/webhook',
+    keyHint: 'live_sk_… from your Chargily dashboard → Developers',
+    secretless: true,
+  },
+  {
     kind: 'MULTICAIXA',
     name: 'Multicaixa Express',
     provider: 'Angola',
@@ -243,7 +258,10 @@ const GATEWAYS = [
   },
 ]
 
-const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA', 'WAVE']
+// Chargily belongs here rather than in TELCO_FIELDS: one key, no separate
+// webhook secret (the same key verifies the signature), and the key's own
+// prefix decides test against live -- exactly Paystack's shape.
+const CARD_KINDS = ['PAYSTACK', 'FLUTTERWAVE', 'STRIPE', 'CHAPA', 'WAVE', 'CHARGILY']
 /**
  * The credentials each direct-wallet rail needs, in the order to ask for them.
  *

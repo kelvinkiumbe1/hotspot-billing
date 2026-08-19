@@ -66,6 +66,8 @@ class CountryTest {
         // it survived that change instead of having to be rewritten.
         assertThat(Country.AO.needsManualCollection()).isFalse();
         assertThat(Country.KE.needsManualCollection()).isFalse();
+        // And one that genuinely is unreachable, so this is not vacuous.
+        assertThat(Country.ER.needsManualCollection()).isTrue();
         assertThat(Country.GH.needsManualCollection()).isFalse();
 
         // OTHER is the one that genuinely has no country behind it. It points at
@@ -150,7 +152,8 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "MULTICAIXA", "NONE");
+                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "MULTICAIXA",
+                "CHARGILY", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -237,19 +240,38 @@ class CountryTest {
     }
 
     @Test
-    @DisplayName("Every country in the table can now be collected from")
-    void nothingIsUnreachable() {
-        // Angola was the last one. It sat at Rail.NONE with thirty-six million
-        // people behind it -- a country that read as supported and could collect
-        // nothing, which is the worst state in this table.
+    @DisplayName("The countries nothing reaches are named, not discovered")
+    void unreachableCountriesAreExactlyThese() {
+        // Eleven, all of them domestic-only payment schemes with no API to
+        // integrate with, or somewhere a merchant account cannot be had. They are
+        // in the table on purpose: absent, an operator there falls through to
+        // OTHER and gets dollars, English and no phone validation, which is
+        // worse than being told plainly that payments need matching by hand.
         //
-        // If this list ever grows an entry again, that country's operator needs
-        // telling before they launch rather than after their first customer
-        // cannot pay.
+        // This list shrinking is progress. It growing means somebody added a
+        // country without checking whether anything could collect there, which
+        // is the failure this whole table exists to prevent.
         assertThat(java.util.Arrays.stream(Country.values())
                 .filter(Country::needsManualCollection)
                 .toList())
-                .isEmpty();
+                .containsExactlyInAnyOrder(
+                        Country.BI, Country.CV, Country.DJ, Country.ER, Country.GQ,
+                        Country.KM, Country.LY, Country.MU, Country.NA, Country.SD,
+                        Country.ST);
+    }
+
+    @Test
+    @DisplayName("Algeria is reached, and the rest of the Maghreb with it")
+    void theMaghrebIsCovered() {
+        // Between them Chargily, CMI, Konnect and Paymob cover every North
+        // African country that has a gateway to reach at all. Libya and Sudan do
+        // not, and are flagged rather than pretended about.
+        assertThat(Country.DZ.rail()).isEqualTo(Country.Rail.CHARGILY);
+        assertThat(Country.MA.rail()).isEqualTo(Country.Rail.CMI);
+        assertThat(Country.TN.rail()).isEqualTo(Country.Rail.KONNECT);
+        assertThat(Country.EG.rail()).isEqualTo(Country.Rail.PAYMOB);
+        assertThat(Country.LY.needsManualCollection()).isTrue();
+        assertThat(Country.SD.needsManualCollection()).isTrue();
     }
 
     @Test

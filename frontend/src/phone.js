@@ -33,6 +33,16 @@ const DIALLING = {
   SO: ['252', 9],
   // Morocco. Nine digits after the trunk zero: 06 12 34 56 78 -> 612345678.
   MA: ['212', 9],
+  // Algeria, on Chargily.
+  DZ: ['213', 9],
+  // Reachable by rails already built.
+  LR: ['231', 9], GW: ['245', 9], CF: ['236', 8], MR: ['222', 8], TG: ['228', 8],
+  // Listed but not yet reachable by any rail. Here so an operator gets their own
+  // currency, language and dialling rules instead of falling through to OTHER,
+  // which would give them dollars and no phone validation at all.
+  BI: ['257', 8], CV: ['238', 7], DJ: ['253', 8], ER: ['291', 7],
+  GQ: ['240', 9], KM: ['269', 7], LY: ['218', 9], MU: ['230', 8],
+  NA: ['264', 9], SD: ['249', 9], ST: ['239', 7],
   OTHER: ['', 0],
 }
 

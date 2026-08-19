@@ -93,7 +93,13 @@ public class OrangeMoneyProvider implements PaymentProvider {
     private static final Set<Country> MARKETS = Set.of(
             Country.SN, Country.CI, Country.CM, Country.CD,
             Country.ML, Country.BF, Country.GN, Country.SL, Country.NE,
-            Country.MG, Country.BW);
+            Country.MG, Country.BW,
+            // Orange runs a network and Orange Money in all three. Whether the
+            // Web Payment API is switched on for a given market is settled at
+            // onboarding rather than here -- and that is the safeguard: this rail
+            // needs a client id, a secret and a merchant key from Orange, so an
+            // operator cannot switch it on for a market Orange has not enabled.
+            Country.CF, Country.GW, Country.MR);
 
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;

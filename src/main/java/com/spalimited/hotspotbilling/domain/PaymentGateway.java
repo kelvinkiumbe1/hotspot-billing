@@ -118,7 +118,13 @@ public class PaymentGateway {
          * on. Angola was the last country in the table that read as supported
          * and could collect nothing.
          */
-        MULTICAIXA
+        MULTICAIXA,
+        /**
+         * Chargily — Algeria. EDAHABIA and CIB cards, which is how Algerians
+         * pay: there is no mobile money to speak of and nothing international
+         * collects dinars.
+         */
+        CHARGILY
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -291,6 +297,9 @@ public class PaymentGateway {
             // One value: the merchant frame token EMIS issues. It goes in the
             // body of the create call rather than a header.
             case MULTICAIXA -> filled(secretKey);
+            // One key, and it does both jobs: authorises the call and verifies
+            // the webhook signature, the way Paystack's does.
+            case CHARGILY -> filled(secretKey);
         };
     }
 
@@ -304,7 +313,7 @@ public class PaymentGateway {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
                     AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
-                    KONNECT, WAAFIPAY, CMI, MULTICAIXA -> true;
+                    KONNECT, WAAFIPAY, CMI, MULTICAIXA, CHARGILY -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -333,18 +342,31 @@ public class PaymentGateway {
             // Wave keys carry their own market and mode: wave_sn_prod_… against
             // wave_sn_test_…, so the key is the truth rather than a dropdown an
             // operator can set to the opposite of reality.
-            case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, WAVE -> !isTestKey(secretKey);
+            // Chargily prefixes its keys test_sk_ / live_sk_, so like the card
+            // processors the key itself is the truth rather than a dropdown an
+            // operator can set to the opposite of reality.
+            case PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, WAVE, CHARGILY ->
+                    !isTestKey(secretKey);
             default -> true;
         };
     }
 
-    /** Paystack and Stripe both prefix test keys "sk_test_"; Flutterwave uses "_TEST". */
+    /**
+     * Whether a key is a test key, read off the key itself.
+     *
+     * <p>Paystack and Stripe prefix theirs "sk_test_"; Flutterwave puts "_TEST"
+     * in the middle; Chargily puts it at the front as "test_sk_". That last one
+     * matched neither of the first two rules, so a Chargily test key read as live
+     * money -- the admin would have said "Production (real money)" over an
+     * account that collects nothing. Found by a test rather than by an operator,
+     * which is the only reason it is a footnote.
+     */
     private static boolean isTestKey(String key) {
         if (!filled(key)) {
             return false;
         }
         String k = key.toLowerCase();
-        return k.startsWith("sk_test") || k.contains("_test");
+        return k.startsWith("sk_test") || k.startsWith("test_") || k.contains("_test");
     }
 
     private static boolean filled(String value) {

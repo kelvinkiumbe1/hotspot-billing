@@ -180,6 +180,7 @@ public class PaymentController {
             case WAAFIPAY -> "EVC Plus";
             case CMI -> "Card";
             case MULTICAIXA -> "Multicaixa Express";
+            case CHARGILY -> "EDAHABIA or CIB";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

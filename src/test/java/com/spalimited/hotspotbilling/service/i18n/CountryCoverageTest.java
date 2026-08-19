@@ -123,14 +123,21 @@ class CountryCoverageTest {
     }
 
     @Test
-    @DisplayName("No country in the table is left unreachable")
-    void nothingIsUnreachable() {
-        // Angola was the last, and is now served through EMIS. Kept as an
-        // emptiness check rather than deleted: a country added without a rail is
-        // exactly the sort of thing that reads as coverage and collects nothing.
-        assertThat(java.util.Arrays.stream(Country.values())
-                .filter(Country::needsManualCollection).toList())
-                .isEmpty();
+    @DisplayName("Every unreachable country still has usable local rules")
+    void unreachableCountriesAreStillProperlySetUp() {
+        // The point of listing a country nothing can collect in: it still gets
+        // its own currency, dialling rules and language. Falling through to OTHER
+        // would give it dollars and no phone validation, and a portal that
+        // accepts any number is a portal that refuses real customers.
+        for (Country c : Country.values()) {
+            if (!c.needsManualCollection()) {
+                continue;
+            }
+            assertThat(c.currency()).as("%s currency", c).matches("[A-Z]{3}");
+            assertThat(c.diallingCode()).as("%s dialling code", c).matches("\\d{1,4}");
+            assertThat(c.nationalLength()).as("%s number length", c).isBetween(6, 11);
+            assertThat(c.networks()).as("%s networks", c).isNotEmpty();
+        }
     }
 
     /** The DIALLING literal in phone.js, as code -> "dial:length". */

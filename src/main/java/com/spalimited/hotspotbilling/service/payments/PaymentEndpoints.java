@@ -98,6 +98,9 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.multicaixa:https://pagamentonline.emis.co.ao/online-payment-gateway/webframe}")
     private String multicaixa;
 
+    @Value("${payments.base-url.chargily:https://pay.chargily.net/api/v2}")
+    private String chargily;
+
     public String paystack() {
         return paystack;
     }
@@ -162,6 +165,10 @@ public class PaymentEndpoints {
 
     public String multicaixa() {
         return multicaixa;
+    }
+
+    public String chargily() {
+        return chargily;
     }
 
     /** Konnect picks its environment by host, the way Daraja and MTN do. */
