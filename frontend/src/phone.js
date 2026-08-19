@@ -22,6 +22,9 @@ const DIALLING = {
   SL: ['232', 8], BW: ['267', 8], TD: ['235', 8], GA: ['241', 8],
   CG: ['242', 9], MG: ['261', 9], GM: ['220', 7], BJ: ['229', 10],
   SZ: ['268', 8], SS: ['211', 9],
+  // Lesotho for Vodacom M-Pesa, Seychelles for Airtel Money -- both reachable
+  // by a rail that was already built.
+  LS: ['266', 8], SC: ['248', 7],
   OTHER: ['', 0],
 }
 

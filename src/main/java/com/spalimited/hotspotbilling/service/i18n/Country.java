@@ -122,6 +122,20 @@ public enum Country {
     SS("South Sudan", "SSP", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "m-Gurush"), "211", 9, List.of()),
 
+    // The fourth Vodacom M-Pesa market, and the one the rail was built without.
+    // vodacomLES is live -- confirmed by opening a session against it -- so this
+    // is finishing an integration rather than starting one. The loti is pegged
+    // to the rand one-for-one and South African cards are widely taken, but
+    // M-Pesa is what a hotspot customer actually has.
+    LS("Lesotho", "LSL", "en", "M-Pesa", Rail.VODACOM_MPESA,
+            List.of("M-Pesa", "EcoCash"), "266", 8, List.of()),
+
+    // Airtel Africa's fourteenth market, and the one our Airtel rail was
+    // missing. Small -- a hundred thousand people -- but it costs a line, and a
+    // country reachable by a built rail should not read as unreachable.
+    SC("Seychelles", "SCR", "en", "Airtel Money", Rail.AIRTEL_MONEY,
+            List.of("Airtel Money", "Card"), "248", 7, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 

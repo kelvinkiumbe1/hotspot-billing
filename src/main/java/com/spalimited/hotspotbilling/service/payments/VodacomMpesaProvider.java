@@ -75,16 +75,20 @@ public class VodacomMpesaProvider implements PaymentProvider {
     /**
      * Where Vodacom M-Pesa runs on this platform.
      *
-     * <p>Lesotho is the fourth and is absent only because the country table has
-     * no entry for it yet; adding {@code LS} there and a line here is all it
-     * would take. Vodafone Ghana and Egypt sit on the same API and are left out
-     * deliberately — Ghana's M-Pesa became Telecel and MTN MoMo is the rail that
-     * matters there, and Egypt is not somewhere this product sells.
+     * <p>All four confirmed by opening a real session against each. Vodafone
+     * Ghana and Egypt sit on the same API and are left out deliberately: Ghana's
+     * M-Pesa became Telecel and MTN MoMo is the rail that matters there, and the
+     * Egyptian market answers 503 with no server behind it at all.
+     *
+     * <p>The market code is not derivable from the country code — Lesotho is
+     * {@code LES} rather than {@code LS} or {@code LSO}, and the other two
+     * spellings return 503. Hence a table rather than a rule.
      */
     private static final Map<Country, Market> MARKETS = Map.of(
             Country.TZ, new Market("vodacomTZN", "TZN"),
             Country.MZ, new Market("vodacomMOZ", "MOZ"),
-            Country.CD, new Market("vodacomDRC", "DRC"));
+            Country.CD, new Market("vodacomDRC", "DRC"),
+            Country.LS, new Market("vodacomLES", "LES"));
 
     private static final Set<Country> COUNTRIES = MARKETS.keySet();
 

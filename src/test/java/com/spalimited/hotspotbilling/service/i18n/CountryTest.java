@@ -163,6 +163,19 @@ class CountryTest {
     }
 
     @Test
+    @DisplayName("Both rails reach every country that names them")
+    void railsListTheCountriesThatPointAtThem() {
+        // The Tanzania bug in reverse, and the one this file exists to stop: a
+        // country reads as served, an operator sets it, and the rail it was sent
+        // to has never heard of the place. Spot-checked on the two markets added
+        // last, which were both reachable all along and listed nowhere.
+        assertThat(Country.LS.rail()).isEqualTo(Country.Rail.VODACOM_MPESA);
+        assertThat(Country.LS.currency()).isEqualTo("LSL");
+        assertThat(Country.SC.rail()).isEqualTo(Country.Rail.AIRTEL_MONEY);
+        assertThat(Country.SC.currency()).isEqualTo("SCR");
+    }
+
+    @Test
     @DisplayName("Francophone West Africa is off the aggregator")
     void westAfricaIsDirect() {
         // Senegal and Cote d'Ivoire both went through Flutterwave, which stacks
