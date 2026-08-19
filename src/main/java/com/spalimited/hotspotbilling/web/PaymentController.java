@@ -77,11 +77,15 @@ public class PaymentController {
         out.put("paymentId", payment.getId());
         out.put("status", payment.getStatus());
         out.put("provider", payment.getProvider());
+        // Named for the rail the customer chose, not the operator's default
+        // brand. With several gateways live those are different things, and
+        // getting it wrong tells somebody paying by MTN to enter an M-Pesa PIN.
+        String rail = labelFor(payment.getProvider());
         if (payment.getCheckoutUrl() != null) {
             out.put("checkoutUrl", payment.getCheckoutUrl());
-            out.put("message", messages.get(language, "pay.openingCheckout"));
+            out.put("message", messages.forRail(language, "pay.openingCheckout", rail));
         } else {
-            out.put("message", messages.get(language, "pay.checkPhone"));
+            out.put("message", messages.forRail(language, "pay.checkPhone", rail));
         }
         return out;
     }
@@ -145,6 +149,18 @@ public class PaymentController {
             PaymentGateway.Kind.PAYNOW);
 
     /** What a customer should see this wallet called. */
+    /** The customer-facing name of a rail stored as text, or null if unreadable. */
+    private static String labelFor(String kind) {
+        if (kind == null || kind.isBlank()) {
+            return null;
+        }
+        try {
+            return label(PaymentGateway.Kind.valueOf(kind.trim()));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     private static String label(PaymentGateway.Kind kind) {
         return switch (kind) {
             case MPESA_API -> "M-Pesa";

@@ -326,6 +326,23 @@ public class Messages {
         return lookup(language, key).replace("{pay}", paymentBrand());
     }
 
+    /**
+     * The same, naming the rail the customer actually chose.
+     *
+     * <p>{@code {pay}} is otherwise filled with the operator's account-wide
+     * brand, which was right when one gateway could be live at a time and is
+     * wrong now that several can. A customer who picked MTN MoMo was being told
+     * to "enter your M-Pesa PIN", because M-Pesa is what the operator calls
+     * paying — observed against MTN's sandbox, not imagined.
+     *
+     * <p>Falls back to the operator's brand when the rail has no label, so a
+     * surface that cannot say which one was used still reads sensibly.
+     */
+    public String forRail(Language language, String key, String railLabel) {
+        String brand = railLabel == null || railLabel.isBlank() ? paymentBrand() : railLabel;
+        return lookup(language, key).replace("{pay}", brand);
+    }
+
     private String lookup(Language language, String key) {
         Map<String, String> bundle = CATALOGUE.get(language == null ? Language.fallback() : language);
         String value = bundle == null ? null : bundle.get(key);

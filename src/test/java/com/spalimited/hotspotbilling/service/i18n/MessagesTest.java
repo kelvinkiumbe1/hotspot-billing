@@ -180,6 +180,27 @@ class MessagesTest {
     }
 
     @Test
+    @DisplayName("The rail the customer chose beats the operator's default brand")
+    void chosenRailNamesItself() {
+        when(portalSettings.settings()).thenReturn(PortalSettings.builder()
+                .language("en").followCustomerLanguage(true).country("KE").build());
+
+        // Observed against MTN's sandbox: a customer who picked MTN MoMo was
+        // told to "enter your M-Pesa PIN", because M-Pesa is what this operator
+        // calls paying. That was right when one gateway could be live at a
+        // time; several can now, and the message has to name the one chosen.
+        assertThat(messages.forRail(Language.EN, "pay.checkPhone", "MTN MoMo"))
+                .contains("MTN MoMo").doesNotContain("M-Pesa");
+
+        // The operator's brand still answers for surfaces that cannot say which
+        // rail was used.
+        assertThat(messages.forRail(Language.EN, "pay.checkPhone", null))
+                .contains("M-Pesa");
+        assertThat(messages.forRail(Language.EN, "pay.checkPhone", "  "))
+                .contains("M-Pesa");
+    }
+
+    @Test
     @DisplayName("No message reaches a customer still holding a raw {pay}")
     void payPlaceholderIsAlwaysFilled() {
         when(portalSettings.settings()).thenReturn(PortalSettings.builder()
