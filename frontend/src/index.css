@@ -238,6 +238,47 @@ body {
 .portal-theme h3 {
   font-family: var(--portal-heading-font, inherit);
 }
+/* ---- Operator knobs -------------------------------------------------
+   Set from Settings -> Portal -> Layout, and only where the operator chose
+   something: every rule here is guarded by the variable or attribute being
+   present, so an operator who never opens that tab gets the design exactly as
+   it was written. That is the whole contract of this block.                */
+
+/* Corner rounding. Applies to the cards and panels rather than to everything,
+   because rounding an avatar or a pill to 0 makes it look broken rather than
+   square. */
+.portal-theme[style*="--portal-radius"] section,
+.portal-theme[style*="--portal-radius"] .portal-card {
+  border-radius: var(--portal-radius);
+}
+
+/* Spacing between the blocks in the plans column. The designs each set their
+   own gap class; this overrides it only when a density was chosen. */
+.portal-theme[data-density] main {
+  gap: var(--portal-gap);
+}
+
+/* Alignment. Text only -- laying the cards out centred as well would fight six
+   different grid and flex structures, and "centre the writing" is what an
+   operator means by it. */
+.portal-theme[data-align="centre"] main h1,
+.portal-theme[data-align="centre"] main h2,
+.portal-theme[data-align="centre"] main p {
+  text-align: center;
+}
+.portal-theme[data-align="left"] main h1,
+.portal-theme[data-align="left"] main h2,
+.portal-theme[data-align="left"] main p {
+  text-align: left;
+}
+
+/* Logo height, with the width left free so a wordmark keeps its own ratio
+   rather than being squashed to a square. */
+.portal-theme[style*="--portal-logo-h"] img[data-portal-logo] {
+  height: var(--portal-logo-h);
+  width: auto;
+}
+
 /* Terminal design: glowing headline + blinking prompt cursor. */
 .portal-theme[data-skin="NEON"] h1 {
   text-shadow: 0 0 18px var(--portal-glow1, rgba(0, 255, 156, 0.1));

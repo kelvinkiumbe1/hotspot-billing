@@ -8,6 +8,7 @@ import QRCode from 'qrcode'
 import PaymentGatewaysPage from './PaymentGateways.jsx'
 import TaxSettingsPage from './TaxSettings.jsx'
 import BrandingPage from './Branding.jsx'
+import PortalLayoutPage from './PortalLayout.jsx'
 import { PORTAL_DESIGNS, normalizeDesignKey } from '../../portalDesigns.js'
 import { enrollPasskey, passkeySupported } from '../../passkey.js'
 import { money, currencyUnit } from '../../money.js'
@@ -22,6 +23,7 @@ const SECTIONS = [
     group: 'General',
     items: [
       { key: 'branding', label: 'Branding', hint: 'Business name, logo, portal wording', icon: 'palette', need: 'OUTREACH' },
+      { key: 'portal', label: 'Portal layout & wording', hint: 'Arrange the sections, and change any word on the page', icon: 'dashboard_customize', need: 'SETTINGS' },
       { key: 'hotspot', label: 'Hotspot', hint: 'Post-purchase redirect, voucher expiry', icon: 'wifi', need: 'SETTINGS' },
       { key: 'loyalty', label: 'Loyalty & rewards', hint: 'Points earned on spend, redeemed for free time', icon: 'loyalty', need: 'SETTINGS' },
     ],
@@ -2822,6 +2824,7 @@ export default function SettingsHub({ auth, me, mikrotikSection }) {
           {current === 'payments' && <PaymentGatewaysPage auth={auth} />}
           {current === 'vat' && <TaxSettingsPage auth={auth} />}
           {current === 'branding' && <BrandingPage auth={auth} />}
+          {current === 'portal' && <PortalLayoutPage auth={auth} />}
           {current === 'hotspot' && (
             <>
               <PageHeader title="Hotspot" subtitle="What happens after a purchase, and voucher cleanup." />

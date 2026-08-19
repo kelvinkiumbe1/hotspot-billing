@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { normalizePhone, setCountry, phoneExample, phoneForLookup, dialPrefix } from '../phone.js'
 import { api } from '../api.js'
 import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
+import { PORTAL_STRINGS } from '../portalStrings.js'
 import heroCity from '../assets/hero-city.jpg'
 import customerPhoto from '../assets/customer.jpg'
 import { money } from '../money.js'
@@ -10,478 +11,80 @@ import { money } from '../money.js'
 /* Localization — English + Kiswahili for the customer captive portal  */
 /* ------------------------------------------------------------------ */
 
-const STRINGS = {
-  EN: {
-    'hero.title': 'Get Connected in Seconds',
-    'hero.sub': 'Fast, reliable internet across the city.',
-    'hero.minTitle': 'Get Connected',
-    'hero.minSub': 'Pick a pass and pay with {pay}.',
-    'breeze.hi': 'Karibu — let’s get you online.',
-    'breeze.sub': 'Pick a pass, pay with {pay}, and you’re browsing in under a minute.',
-    'tab.all': 'All',
-    'steps.heading': 'How to get connected',
-    'steps.1': 'Pick an internet pass below',
-    'steps.2': 'Enter your {pay} number and send the request',
-    'steps.3': 'Approve the payment on your phone',
-    'steps.4': 'Connect with the access code we text you',
-    'steps.plans': 'Internet passes',
-    'matrix.hint': 'Tap a plan to buy it with {pay}.',
-    'poster.tag': 'Internet by the hour, day and month.',
-    'neon.online': 'network: online',
-    'neon.select': 'select a pass to continue',
-    'card.buyShort': 'Buy',
-    'pay.checkout': 'Secure {pay} checkout',
-    'pay.total': 'Total',
-    'pay.payNow': 'Pay {n}',
-    'ok.granted': 'Access granted',
-    'wait.printing': 'Preparing your pass',
-    'poster.paid': 'PAID',
-    'steps.of': 'Step {n} of {m}',
-    'neon.confirmed': 'payment confirmed',
-    'neon.grant': 'ACCESS GRANTED',
-    'recover.q': 'Already paid but not connected?',
-    'recover.hint': 'Enter the number you paid with and we’ll text your access code.',
-    'recover.phone': 'Phone you paid with',
-    'recover.btn': 'Send my code',
-    'recover.sending': 'Checking…',
-    'verify.q': 'Paid by Paybill or Till?',
-    'verify.hint': 'Enter your {pay} code and the number you paid with — we’ll verify it and text your access code.',
-    'verify.code': '{pay} code',
-    'verify.btn': 'Verify payment',
-    'verify.sending': 'Verifying…',
-    'group.Hourly': 'Hourly Passes',
-    'group.Daily': 'Daily Passes',
-    'group.Weekly': 'Weekly Passes',
-    'group.Monthly': 'Monthly Passes',
-    'plans.retry': 'Retry',
-    'plans.offline': "We can't reach the server right now. Check your connection and try again.",
-    'voucher.label': 'Have a voucher or {pay} code?',
-    'voucher.placeholder': 'Enter code, or paste your {pay} message',
-    'voucher.redeem': 'Redeem',
-    'voucher.checking': 'Checking…',
-    'nav.connect': 'Connect',
-    'nav.plans': 'Plans',
-    'nav.help': 'Help',
-    'card.popular': 'MOST POPULAR',
-    'card.price': 'Price',
-    'card.buy': 'Buy with {pay}',
-    'card.devices': 'device',
-    'card.devices_plural': 'devices',
-    'custom.heading': 'Custom Pass',
-    'custom.title': 'Only need a little time?',
-    'custom.perHour': '{n}/hour, billed per minute',
-    'custom.minutes': 'Minutes you need',
-    'custom.youPay': 'You pay',
-    'custom.range': 'Choose between {min} and {max} minutes.',
-    'custom.buy': 'Buy {dur} with {pay}',
-    'pay.complete': 'Complete Payment',
-    'pay.sub': 'Fast, secure {pay} transaction.',
-    'pay.summary': 'Selected Plan Summary',
-    'pay.access': '{name} Access',
-    'pay.phone': '{pay} Phone Number',
-    'pay.info': "You'll receive an {pay} prompt on your phone. Enter your PIN to complete the transaction.",
-    'pay.send': 'Send Payment Request',
-    'pay.sending': 'Sending request…',
-    'wait.title': 'Awaiting Payment',
-    'wait.sub': 'Check your phone for the {pay} prompt.',
-    'wait.sent': 'Request sent',
-    'wait.pin': 'Enter your {pay} PIN',
-    'wait.activating': 'Activating your access',
-    'wait.cancel': 'Cancel payment',
-    'ok.title': "You're Connected!",
-    'ok.codeLabel': 'Access Code',
-    'ok.usePre': 'Use this code as your WiFi',
-    'ok.username': 'username',
-    'ok.and': 'and',
-    'ok.password': 'password',
-    'ok.copyConnect': 'Copy Code & Connect',
-    'ok.copied': 'Code Copied!',
-    'ok.continue': 'Continue',
-    'ok.return': 'Return to Home',
-    'ok.closingRedirect': 'Taking you on in {n}s — connect with your code first.',
-    'ok.closing': 'This page will close in {n}s — connect to the WiFi with your code.',
-    'ok.closed': 'You can now connect to the WiFi with your code.',
-    'err.title': 'Payment Failed',
-    'err.badge': 'Error',
-    'err.failed': 'Payment didn’t go through. The {pay} request failed or was cancelled.',
-    'pay.badPhone': 'That number doesn’t look right. It should look like {example}.',
-    'pay.choose': 'How would you like to pay?',
-    'pay.chooseHint': 'Use the number that belongs to the service you picked.',
-    'err.retry': 'Retry Payment',
-    'err.choose': 'Choose another plan',
-    'err.support': 'Support:',
-    'rewards.title': 'Rewards',
-    'rewards.phone': 'Your phone e.g. 0712…',
-    'rewards.check': 'Check',
-    'rewards.youHave': 'You have',
-    'rewards.points': 'point(s) — up to',
-    'rewards.freeMin': 'free minutes.',
-    'rewards.minutesLabel': 'Minutes to redeem',
-    'rewards.costs': 'costs {n} pts',
-    'rewards.redeem': 'Redeem',
-    'rewards.needMore': 'Earn a bit more — you need at least {n} points to redeem.',
-    'rewards.unavailable': 'Rewards are not available right now.',
-    'foot.terms': 'Terms',
-    'foot.help': 'Help',
-    'foot.powered': 'Powered by SPA Limited',
-    'promo.endsIn': 'Ends in',
-  },
-  SW: {
-    'hero.title': 'Pata Intaneti kwa Sekunde',
-    'hero.sub': 'Intaneti ya haraka na ya kuaminika mjini kote.',
-    'hero.minTitle': 'Pata Intaneti',
-    'hero.minSub': 'Chagua kifurushi ulipe na {pay}.',
-    'breeze.hi': 'Karibu — tukuunganishe mtandaoni.',
-    'breeze.sub': 'Chagua kifurushi, lipa na {pay}, uanze kutumia intaneti kwa dakika chache.',
-    'tab.all': 'Zote',
-    'steps.heading': 'Jinsi ya kuunganishwa',
-    'steps.1': 'Chagua kifurushi cha intaneti hapa chini',
-    'steps.2': 'Weka nambari yako ya {pay} utume ombi',
-    'steps.3': 'Kubali malipo kwenye simu yako',
-    'steps.4': 'Unganisha kwa nambari tutakayokutumia',
-    'steps.plans': 'Vifurushi vya intaneti',
-    'matrix.hint': 'Gusa kifurushi kununua kwa {pay}.',
-    'poster.tag': 'Intaneti kwa saa, siku na mwezi.',
-    'neon.online': 'mtandao: unapatikana',
-    'neon.select': 'chagua kifurushi kuendelea',
-    'card.buyShort': 'Nunua',
-    'pay.checkout': 'Malipo salama ya {pay}',
-    'pay.total': 'Jumla',
-    'pay.payNow': 'Lipa {n}',
-    'ok.granted': 'Ufikiaji umeruhusiwa',
-    'wait.printing': 'Kifurushi chako kinaandaliwa',
-    'poster.paid': 'IMELIPWA',
-    'steps.of': 'Hatua {n} kati ya {m}',
-    'neon.confirmed': 'malipo yamethibitishwa',
-    'neon.grant': 'UFIKIAJI UMERUHUSIWA',
-    'recover.q': 'Umelipa lakini hujaunganishwa?',
-    'recover.hint': 'Weka nambari uliyolipia nayo, tutakutumia nambari yako ya ufikiaji kwa SMS.',
-    'recover.phone': 'Simu uliyolipia nayo',
-    'recover.btn': 'Nitumie nambari yangu',
-    'recover.sending': 'Inaangalia…',
-    'verify.q': 'Ulilipa kwa Paybill au Till?',
-    'verify.hint': 'Weka nambari ya {pay} na simu uliyolipia nayo — tutaithibitisha na kukutumia nambari yako ya ufikiaji.',
-    'verify.code': 'Nambari ya {pay}',
-    'verify.btn': 'Thibitisha malipo',
-    'verify.sending': 'Inathibitisha…',
-    'group.Hourly': 'Vifurushi vya Saa',
-    'group.Daily': 'Vifurushi vya Siku',
-    'group.Weekly': 'Vifurushi vya Wiki',
-    'group.Monthly': 'Vifurushi vya Mwezi',
-    'plans.retry': 'Jaribu tena',
-    'plans.offline': 'Hatuwezi kufikia seva kwa sasa. Angalia muunganisho wako ujaribu tena.',
-    'voucher.label': 'Una kuponi au nambari ya {pay}?',
-    'voucher.placeholder': 'Weka nambari, au bandika ujumbe wa {pay}',
-    'voucher.redeem': 'Tumia',
-    'voucher.checking': 'Inaangalia…',
-    'nav.connect': 'Unganisha',
-    'nav.plans': 'Vifurushi',
-    'nav.help': 'Msaada',
-    'card.popular': 'MAARUFU ZAIDI',
-    'card.price': 'Bei',
-    'card.buy': 'Nunua na {pay}',
-    'card.devices': 'kifaa',
-    'card.devices_plural': 'vifaa',
-    'custom.heading': 'Kifurushi Maalum',
-    'custom.title': 'Unahitaji muda kidogo tu?',
-    'custom.perHour': '{n}/saa, hulipwa kwa dakika',
-    'custom.minutes': 'Dakika unazohitaji',
-    'custom.youPay': 'Unalipa',
-    'custom.range': 'Chagua kati ya dakika {min} na {max}.',
-    'custom.buy': 'Nunua {dur} na {pay}',
-    'pay.complete': 'Kamilisha Malipo',
-    'pay.sub': 'Malipo ya haraka na salama ya {pay}.',
-    'pay.summary': 'Muhtasari wa Kifurushi',
-    'pay.access': '{name}',
-    'pay.phone': 'Nambari ya Simu ya {pay}',
-    'pay.info': 'Utapokea ombi la {pay} kwenye simu yako. Weka PIN yako kukamilisha malipo.',
-    'pay.send': 'Tuma Ombi la Malipo',
-    'pay.sending': 'Inatuma ombi…',
-    'wait.title': 'Inasubiri Malipo',
-    'wait.sub': 'Angalia simu yako kwa ombi la {pay}.',
-    'wait.sent': 'Ombi limetumwa',
-    'wait.pin': 'Weka PIN yako ya {pay}',
-    'wait.activating': 'Inawasha ufikiaji wako',
-    'wait.cancel': 'Ghairi malipo',
-    'ok.title': 'Umeunganishwa!',
-    'ok.codeLabel': 'Nambari ya Ufikiaji',
-    'ok.usePre': 'Tumia nambari hii kama',
-    'ok.username': 'jina la mtumiaji',
-    'ok.and': 'na',
-    'ok.password': 'nenosiri',
-    'ok.copyConnect': 'Nakili Nambari & Unganisha',
-    'ok.copied': 'Imenakiliwa!',
-    'ok.continue': 'Endelea',
-    'ok.return': 'Rudi Mwanzo',
-    'ok.closingRedirect': 'Tunakupeleka baada ya sekunde {n} — unganisha na nambari yako kwanza.',
-    'ok.closing': 'Ukurasa huu utafunga baada ya sekunde {n} — unganisha na WiFi kwa nambari yako.',
-    'ok.closed': 'Sasa unaweza kuunganisha na WiFi kwa nambari yako.',
-    'err.title': 'Malipo Yameshindikana',
-    'err.badge': 'Hitilafu',
-    'err.failed': 'Malipo hayakufanikiwa. Ombi la {pay} lilishindwa au lilighairiwa.',
-    'pay.badPhone': 'Nambari hiyo haionekani sahihi. Inapaswa kuwa kama {example}.',
-    'pay.choose': 'Unapenda kulipa vipi?',
-    'pay.chooseHint': 'Tumia nambari inayohusiana na huduma uliyochagua.',
-    'err.retry': 'Jaribu Malipo Tena',
-    'err.choose': 'Chagua kifurushi kingine',
-    'err.support': 'Msaada:',
-    'rewards.title': 'Zawadi',
-    'rewards.phone': 'Simu yako mf. 0712…',
-    'rewards.check': 'Angalia',
-    'rewards.youHave': 'Una',
-    'rewards.points': 'pointi — hadi',
-    'rewards.freeMin': 'dakika za bure.',
-    'rewards.minutesLabel': 'Dakika za kutumia',
-    'rewards.costs': 'gharama pointi {n}',
-    'rewards.redeem': 'Tumia',
-    'rewards.needMore': 'Pata zaidi kidogo — unahitaji angalau pointi {n} kutumia.',
-    'rewards.unavailable': 'Zawadi hazipatikani kwa sasa.',
-    'foot.terms': 'Masharti',
-    'foot.help': 'Msaada',
-    'foot.powered': 'Inaendeshwa na SPA Limited',
-    'promo.endsIn': 'Inaisha baada ya',
-  },
-  FR: {
-    'hero.title': 'Connectez-vous en quelques secondes',
-    'hero.sub': 'Un internet rapide et fiable dans toute la ville.',
-    'hero.minTitle': 'Connectez-vous',
-    'hero.minSub': 'Choisissez un forfait et payez avec {pay}.',
-    'breeze.hi': 'Bienvenue — connectons-vous.',
-    'breeze.sub': 'Choisissez un forfait, payez avec {pay}, et vous naviguez en moins d’une minute.',
-    'tab.all': 'Tous',
-    'steps.heading': 'Comment vous connecter',
-    'steps.1': 'Choisissez un forfait internet ci-dessous',
-    'steps.2': 'Saisissez votre numéro {pay} et envoyez la demande',
-    'steps.3': 'Validez le paiement sur votre téléphone',
-    'steps.4': 'Connectez-vous avec le code d’accès envoyé par SMS',
-    'steps.plans': 'Forfaits internet',
-    'matrix.hint': 'Touchez un forfait pour l’acheter avec {pay}.',
-    'poster.tag': 'Internet à l’heure, à la journée et au mois.',
-    'neon.online': 'réseau : en ligne',
-    'neon.select': 'sélectionnez un forfait pour continuer',
-    'card.buyShort': 'Acheter',
-    'pay.checkout': 'Paiement {pay} sécurisé',
-    'pay.total': 'Total',
-    'pay.payNow': 'Payer {n}',
-    'ok.granted': 'Accès accordé',
-    'wait.printing': 'Préparation de votre forfait',
-    'poster.paid': 'PAYÉ',
-    'steps.of': 'Étape {n} sur {m}',
-    'neon.confirmed': 'paiement confirmé',
-    'neon.grant': 'ACCÈS ACCORDÉ',
-    'recover.q': 'Déjà payé mais pas connecté ?',
-    'recover.hint': 'Saisissez le numéro avec lequel vous avez payé et nous vous enverrons votre code par SMS.',
-    'recover.phone': 'Numéro utilisé pour payer',
-    'recover.btn': 'Envoyer mon code',
-    'recover.sending': 'Vérification…',
-    'verify.q': 'Payé par Paybill ou Till ?',
-    'verify.hint': 'Saisissez votre code {pay} et le numéro utilisé — nous le vérifions et vous envoyons votre code d’accès par SMS.',
-    'verify.code': 'Code {pay}',
-    'verify.btn': 'Vérifier le paiement',
-    'verify.sending': 'Vérification…',
-    'group.Hourly': 'Forfaits à l’heure',
-    'group.Daily': 'Forfaits à la journée',
-    'group.Weekly': 'Forfaits à la semaine',
-    'group.Monthly': 'Forfaits au mois',
-    'plans.retry': 'Réessayer',
-    'plans.offline': 'Nous ne pouvons pas joindre le serveur pour le moment. Vérifiez votre connexion et réessayez.',
-    'voucher.label': 'Vous avez un bon ou un code {pay} ?',
-    'voucher.placeholder': 'Saisissez le code, ou collez votre message {pay}',
-    'voucher.redeem': 'Utiliser',
-    'voucher.checking': 'Vérification…',
-    'nav.connect': 'Se connecter',
-    'nav.plans': 'Forfaits',
-    'nav.help': 'Aide',
-    'card.popular': 'LE PLUS POPULAIRE',
-    'card.price': 'Prix',
-    'card.buy': 'Acheter avec {pay}',
-    'card.devices': 'appareil',
-    'card.devices_plural': 'appareils',
-    'custom.heading': 'Forfait sur mesure',
-    'custom.title': 'Besoin de peu de temps ?',
-    'custom.perHour': '{n}/heure, facturé à la minute',
-    'custom.minutes': 'Minutes dont vous avez besoin',
-    'custom.youPay': 'Vous payez',
-    'custom.range': 'Choisissez entre {min} et {max} minutes.',
-    'custom.buy': 'Acheter {dur} avec {pay}',
-    'pay.complete': 'Finaliser le paiement',
-    'pay.sub': 'Transaction {pay} rapide et sécurisée.',
-    'pay.summary': 'Récapitulatif du forfait choisi',
-    'pay.access': 'Accès {name}',
-    'pay.phone': 'Numéro de téléphone {pay}',
-    'pay.info': 'Vous recevrez une demande {pay} sur votre téléphone. Saisissez votre code PIN pour finaliser la transaction.',
-    'pay.send': 'Envoyer la demande de paiement',
-    'pay.sending': 'Envoi de la demande…',
-    'wait.title': 'En attente du paiement',
-    'wait.sub': 'Vérifiez la demande {pay} sur votre téléphone.',
-    'wait.sent': 'Demande envoyée',
-    'wait.pin': 'Saisissez votre code PIN {pay}',
-    'wait.activating': 'Activation de votre accès',
-    'wait.cancel': 'Annuler le paiement',
-    'ok.title': 'Vous êtes connecté !',
-    'ok.codeLabel': 'Code d’accès',
-    'ok.usePre': 'Utilisez ce code comme',
-    'ok.username': 'nom d’utilisateur',
-    'ok.and': 'et',
-    'ok.password': 'mot de passe',
-    'ok.copyConnect': 'Copier le code et se connecter',
-    'ok.copied': 'Code copié !',
-    'ok.continue': 'Continuer',
-    'ok.return': 'Retour à l’accueil',
-    'ok.closingRedirect': 'Nous vous redirigeons dans {n}s — connectez-vous d’abord avec votre code.',
-    'ok.closing': 'Cette page se fermera dans {n}s — connectez-vous au WiFi avec votre code.',
-    'ok.closed': 'Vous pouvez maintenant vous connecter au WiFi avec votre code.',
-    'err.title': 'Échec du paiement',
-    'err.badge': 'Erreur',
-    'err.failed': 'Le paiement n’a pas abouti. La demande {pay} a échoué ou a été annulée.',
-    'pay.badPhone': 'Ce numéro ne semble pas correct. Il doit ressembler à {example}.',
-    'pay.choose': 'Comment souhaitez-vous payer ?',
-    'pay.chooseHint': 'Utilisez le numéro correspondant au service choisi.',
-    'err.retry': 'Réessayer le paiement',
-    'err.choose': 'Choisir un autre forfait',
-    'err.support': 'Assistance :',
-    'rewards.title': 'Récompenses',
-    'rewards.phone': 'Votre numéro, ex. 0712…',
-    'rewards.check': 'Vérifier',
-    'rewards.youHave': 'Vous avez',
-    'rewards.points': 'point(s) — jusqu’à',
-    'rewards.freeMin': 'minutes gratuites.',
-    'rewards.minutesLabel': 'Minutes à échanger',
-    'rewards.costs': 'coûte {n} pts',
-    'rewards.redeem': 'Échanger',
-    'rewards.needMore': 'Encore un petit effort — il vous faut au moins {n} points pour échanger.',
-    'rewards.unavailable': 'Les récompenses ne sont pas disponibles pour le moment.',
-    'foot.terms': 'Conditions',
-    'foot.help': 'Aide',
-    'foot.powered': 'Propulsé par SPA Limited',
-    'promo.endsIn': 'Se termine dans',
-  },
-  PT: {
-    'hero.title': 'Fique ligado em segundos',
-    'hero.sub': 'Internet rápida e fiável em toda a cidade.',
-    'hero.minTitle': 'Fique ligado',
-    'hero.minSub': 'Escolha um passe e pague com {pay}.',
-    'breeze.hi': 'Bem-vindo — vamos ligá-lo.',
-    'breeze.sub': 'Escolha um passe, pague com {pay}, e está a navegar em menos de um minuto.',
-    'tab.all': 'Todos',
-    'steps.heading': 'Como se ligar',
-    'steps.1': 'Escolha um passe de internet abaixo',
-    'steps.2': 'Introduza o seu número {pay} e envie o pedido',
-    'steps.3': 'Aprove o pagamento no seu telemóvel',
-    'steps.4': 'Ligue-se com o código de acesso enviado por SMS',
-    'steps.plans': 'Passes de internet',
-    'matrix.hint': 'Toque num plano para o comprar com {pay}.',
-    'poster.tag': 'Internet à hora, ao dia e ao mês.',
-    'neon.online': 'rede: online',
-    'neon.select': 'selecione um passe para continuar',
-    'card.buyShort': 'Comprar',
-    'pay.checkout': 'Pagamento {pay} seguro',
-    'pay.total': 'Total',
-    'pay.payNow': 'Pagar {n}',
-    'ok.granted': 'Acesso concedido',
-    'wait.printing': 'A preparar o seu passe',
-    'poster.paid': 'PAGO',
-    'steps.of': 'Passo {n} de {m}',
-    'neon.confirmed': 'pagamento confirmado',
-    'neon.grant': 'ACESSO CONCEDIDO',
-    'recover.q': 'Já pagou mas não está ligado?',
-    'recover.hint': 'Introduza o número com que pagou e enviamos-lhe o código de acesso por SMS.',
-    'recover.phone': 'Número com que pagou',
-    'recover.btn': 'Enviar o meu código',
-    'recover.sending': 'A verificar…',
-    'verify.q': 'Pagou por Paybill ou Till?',
-    'verify.hint': 'Introduza o seu código {pay} e o número com que pagou — verificamos e enviamos o código de acesso por SMS.',
-    'verify.code': 'Código {pay}',
-    'verify.btn': 'Verificar pagamento',
-    'verify.sending': 'A verificar…',
-    'group.Hourly': 'Passes à hora',
-    'group.Daily': 'Passes diários',
-    'group.Weekly': 'Passes semanais',
-    'group.Monthly': 'Passes mensais',
-    'plans.retry': 'Tentar novamente',
-    'plans.offline': 'Não conseguimos contactar o servidor neste momento. Verifique a sua ligação e tente novamente.',
-    'voucher.label': 'Tem um voucher ou código {pay}?',
-    'voucher.placeholder': 'Introduza o código, ou cole a sua mensagem {pay}',
-    'voucher.redeem': 'Utilizar',
-    'voucher.checking': 'A verificar…',
-    'nav.connect': 'Ligar',
-    'nav.plans': 'Planos',
-    'nav.help': 'Ajuda',
-    'card.popular': 'MAIS POPULAR',
-    'card.price': 'Preço',
-    'card.buy': 'Comprar com {pay}',
-    'card.devices': 'dispositivo',
-    'card.devices_plural': 'dispositivos',
-    'custom.heading': 'Passe personalizado',
-    'custom.title': 'Só precisa de pouco tempo?',
-    'custom.perHour': '{n}/hora, cobrado ao minuto',
-    'custom.minutes': 'Minutos de que precisa',
-    'custom.youPay': 'Paga',
-    'custom.range': 'Escolha entre {min} e {max} minutos.',
-    'custom.buy': 'Comprar {dur} com {pay}',
-    'pay.complete': 'Concluir pagamento',
-    'pay.sub': 'Transação {pay} rápida e segura.',
-    'pay.summary': 'Resumo do plano escolhido',
-    'pay.access': 'Acesso {name}',
-    'pay.phone': 'Número de telemóvel {pay}',
-    'pay.info': 'Vai receber um pedido {pay} no seu telemóvel. Introduza o seu PIN para concluir a transação.',
-    'pay.send': 'Enviar pedido de pagamento',
-    'pay.sending': 'A enviar pedido…',
-    'wait.title': 'A aguardar pagamento',
-    'wait.sub': 'Verifique o pedido {pay} no seu telemóvel.',
-    'wait.sent': 'Pedido enviado',
-    'wait.pin': 'Introduza o seu PIN {pay}',
-    'wait.activating': 'A ativar o seu acesso',
-    'wait.cancel': 'Cancelar pagamento',
-    'ok.title': 'Está ligado!',
-    'ok.codeLabel': 'Código de acesso',
-    'ok.usePre': 'Use este código como',
-    'ok.username': 'nome de utilizador',
-    'ok.and': 'e',
-    'ok.password': 'palavra-passe',
-    'ok.copyConnect': 'Copiar código e ligar',
-    'ok.copied': 'Código copiado!',
-    'ok.continue': 'Continuar',
-    'ok.return': 'Voltar ao início',
-    'ok.closingRedirect': 'A encaminhá-lo em {n}s — ligue-se primeiro com o seu código.',
-    'ok.closing': 'Esta página fecha em {n}s — ligue-se ao WiFi com o seu código.',
-    'ok.closed': 'Já pode ligar-se ao WiFi com o seu código.',
-    'err.title': 'Pagamento falhou',
-    'err.badge': 'Erro',
-    'err.failed': 'O pagamento não foi concluído. O pedido {pay} falhou ou foi cancelado.',
-    'pay.badPhone': 'Esse número não parece certo. Deve ser algo como {example}.',
-    'pay.choose': 'Como prefere pagar?',
-    'pay.chooseHint': 'Use o número correspondente ao serviço que escolheu.',
-    'err.retry': 'Tentar pagar novamente',
-    'err.choose': 'Escolher outro plano',
-    'err.support': 'Apoio:',
-    'rewards.title': 'Recompensas',
-    'rewards.phone': 'O seu número, ex. 0712…',
-    'rewards.check': 'Verificar',
-    'rewards.youHave': 'Tem',
-    'rewards.points': 'ponto(s) — até',
-    'rewards.freeMin': 'minutos grátis.',
-    'rewards.minutesLabel': 'Minutos a trocar',
-    'rewards.costs': 'custa {n} pts',
-    'rewards.redeem': 'Trocar',
-    'rewards.needMore': 'Falta pouco — precisa de pelo menos {n} pontos para trocar.',
-    'rewards.unavailable': 'As recompensas não estão disponíveis neste momento.',
-    'foot.terms': 'Termos',
-    'foot.help': 'Ajuda',
-    'foot.powered': 'Desenvolvido por SPA Limited',
-    'promo.endsIn': 'Termina em',
-  },
-}
+// Every word this page says lives in portalStrings.js, so the admin's wording
+// editor can show the same defaults it does. One table, not two.
+const STRINGS = PORTAL_STRINGS
 
 const LangContext = createContext({
   lang: 'EN', setLang: () => {}, design: 'CLASSIC', pay: 'M-Pesa',
   brand: { name: '', logoUrl: null, headline: '', subheadline: '' },
+  // What the operator rearranged and rewrote. Both default to empty, which
+  // means "exactly as the design ships" -- an operator who never opens the
+  // Layout tab must see no change at all on a screen that sells things.
+  layout: null, copy: {},
 })
 
+/**
+ * The blocks an operator can move or switch off, in the order they ship in.
+ *
+ * Four, because four is how many there actually are. The plans section is in the
+ * list so it can be moved and is deliberately not hideable: it is the reason the
+ * page exists, and a portal without it sells nothing while looking fine.
+ *
+ * "Recover my code" is not here because it lives inside the voucher box rather
+ * than beside it, and free trial and support are not on this screen at all.
+ * Offering them would be a control that does nothing, which is worse than not
+ * offering it.
+ */
+const BLOCKS = ['promo', 'plans', 'voucher', 'rewards']
+const UNHIDEABLE = 'plans'
+
+/**
+ * Where a block sits, as a flex order.
+ *
+ * The four blocks are siblings in a flex column in all six designs, so ordering
+ * them is a CSS property rather than a DOM move -- which means an operator can
+ * rearrange the page without any design's markup being restructured, and each
+ * design keeps the layout it was written with when nothing is set.
+ */
+function useBlocks() {
+  const { layout } = useContext(LangContext)
+  const order = (layout?.order || []).filter((b) => BLOCKS.includes(b))
+  const hidden = (layout?.hidden || []).filter((b) => BLOCKS.includes(b) && b !== UNHIDEABLE)
+  return {
+    /**
+     * A flex order, measured against the plans section.
+     *
+     * Relative rather than absolute, and that is the trick that makes this work
+     * without restructuring six layouts: the plans section keeps its natural
+     * position and is never touched, and the three movable blocks are placed
+     * before or after it by sign. A block the operator put above the plans gets a
+     * negative order and rises to the top of the page; one below gets a positive
+     * order and sinks past it.
+     *
+     * Undefined when the operator has set no order, which leaves every design
+     * exactly as it was written.
+     */
+    orderOf: (block) => {
+      if (!order.length) return undefined
+      const mine = order.indexOf(block)
+      const plans = order.indexOf(UNHIDEABLE)
+      if (mine < 0 || plans < 0) return undefined
+      return mine - plans
+    },
+    shows: (block) => !hidden.includes(block),
+  }
+}
+
 function useT() {
-  const { lang, setLang, design: designKey, brand, pay } = useContext(LangContext)
+  const { lang, setLang, design: designKey, brand, pay, copy } = useContext(LangContext)
   const t = (key, vars) => {
-    let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.EN[key] || key
+    // The operator's own wording first, then this language, then English, then
+    // the key. Overrides are laid over the built-in table rather than replacing
+    // it, so a string added in a later release still appears in its own words
+    // instead of as a blank or a key name.
+    let s = (copy && copy[lang] && copy[lang][key])
+      || (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.EN[key] || key
     // {pay} is filled in for every string without the caller asking, because
     // it appears in sixty-odd of them and threading it through each call site
     // would guarantee the one that gets missed says "M-Pesa" in Ghana.
@@ -631,7 +234,10 @@ import { Icon } from '../components/icons.jsx'
 function Brand() {
   const { brand } = useT()
   if (brand?.logoUrl) {
-    return <img src={brand.logoUrl} alt={brand.name || 'WiFi'} className="h-8 w-auto object-contain" />
+    // data-portal-logo is what the logo-size knob hangs off, so the CSS can
+    // find this one image without reaching for every img on the page.
+    return <img src={brand.logoUrl} alt={brand.name || 'WiFi'} data-portal-logo
+      className="h-8 w-auto object-contain" />
   }
   return (
     <div className="flex items-center gap-2">
@@ -659,13 +265,39 @@ function HeroSub() {
   return <>{brand?.subheadline || t('hero.sub')}</>
 }
 
+/* What each knob means, in one place so the admin preview and the live portal
+   cannot drift. Keyed by the values the backend will accept and nothing else. */
+const FONT_STACKS = {
+  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
+  rounded: '"Nunito", ui-rounded, "SF Pro Rounded", system-ui, sans-serif',
+}
+const DENSITY_GAP = { compact: '0.75rem', comfortable: '1.5rem', spacious: '2.25rem' }
+const LOGO_HEIGHT = { s: '1.5rem', m: '2.25rem', l: '3rem' }
+
 /* Paints the chosen design's tokens over the shared .portal-theme scaffold.
    Every screen renders inside one of these, so the design identity carries
    through the payment, waiting and result screens too. */
 function DesignShell({ className = '', children }) {
   const { design, designVars } = useT()
+  const { layout } = useContext(LangContext)
+  // The knobs, as CSS variables over the design's own. Only the ones the
+  // operator actually set: an absent value leaves the design's choice alone,
+  // which is why these are spread conditionally rather than defaulted.
+  const knobs = {}
+  if (layout?.radius !== null && layout?.radius !== undefined) {
+    knobs['--portal-radius'] = `${layout.radius}px`
+  }
+  if (layout?.headingFont) knobs['--portal-heading-font'] = FONT_STACKS[layout.headingFont]
+  if (layout?.density) knobs['--portal-gap'] = DENSITY_GAP[layout.density]
+  if (layout?.logoSize) knobs['--portal-logo-h'] = LOGO_HEIGHT[layout.logoSize]
   return (
-    <div className={`portal-theme bg-background text-on-background ${className}`} style={designVars} data-skin={design.key}>
+    <div className={`portal-theme bg-background text-on-background ${className}`}
+      style={{ ...designVars, ...knobs }}
+      data-skin={design.key}
+      data-align={layout?.align || undefined}
+      data-density={layout?.density || undefined}>
       {children}
     </div>
   )
@@ -701,6 +333,10 @@ export default function Portal() {
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   // The ISP's own brand for this captive portal (each tenant sets their own).
   const [brand, setBrand] = useState({ name: '', logoUrl: null, headline: '', subheadline: '' })
+  // Null and empty until the settings land, which is what makes the first paint
+  // the design's own rather than a rearranged one that then snaps back.
+  const [layout, setLayout] = useState(null)
+  const [copy, setCopy] = useState({})
   const [lang, setLang] = useState(initialLang)
   // Kenya's default until the server says otherwise, matching the backend,
   // so an existing deployment reads exactly as it does today.
@@ -726,6 +362,11 @@ export default function Portal() {
     api('/portal-settings').then((s) => {
       setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
       setLoyaltyEnabled(!!s.loyaltyEnabled)
+      // How the operator arranged it, and any wording they rewrote. Both arrive
+      // with the branding rather than on a second request, so the first paint is
+      // already theirs instead of the default flashing past first.
+      if (s.layout) setLayout(s.layout)
+      if (s.copy) setCopy(s.copy)
       if (s.paymentBrand) setPay(s.paymentBrand)
       // Primed before anyone types: the shape a number must take is a property
       // of where the operator is.
@@ -891,7 +532,7 @@ export default function Portal() {
   }
 
   return (
-    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design, brand, pay }}>
+    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design, brand, pay, layout, copy }}>
       {/* key on the screen name so every step of the flow animates in */}
       <div key={screen} className="screen-enter">
         {screen_}
@@ -937,6 +578,8 @@ function formatCountdown(ms) {
 }
 
 function PromoBanner({ promo, onExpire }) {
+  const { shows, orderOf } = useBlocks()
+  if (!shows('promo')) return null
   const { t } = useT()
   const remaining = useCountdown(promo.endsAt)
   const expired = remaining <= 0
@@ -948,7 +591,8 @@ function PromoBanner({ promo, onExpire }) {
   if (expired) return null
 
   return (
-    <div className="rounded-xl bg-gradient-to-r from-[#7a4a06] to-[#c98a12] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up">
+    <div className="rounded-xl bg-gradient-to-r from-[#7a4a06] to-[#c98a12] text-white p-4 flex items-center gap-3 shadow-[0_8px_16px_rgba(180,83,9,0.25)] fade-up"
+      style={{ order: orderOf('promo') }}>
       <Icon name="celebration" filled className="text-[32px]!" />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-lg leading-tight">{promo.title}</p>
@@ -1078,6 +722,8 @@ function CustomTimeCard({ custom, promo, onBuy }) {
 }
 
 function RewardsCard() {
+  const { shows, orderOf } = useBlocks()
+  if (!shows('rewards')) return null
   const { t } = useT()
   const [phone, setPhone] = useState('')
   const [bal, setBal] = useState(null) // { points, redeemableMinutes, pointsPerMinute, min, max }
@@ -1113,7 +759,8 @@ function RewardsCard() {
   const canRedeem = bal && bal.points >= cost && minutes >= bal.minRedeemMinutes
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up" style={{ animationDelay: '450ms' }}>
+    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] mt-3 fade-up"
+      style={{ animationDelay: '450ms', order: orderOf('rewards') }}>
       <div className="flex items-center gap-2 mb-2">
         <Icon name="loyalty" className="text-primary" />
         <h3 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant">{t('rewards.title')}</h3>
@@ -1185,6 +832,8 @@ function PlansScreen(props) {
    has enabled it — falls back to verifying it as an M-Pesa payment (which
    reconnects an already-claimed code to the time still left on it). */
 function VoucherSection({ onActivated, delay = 400 }) {
+  const { shows, orderOf } = useBlocks()
+  if (!shows('voucher')) return null
   const { t } = useT()
   const [input, setInput] = useState('')
   const [codeVerify, setCodeVerify] = useState(false)
@@ -1227,7 +876,8 @@ function VoucherSection({ onActivated, delay = 400 }) {
   }
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up" style={{ animationDelay: `${delay}ms` }}>
+    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up"
+      style={{ animationDelay: `${delay}ms`, order: orderOf('voucher') }}>
       <form onSubmit={submit}>
         <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
           {t('voucher.label')}

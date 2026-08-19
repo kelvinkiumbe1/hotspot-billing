@@ -36,6 +36,35 @@ public class PortalSettingsService {
                         .build()));
     }
 
+    /**
+     * Saves the arrangement, and only the arrangement.
+     *
+     * <p>Its own method rather than fields on {@link #update} for the reason that
+     * method is full of "blank means leave it alone" comments: the branding form
+     * does not know about layout, and folding these in would let saving a logo
+     * reset every block to its default order. Separate endpoints cannot do that
+     * to each other.
+     */
+    @Transactional
+    public PortalSettings updateLayout(java.util.List<String> order,
+                                       java.util.List<String> hidden,
+                                       String align, Integer radius, String logoSize,
+                                       String headingFont, String density) {
+        PortalSettings current = settings();
+        current.setSectionOrder(PortalLayout.clean(order));
+        current.setSectionsHidden(PortalLayout.cleanHidden(hidden));
+        // Null through, deliberately: null is "leave the design alone" and is a
+        // real choice an operator makes by picking Default, not an absent value.
+        current.setContentAlign(PortalLayout.oneOf(align, java.util.Set.of("left", "centre")));
+        current.setCornerRadius(PortalLayout.radius(radius));
+        current.setLogoSize(PortalLayout.oneOf(logoSize, java.util.Set.of("s", "m", "l")));
+        current.setHeadingFont(PortalLayout.oneOf(headingFont,
+                java.util.Set.of("sans", "serif", "mono", "rounded")));
+        current.setDensity(PortalLayout.oneOf(density,
+                java.util.Set.of("compact", "comfortable", "spacious")));
+        return repository.save(current);
+    }
+
     @Transactional
     public PortalSettings update(PortalSettings updated) {
         PortalSettings current = settings();

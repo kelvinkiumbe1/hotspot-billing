@@ -43,6 +43,7 @@ public class PortalSettingsController {
     private final TrialClaimRepository trialClaims;
     private final FileStorageService storage;
     private final AuditService audit;
+    private final PortalCopyService portalCopy;
 
     // --- Public: what the portal needs to brand itself ---
 
@@ -64,6 +65,15 @@ public class PortalSettingsController {
         out.put("portalTemplate", hotspotSettings.portalTemplate());
         out.put("defaultLanguage", hotspotSettings.defaultLanguage());
         out.put("loyaltyEnabled", loyaltyService.settings().isEnabled());
+        // How the operator has arranged the page, and any wording they have
+        // rewritten. Both go out with the branding rather than on endpoints of
+        // their own: the portal cannot paint a single screen without them, and a
+        // second round trip is a second chance to show the wrong thing first.
+        out.put("layout", PortalLayout.describe(s));
+        // Overrides only, for every language. Never the defaults -- the portal
+        // already ships those, and sending them too would mean two copies to keep
+        // in step and a portal that quietly kept saying last release's words.
+        out.put("copy", portalCopy.all());
         out.put("codeVerifyEnabled", paymentGatewayService.transactionStatusAvailable());
         // How to write money. The portal prints prices on every screen, so it
         // needs this as early as it needs the business name — otherwise it
@@ -189,6 +199,72 @@ public class PortalSettingsController {
                 .country(request.country())
                 .paymentBrand(request.paymentBrand())
                 .build());
+    }
+
+    /** The blocks an operator may move, so the admin never has to hardcode them. */
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @GetMapping("/api/admin/portal-settings/layout")
+    public Map<String, Object> layout() {
+        Map<String, Object> out = new LinkedHashMap<>(PortalLayout.describe(portalSettings.settings()));
+        out.put("blocks", PortalLayout.BLOCKS);
+        out.put("required", PortalLayout.REQUIRED);
+        return out;
+    }
+
+    public record LayoutRequest(
+            List<String> order,
+            List<String> hidden,
+            String align,
+            @Min(0) @Max(24) Integer radius,
+            String logoSize,
+            String headingFont,
+            String density) {
+    }
+
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @PutMapping("/api/admin/portal-settings/layout")
+    public Map<String, Object> saveLayout(@Valid @RequestBody LayoutRequest request,
+                                          Principal principal) {
+        portalSettings.updateLayout(request.order(), request.hidden(), request.align(),
+                request.radius(), request.logoSize(), request.headingFont(), request.density());
+        audit.record(principal, "portal.layout", "Rearranged the captive portal");
+        return layout();
+    }
+
+    // --- The operator's own wording ---
+
+    /**
+     * What has been rewritten, by language.
+     *
+     * <p>Only the overrides. The admin screen holds the built-in defaults itself
+     * -- it renders the same portal string table -- so sending them from here
+     * would be a second copy able to disagree with the first.
+     */
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @GetMapping("/api/admin/portal-copy")
+    public Map<String, Map<String, String>> copy() {
+        return portalCopy.all();
+    }
+
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @PutMapping("/api/admin/portal-copy/{language}")
+    public Map<String, Object> saveCopy(@PathVariable String language,
+                                        @RequestBody Map<String, String> edits,
+                                        Principal principal) {
+        int changed = portalCopy.save(language, edits, principal.getName());
+        audit.record(principal, "portal.copy",
+                "Edited " + changed + " line(s) of portal wording in " + language);
+        return Map.of("language", language, "changed", changed);
+    }
+
+    /** Puts one language back to how it shipped. */
+    @PreAuthorize("hasAuthority('SETTINGS')")
+    @PostMapping("/api/admin/portal-copy/{language}/reset")
+    public Map<String, Object> resetCopy(@PathVariable String language, Principal principal) {
+        int removed = portalCopy.reset(language);
+        audit.record(principal, "portal.copy",
+                "Restored the original portal wording in " + language);
+        return Map.of("language", language, "restored", removed);
     }
 
     @PreAuthorize("hasAuthority('SETTINGS')")

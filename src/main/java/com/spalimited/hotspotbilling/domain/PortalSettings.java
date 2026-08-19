@@ -120,6 +120,51 @@ public class PortalSettings {
     @Column(length = 4000)
     private String termsText;
 
+    // --- Arrangement ---
+    //
+    // Every field here is null on a fresh install and null means "whatever the
+    // chosen design already does". That is the only acceptable default for a
+    // screen that sells things: an operator who never opens the Layout tab must
+    // see their portal exactly as it was.
+
+    /**
+     * The optional blocks, in the order to show them.
+     *
+     * <p>A comma-separated list of block names rather than a join table: one
+     * ordered list of at most a dozen fixed values, read on every portal load and
+     * written rarely. A table would be three queries and a migration for what is
+     * one string.
+     *
+     * <p>Unknown names are ignored and missing ones fall to the end, so a block
+     * added in a future release appears without an operator having to re-save --
+     * and a block removed does not leave a hole.
+     */
+    @Column(length = 400)
+    private String sectionOrder;
+
+    /** The blocks an operator has switched off, same format. */
+    @Column(length = 400)
+    private String sectionsHidden;
+
+    /** "left" or "centre". Null leaves the design's own choice alone. */
+    @Column(length = 16)
+    private String contentAlign;
+
+    /** Corner rounding in pixels, 0 to 24. Null leaves the design alone. */
+    private Integer cornerRadius;
+
+    /** "s", "m" or "l". */
+    @Column(length = 16)
+    private String logoSize;
+
+    /** A font stack name the portal knows: sans, serif, mono, rounded. */
+    @Column(length = 40)
+    private String headingFont;
+
+    /** "compact", "comfortable" or "spacious". */
+    @Column(length = 16)
+    private String density;
+
     // --- Free trial ---
 
     @Builder.Default
