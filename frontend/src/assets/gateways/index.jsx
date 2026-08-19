@@ -111,6 +111,10 @@ export const GATEWAY_LOGOS = {
   MPESA_API: mark(mpesa, 'M-Pesa'),
   MPESA_PAYBILL_MANUAL: mark(mpesa, 'M-Pesa'),
   MPESA_TILL_MANUAL: mark(mpesa, 'M-Pesa'),
+  // The same brand under a different operator. Vodacom licenses the M-Pesa
+  // name and mark from Vodafone exactly as Safaricom does, so this is the
+  // right logo rather than a stand-in.
+  VODACOM_MPESA: mark(mpesa, 'M-Pesa'),
   MTN_MOMO: mark(mtn, 'MTN'),
   PAYSTACK: mark(paystack, 'Paystack'),
   PAYNOW: mark(paynow, 'Paynow'),

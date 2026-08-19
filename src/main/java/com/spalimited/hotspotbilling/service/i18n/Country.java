@@ -24,7 +24,12 @@ public enum Country {
 
     KE("Kenya", "KES", "en", "M-Pesa", Rail.MPESA,
             List.of("M-Pesa", "Airtel Money"), "254", 9, List.of("7", "1")),
-    TZ("Tanzania", "TZS", "sw", "Mobile Money", Rail.FLUTTERWAVE,
+    // Vodacom M-Pesa rather than Flutterwave, now that it is reachable
+    // directly. M-Pesa is the largest wallet in Tanzania by some way, and
+    // Flutterwave was only ever the way to reach it -- an aggregator margin on
+    // top of the wallet's own fee. Flutterwave stays switched on beside it for
+    // the three wallets Vodacom does not reach.
+    TZ("Tanzania", "TZS", "sw", "M-Pesa", Rail.VODACOM_MPESA,
             List.of("M-Pesa", "Mixx by Yas", "Airtel Money", "Halopesa"), "255", 9, List.of()),
     UG("Uganda", "UGX", "en", "Mobile Money", Rail.MTN_MOMO,
             List.of("MTN MoMo", "Airtel Money"), "256", 9, List.of()),
@@ -42,7 +47,7 @@ public enum Country {
             List.of("MTN MoMo", "Airtel Money", "Zamtel Kwacha"), "260", 9, List.of()),
     MW("Malawi", "MWK", "en", "Airtel Money", Rail.AIRTEL_MONEY,
             List.of("Airtel Money", "TNM Mpamba"), "265", 9, List.of()),
-    MZ("Mozambique", "MZN", "pt", "M-Pesa", Rail.FLUTTERWAVE,
+    MZ("Mozambique", "MZN", "pt", "M-Pesa", Rail.VODACOM_MPESA,
             List.of("M-Pesa", "e-Mola", "mKesh"), "258", 9, List.of()),
     AO("Angola", "AOA", "pt", "Multicaixa", Rail.NONE,
             List.of("Multicaixa Express"), "244", 9, List.of()),
@@ -135,7 +140,7 @@ public enum Country {
      * more customers than any one telco would.
      */
     public enum Rail {
-        MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
+        MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
         PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE
     }
 

@@ -59,6 +59,9 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.paynow:https://www.paynow.co.zw}")
     private String paynow;
 
+    @Value("${payments.base-url.vodacom:https://openapi.m-pesa.com}")
+    private String vodacom;
+
     public String paystack() {
         return paystack;
     }
@@ -94,5 +97,16 @@ public class PaymentEndpoints {
 
     public String paynow() {
         return paynow;
+    }
+
+    /**
+     * Vodacom puts both the environment and the market in the path.
+     *
+     * <p>Every other rail here varies one or the other; this varies both, and a
+     * Tanzanian key against the Mozambican path fails as an authentication
+     * error rather than as a wrong address.
+     */
+    public String vodacom(boolean live, String market) {
+        return vodacom + (live ? "/openapi" : "/sandbox") + "/ipg/v2/" + market;
     }
 }

@@ -144,6 +144,7 @@ public class PaymentController {
      */
     private static final java.util.Set<PaymentGateway.Kind> PROMPTS_PHONE = java.util.Set.of(
             PaymentGateway.Kind.MPESA_API,
+            PaymentGateway.Kind.VODACOM_MPESA,
             PaymentGateway.Kind.MTN_MOMO,
             PaymentGateway.Kind.AIRTEL_MONEY,
             PaymentGateway.Kind.PAYNOW);
@@ -163,7 +164,7 @@ public class PaymentController {
 
     private static String label(PaymentGateway.Kind kind) {
         return switch (kind) {
-            case MPESA_API -> "M-Pesa";
+            case MPESA_API, VODACOM_MPESA -> "M-Pesa";
             case MTN_MOMO -> "MTN MoMo";
             case AIRTEL_MONEY -> "Airtel Money";
             case PAYNOW -> "EcoCash";

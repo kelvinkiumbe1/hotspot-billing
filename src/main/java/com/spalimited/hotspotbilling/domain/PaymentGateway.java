@@ -79,7 +79,14 @@ public class PaymentGateway {
          * took real share doing it, so a Senegalese operator wants both.
          * Hosted page, and the only rail here that signs its webhooks properly.
          */
-        WAVE
+        WAVE,
+        /**
+         * Vodacom M-Pesa — Tanzania, Mozambique and the DRC. A different
+         * company and a different platform from Safaricom's M-Pesa, sharing
+         * only the name. Prompts the handset, and is the only rail here with
+         * no callback at all: it is settled by asking.
+         */
+        VODACOM_MPESA
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -141,7 +148,14 @@ public class PaymentGateway {
     /** Server-side API key. Never leaves the backend. */
     private String secretKey;
 
-    /** Safe for the browser; some checkout flows need it client-side. */
+    /**
+     * Safe for the browser; some checkout flows need it client-side.
+     *
+     * <p>Long, because Vodacom's is an RSA public key rather than a short
+     * publishable token — about 392 characters of base64, against the 255 this
+     * column held when only card processors used it.
+     */
+    @Column(length = 2048)
     private String publicKey;
 
     /**
@@ -219,6 +233,10 @@ public class PaymentGateway {
             // Stripe does, so without the secret the callback cannot be trusted
             // and the gateway is not ready however valid the key is.
             case WAVE -> filled(secretKey) && filled(webhookSecret);
+            // An API key, Vodacom's public key and the service provider code.
+            // The public key is not a secret and is still required: without it
+            // nothing can be encrypted, and every call fails at authentication.
+            case VODACOM_MPESA -> filled(secretKey) && filled(publicKey) && filled(shortCode);
         };
     }
 
@@ -231,7 +249,7 @@ public class PaymentGateway {
     public boolean isAutomatic() {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
-                    AIRTEL_MONEY, ORANGE_MONEY, WAVE -> true;
+                    AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -250,7 +268,9 @@ public class PaymentGateway {
         return switch (kind) {
             // Orange picks its sandbox by a segment in the URL, the way Daraja
             // picks it by host, so the stored environment is what decides.
-            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY ->
+            // Vodacom picks its environment by a segment in the URL, the same
+            // way Daraja picks it by host, so the stored environment decides.
+            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, VODACOM_MPESA ->
                     environment == Environment.PRODUCTION;
             // Wave keys carry their own market and mode: wave_sn_prod_… against
             // wave_sn_test_…, so the key is the truth rather than a dropdown an

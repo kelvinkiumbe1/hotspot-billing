@@ -33,7 +33,8 @@ import java.util.Map;
 final class FakeGateway implements AutoCloseable {
 
     /** What a caller actually sent us, so a test can assert on the request. */
-    record Call(String method, String path, Map<String, String> headers, String body) {
+    record Call(String method, String path, String query,
+                Map<String, String> headers, String body) {
 
         boolean bodyContains(String needle) {
             return body != null && body.contains(needle);
@@ -64,6 +65,9 @@ final class FakeGateway implements AutoCloseable {
         }
         server.createContext("/", exchange -> {
             String path = exchange.getRequestURI().getPath();
+            // Vodacom asks its questions in the query string rather than in a
+            // body, so a test has nothing to check without this.
+            String query = exchange.getRequestURI().getRawQuery();
             String body;
             try (InputStream in = exchange.getRequestBody()) {
                 body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
@@ -71,7 +75,8 @@ final class FakeGateway implements AutoCloseable {
             Map<String, String> headers = new LinkedHashMap<>();
             exchange.getRequestHeaders().forEach((k, v) -> headers.put(k, String.join(",", v)));
             synchronized (calls) {
-                calls.add(new Call(exchange.getRequestMethod(), path, headers, body));
+                calls.add(new Call(exchange.getRequestMethod(), path,
+                        query == null ? "" : query, headers, body));
             }
 
             Reply reply = replies.get(exchange.getRequestMethod() + " " + path);

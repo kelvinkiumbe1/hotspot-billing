@@ -52,6 +52,19 @@ const GATEWAYS = [
     blurb: 'Usually for monthly PPPoE customers rather than hotspot buyers.',
   },
   {
+    kind: 'VODACOM_MPESA',
+    name: 'M-Pesa (Vodacom)',
+    provider: 'Tanzania · Mozambique · DR Congo',
+    badge: 'API KEYS',
+    chips: ['Prompt on phone', 'No web page', 'Automatic'],
+    settlement: 'Instant, confirmed by asking Vodacom',
+    icon: 'smartphone',
+    blurb: 'The same M-Pesa name as Kenya, run by Vodacom on a different platform with '
+      + 'its own credentials — nothing from a Safaricom Daraja app works here. It is the '
+      + 'largest wallet in Tanzania and Mozambique, and reaching it directly saves the '
+      + 'aggregator margin an intermediary charges on top of the wallet’s own fee.',
+  },
+  {
     kind: 'MTN_MOMO',
     name: 'MTN Mobile Money',
     provider: 'Ghana · Uganda · Rwanda · Zambia · Cameroon · Côte d’Ivoire · Benin · Eswatini · South Sudan',
@@ -192,6 +205,17 @@ const TELCO_FIELDS = {
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
   ],
+  VODACOM_MPESA: [
+    { key: 'secretKey', label: 'API key', secret: true,
+      placeholder: 'from your app on openapiportal.m-pesa.com' },
+    { key: 'shortCode', label: 'Service provider code',
+      placeholder: 'the till the money lands in',
+      hint: 'Vodacom calls this the service provider code. 000000 in the sandbox.' },
+    { key: 'publicKey', label: 'Vodacom public key', wide: true, multiline: true,
+      placeholder: 'the long block of characters beside your API key',
+      hint: 'Not a secret, and still required: your API key and then every session '
+        + 'is encrypted under it. Paste the whole thing — line breaks are fine.' },
+  ],
   ORANGE_MONEY: [
     { key: 'consumerKey', label: 'Client ID',
       placeholder: 'from your app on developer.orange.com' },
@@ -210,6 +234,8 @@ const SANDBOX_NOTE = {
   AIRTEL_MONEY: 'Airtel’s sandbox accepts test numbers only, and collects nothing.',
   ORANGE_MONEY: 'Orange’s sandbox only accepts 1 unit of a fake currency, whatever the price is — '
     + 'so it proves your keys work and nothing at all about amounts.',
+  VODACOM_MPESA: 'Vodacom’s sandbox answers with test outcomes and collects nothing. '
+    + 'The service provider code there is 000000.',
 }
 
 
@@ -510,33 +536,58 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
                     <span className="normal-case font-normal"> (blank = keep)</span>
                   )}
                 </label>
-                <input className={INPUT_CLS} type={f.secret ? 'password' : 'text'}
-                  value={form[f.key]}
-                  onChange={(e) => set({ [f.key]: e.target.value })}
-                  placeholder={(f.secret && saved?.[f.key]) || f.placeholder} />
+                {/* An RSA public key is some four hundred characters. In a
+                    single-line input an operator cannot see whether they pasted
+                    all of it, and a half-paste fails at authentication with an
+                    error that blames the key rather than its length. */}
+                {f.multiline ? (
+                  <textarea className={`${INPUT_CLS} h-24 font-mono text-xs`}
+                    value={form[f.key]}
+                    onChange={(e) => set({ [f.key]: e.target.value })}
+                    placeholder={f.placeholder} />
+                ) : (
+                  <input className={INPUT_CLS} type={f.secret ? 'password' : 'text'}
+                    value={form[f.key]}
+                    onChange={(e) => set({ [f.key]: e.target.value })}
+                    placeholder={(f.secret && saved?.[f.key]) || f.placeholder} />
+                )}
                 {f.hint && <p className="text-xs text-on-surface-variant mt-1">{f.hint}</p>}
               </div>
             ))}
           </div>
 
-          <div className="rounded-lg border border-outline-variant p-3">
-            <p className="text-sm font-medium">Callback</p>
-            <p className="text-xs text-on-surface-variant mt-1 mb-2">
-              None of these sign what they send, so this system never believes a callback — it asks
-              them directly instead, and asks again on a sweep if nothing arrives. Setting this makes
-              a paid customer get online in seconds rather than up to a minute and a half.
-            </p>
-            {webhookBase
-              ? <CopyUrl url={webhookBase + gateway.webhook} />
-              : (
-                <p className="text-xs text-[#b45309]">
-                  No public address is configured, so the URL can&rsquo;t be shown. Payments still
-                  settle — the sweep asks every minute.
-                </p>
-              )}
-          </div>
+          {gateway.webhook ? (
+            <div className="rounded-lg border border-outline-variant p-3">
+              <p className="text-sm font-medium">Callback</p>
+              <p className="text-xs text-on-surface-variant mt-1 mb-2">
+                None of these sign what they send, so this system never believes a callback — it asks
+                them directly instead, and asks again on a sweep if nothing arrives. Setting this makes
+                a paid customer get online in seconds rather than up to a minute and a half.
+              </p>
+              {webhookBase
+                ? <CopyUrl url={webhookBase + gateway.webhook} />
+                : (
+                  <p className="text-xs text-[#b45309]">
+                    No public address is configured, so the URL can&rsquo;t be shown. Payments still
+                    settle — the sweep asks every minute.
+                  </p>
+                )}
+            </div>
+          ) : (
+            /* Vodacom does not call back at all. An empty Callback box would
+               have an operator hunting their portal for a field that is not
+               there. */
+            <div className="rounded-lg border border-outline-variant p-3">
+              <p className="text-sm font-medium">There is no callback</p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                {gateway.name} never posts anything back, so there is nothing to set up and nothing
+                to paste anywhere. Payments settle by this system asking, on a sweep that runs every
+                minute — a paying customer is online within about that.
+              </p>
+            </div>
+          )}
 
-          {saved?.consumerKey && (
+          {(saved?.consumerKey || saved?.secretKey) && (
             <p className="text-xs text-on-surface-variant">
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.
             </p>

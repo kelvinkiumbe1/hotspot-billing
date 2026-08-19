@@ -139,13 +139,27 @@ class CountryTest {
     void everyRailIsBuilt() {
         // A country pointing at a rail with no provider behind it is an
         // operator who sets their country correctly and can still sell nothing.
-        Set<String> built = Set.of("MPESA", "MTN_MOMO", "AIRTEL_MONEY", "ORANGE_MONEY",
-                "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA", "PAYNOW", "NONE");
+        Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
+                "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
+                "PAYNOW", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
                     .contains(c.rail().name());
         }
+    }
+
+    @Test
+    @DisplayName("East Africa's M-Pesa markets are off the aggregator")
+    void mpesaMarketsAreDirect() {
+        // Tanzania and Mozambique both went through Flutterwave to reach a
+        // wallet Vodacom runs itself -- an aggregator margin on top of the
+        // wallet's own fee, for the largest wallet in both countries.
+        assertThat(Country.TZ.rail()).isEqualTo(Country.Rail.VODACOM_MPESA);
+        assertThat(Country.MZ.rail()).isEqualTo(Country.Rail.VODACOM_MPESA);
+        // And still not Kenya. Safaricom's M-Pesa is a different platform with
+        // different credentials, and pointing Kenya here would break it.
+        assertThat(Country.KE.rail()).isEqualTo(Country.Rail.MPESA);
     }
 
     @Test
