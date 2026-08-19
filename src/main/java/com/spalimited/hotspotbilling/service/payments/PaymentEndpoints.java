@@ -62,6 +62,9 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.vodacom:https://openapi.m-pesa.com}")
     private String vodacom;
 
+    @Value("${payments.base-url.paymob:https://accept.paymob.com/api}")
+    private String paymob;
+
     public String paystack() {
         return paystack;
     }
@@ -106,6 +109,16 @@ public class PaymentEndpoints {
      * Tanzanian key against the Mozambican path fails as an authentication
      * error rather than as a wrong address.
      */
+    /**
+     * Paymob, which is also where the customer is sent.
+     *
+     * <p>Unlike the others this address appears in a URL a customer opens, not
+     * only in server-to-server calls — the checkout is Paymob's own iframe.
+     */
+    public String paymob() {
+        return paymob;
+    }
+
     public String vodacom(boolean live, String market) {
         return vodacom + (live ? "/openapi" : "/sandbox") + "/ipg/v2/" + market;
     }

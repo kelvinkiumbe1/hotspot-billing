@@ -25,6 +25,8 @@ const DIALLING = {
   // Lesotho for Vodacom M-Pesa, Seychelles for Airtel Money -- both reachable
   // by a rail that was already built.
   LS: ['266', 8], SC: ['248', 7],
+  // Egypt. Ten digits after the trunk zero: 010 1234 5678 -> 1012345678.
+  EG: ['20', 10],
   OTHER: ['', 0],
 }
 

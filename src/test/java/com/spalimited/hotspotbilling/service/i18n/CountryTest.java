@@ -141,7 +141,7 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "NONE");
+                "PAYNOW", "PAYMOB", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -183,6 +183,18 @@ class CountryTest {
         // wallets in those markets.
         assertThat(Country.SN.rail()).isEqualTo(Country.Rail.WAVE);
         assertThat(Country.CI.rail()).isEqualTo(Country.Rail.ORANGE_MONEY);
+    }
+
+    @Test
+    @DisplayName("Egypt is reached, and by the only rail that can")
+    void egyptIsCovered() {
+        // The largest market on the continent, and until now the largest gap.
+        // None of the other rails collect Egyptian pounds -- not Paystack, not
+        // Flutterwave, not Stripe -- so pointing Egypt at any of them would have
+        // read as coverage and collected nothing.
+        assertThat(Country.EG.rail()).isEqualTo(Country.Rail.PAYMOB);
+        assertThat(Country.EG.currency()).isEqualTo("EGP");
+        assertThat(Country.EG.needsManualCollection()).isFalse();
     }
 
     @Test

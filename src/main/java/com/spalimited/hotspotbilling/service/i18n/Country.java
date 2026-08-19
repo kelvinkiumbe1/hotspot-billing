@@ -136,6 +136,17 @@ public enum Country {
     SC("Seychelles", "SCR", "en", "Airtel Money", Rail.AIRTEL_MONEY,
             List.of("Airtel Money", "Card"), "248", 7, List.of()),
 
+    // The largest market on the continent and the last big one unreached.
+    // Nothing here is mobile money in the East African sense: Egyptians pay by
+    // wallet, by InstaPay and by card, and Paymob is the one integration that
+    // covers all three.
+    //
+    // Listed as English because that is the only language this system has for
+    // it. Arabic is a real gap and a bigger job than a country entry -- every
+    // string in Messages, and right-to-left in the portal.
+    EG("Egypt", "EGP", "en", "Vodafone Cash or card", Rail.PAYMOB,
+            List.of("Vodafone Cash", "InstaPay", "Meeza", "Card"), "20", 10, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
@@ -155,7 +166,7 @@ public enum Country {
      */
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
-        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, NONE
+        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, NONE
     }
 
     private final String countryName;

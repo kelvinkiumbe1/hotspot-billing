@@ -9,6 +9,7 @@ import com.spalimited.hotspotbilling.service.payments.OrangeMoneyProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
+import com.spalimited.hotspotbilling.service.payments.PaymobProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.Signatures;
 import com.spalimited.hotspotbilling.service.payments.StripeProvider;
@@ -53,6 +54,7 @@ public class ProviderWebhookController {
     private final StripeProvider stripe;
     private final OrangeMoneyProvider orangeMoney;
     private final WaveProvider wave;
+    private final PaymobProvider paymob;
     private final PaymentService payments;
     private final MandateService mandates;
 
@@ -89,6 +91,20 @@ public class ProviderWebhookController {
     }
 
     /** Chapa — Ethiopia. Signed, and verified before anything is read. */
+    /**
+     * Paymob's transaction callback.
+     *
+     * <p>Signed, but not over the body: Paymob hashes twenty named fields in a
+     * fixed order, so the provider does the verifying rather than a shared
+     * helper. The raw bytes are still what is passed in, because the fields are
+     * read out of them and a reserialised copy could reorder anything.
+     */
+    @PostMapping("/paymob/webhook")
+    public ResponseEntity<String> paymob(@RequestBody(required = false) byte[] body,
+                                         HttpServletRequest request) {
+        return handle("Paymob", paymob, body, request);
+    }
+
     @PostMapping("/chapa/webhook")
     public ResponseEntity<String> chapa(@RequestBody(required = false) byte[] body,
                                         HttpServletRequest request) {

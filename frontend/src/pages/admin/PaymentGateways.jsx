@@ -151,6 +151,19 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'PAYMOB',
+    name: 'Paymob',
+    provider: 'Egypt',
+    badge: 'API KEYS',
+    chips: ['Vodafone Cash', 'InstaPay', 'Meeza', 'Cards'],
+    settlement: 'Instant to us, paid out on their schedule',
+    icon: 'account_balance_wallet',
+    blurb: 'The one integration that covers how Egyptians actually pay — the telco wallets, '
+      + 'InstaPay, Meeza and ordinary cards — on a page Paymob hosts, so no card number '
+      + 'touches this server.',
+    webhook: '/api/payments/paymob/webhook',
+  },
+  {
     kind: 'CHAPA',
     name: 'Chapa',
     provider: 'Ethiopia',
@@ -212,6 +225,23 @@ const TELCO_FIELDS = {
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
   ],
+  PAYMOB: [
+    { key: 'secretKey', label: 'API key', secret: true, wide: true,
+      placeholder: 'the long key from Dashboard → Settings → Account Info',
+      hint: 'This buys an access token and is used for nothing else.' },
+    { key: 'webhookSecret', label: 'HMAC secret', secret: true, wide: true,
+      placeholder: 'beside the API key, on the same page',
+      hint: 'Without this a callback cannot be told from a forgery, and this endpoint '
+        + 'issues vouchers — so payments will not settle until it is set.' },
+    { key: 'shortCode', label: 'Integration ID',
+      placeholder: 'e.g. 4077777',
+      hint: 'Which payment method to charge. Paymob gives you one per method — the card '
+        + 'one and the wallet one are different numbers.' },
+    { key: 'publicKey', label: 'Iframe ID',
+      placeholder: 'e.g. 890123',
+      hint: 'From Developers → iframes. Not a secret — it is half the address your '
+        + 'customer opens.' },
+  ],
   VODACOM_MPESA: [
     { key: 'secretKey', label: 'API key', secret: true,
       placeholder: 'from your app on openapiportal.m-pesa.com' },
@@ -243,6 +273,8 @@ const SANDBOX_NOTE = {
     + 'so it proves your keys work and nothing at all about amounts.',
   VODACOM_MPESA: 'Vodacom’s sandbox answers with test outcomes and collects nothing. '
     + 'The service provider code there is 000000.',
+  PAYMOB: 'Paymob’s test mode takes their test card numbers and collects nothing. Switch to '
+    + 'Production and paste your live keys before pointing customers at it.',
 }
 
 

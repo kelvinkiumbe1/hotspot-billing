@@ -172,6 +172,9 @@ public class PaymentController {
             case FLUTTERWAVE -> "Card or mobile money";
             case STRIPE -> "Card";
             case CHAPA -> "telebirr or card";
+            // Named for the wallet most Egyptians would look for, with the card
+            // beside it, because "Paymob" means nothing to a customer.
+            case PAYMOB -> "Vodafone Cash or card";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

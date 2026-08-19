@@ -86,7 +86,13 @@ public class PaymentGateway {
          * only the name. Prompts the handset, and is the only rail here with
          * no callback at all: it is settled by asking.
          */
-        VODACOM_MPESA
+        VODACOM_MPESA,
+        /**
+         * Paymob — Egypt. Reaches Vodafone Cash and the other telco wallets,
+         * InstaPay, Meeza and ordinary cards behind one hosted page. Egypt has
+         * more people than any other country this system reaches.
+         */
+        PAYMOB
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -237,6 +243,14 @@ public class PaymentGateway {
             // The public key is not a secret and is still required: without it
             // nothing can be encrypted, and every call fails at authentication.
             case VODACOM_MPESA -> filled(secretKey) && filled(publicKey) && filled(shortCode);
+            // Four, and all four are needed for a charge to complete: the API
+            // key authenticates, the HMAC secret is the only thing that makes a
+            // callback believable, the integration id chooses which of the
+            // merchant's payment methods to use, and the iframe id is half the
+            // URL the customer opens. Missing any one fails at a different step,
+            // so it is better to refuse here than to find out three calls in.
+            case PAYMOB -> filled(secretKey) && filled(webhookSecret)
+                    && filled(shortCode) && filled(publicKey);
         };
     }
 
@@ -249,7 +263,7 @@ public class PaymentGateway {
     public boolean isAutomatic() {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
-                    AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA -> true;
+                    AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -270,7 +284,10 @@ public class PaymentGateway {
             // picks it by host, so the stored environment is what decides.
             // Vodacom picks its environment by a segment in the URL, the same
             // way Daraja picks it by host, so the stored environment decides.
-            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, VODACOM_MPESA ->
+            // Paymob's test and live keys are both long opaque strings with no
+            // prefix to read, so unlike Paystack there is nothing to check them
+            // against and the stored environment is the only answer available.
+            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, VODACOM_MPESA, PAYMOB ->
                     environment == Environment.PRODUCTION;
             // Wave keys carry their own market and mode: wave_sn_prod_… against
             // wave_sn_test_…, so the key is the truth rather than a dropdown an
