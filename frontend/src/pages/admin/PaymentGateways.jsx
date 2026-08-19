@@ -199,6 +199,13 @@ const TELCO_FIELDS = {
     { key: 'consumerKey', label: 'API user', placeholder: 'a UUID' },
     { key: 'consumerSecret', label: 'API key', secret: true,
       placeholder: 'generated for that API user' },
+    { key: 'shortCode', label: 'Target environment', wide: true,
+      placeholder: 'mtnghana, mtnuganda, … — leave blank in Ghana, Uganda, Rwanda, '
+        + 'Zambia, Cameroon or Côte d’Ivoire',
+      hint: 'MTN issues this per merchant. It is filled in automatically for the six '
+        + 'markets above; anywhere else — Benin, Eswatini, South Sudan — MTN MoMo will '
+        + 'not appear to customers until you paste yours here. It is on your MoMo '
+        + 'developer profile beside the Collection product.' },
   ],
   AIRTEL_MONEY: [
     { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },

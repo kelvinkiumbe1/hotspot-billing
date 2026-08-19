@@ -73,6 +73,50 @@ class MtnMomoHttpTest {
         mtn.close();
     }
 
+    /** The same gateway, in another country, with or without a target pasted. */
+    private void operatorIn(String country, String target) {
+        when(gateways.find(any())).thenReturn(Optional.of(PaymentGateway.builder()
+                .kind(PaymentGateway.Kind.MTN_MOMO)
+                .active(true)
+                .environment(PaymentGateway.Environment.PRODUCTION)
+                .secretKey("sub-key-123")
+                .consumerKey("api-user-uuid")
+                .consumerSecret("api-key-456")
+                .shortCode(target)
+                .build()));
+        when(portalSettings.settings()).thenReturn(
+                PortalSettings.builder().country(country).build());
+    }
+
+    @Test
+    @DisplayName("A market MTN names per merchant is unusable until the name is pasted")
+    void beninNeedsItsTargetEnvironment() {
+        // Benin, Eswatini and South Sudan all point at MTN MoMo in the country
+        // table, and MTN issues their target environment per merchant rather than
+        // by a rule this code could follow. Until now there was no field to paste
+        // it into, so all three were recommended a rail they could not switch on.
+        operatorIn("BJ", null);
+        assertThat(provider.usable()).isFalse();
+
+        operatorIn("BJ", "mtnbenin");
+        assertThat(provider.usable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("The pasted target is what MTN is actually told")
+    void thePastedTargetIsSent() {
+        operatorIn("SS", "mtnsouthsudan");
+        mtn.on("POST /collection/v1_0/requesttopay", 202, "");
+
+        provider.charge(new PaymentProvider.ChargeRequest(
+                "211912345678", null, new BigDecimal("500"), "SSP", "HS-9", "1 hour of WiFi"));
+
+        // A wrong or missing value here is refused by MTN with an error that says
+        // nothing about which header was wrong.
+        assertThat(mtn.call("/collection/v1_0/requesttopay").header("X-Target-Environment"))
+                .isEqualTo("mtnsouthsudan");
+    }
+
     private static PaymentProvider.ChargeRequest request() {
         return new PaymentProvider.ChargeRequest(
                 "233241234567", null, new BigDecimal("12"), "GHS", "HS-9", "1 hour of WiFi");

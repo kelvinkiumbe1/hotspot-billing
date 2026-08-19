@@ -157,7 +157,20 @@ public class MtnMomoProvider implements PaymentProvider {
     public boolean availableHere() {
         String configured = gateways.find(PaymentGateway.Kind.MTN_MOMO)
                 .map(PaymentGateway::getShortCode).orElse(null);
-        return targetFor(country(), configured) != null;
+        Country here = country();
+        if (targetFor(here, configured) != null) {
+            return true;
+        }
+        // Benin, Eswatini and South Sudan all name MTN MoMo as their rail and
+        // all three land here, because MTN issues the target environment per
+        // merchant and this code cannot derive it. Silence was the problem: the
+        // country table recommended MTN, the gateway saved, and the rail simply
+        // never appeared with nothing anywhere saying why.
+        log.warn("MTN MoMo is switched on but not offered: MTN issues a target environment per "
+                + "merchant and there is none saved for {}. It is on your MoMo developer profile, "
+                + "and goes in Target environment under Settings → Payment gateways.",
+                here.countryName());
+        return false;
     }
 
     @Override
