@@ -10,6 +10,7 @@ import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
 import com.spalimited.hotspotbilling.service.payments.ChargilyProvider;
+import com.spalimited.hotspotbilling.service.payments.DpoProvider;
 import com.spalimited.hotspotbilling.service.payments.KonnectProvider;
 import com.spalimited.hotspotbilling.service.payments.MulticaixaProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymobProvider;
@@ -63,6 +64,7 @@ public class ProviderWebhookController {
     private final KonnectProvider konnect;
     private final MulticaixaProvider multicaixa;
     private final ChargilyProvider chargily;
+    private final DpoProvider dpo;
     private final PaymentService payments;
     private final MandateService mandates;
 
@@ -163,6 +165,19 @@ public class ProviderWebhookController {
     public ResponseEntity<String> chargily(@RequestBody(required = false) byte[] body,
                                            HttpServletRequest request) {
         return handle("Chargily", chargily, body, request);
+    }
+
+    /**
+     * DPO's payment notification.
+     *
+     * <p>Unsigned, and configured in DPO's dashboard rather than in our request,
+     * so it is read only for the transaction token and the verdict comes from
+     * verifyToken -- the same treatment MTN's callback gets.
+     */
+    @PostMapping("/dpo/webhook")
+    public ResponseEntity<String> dpo(@RequestBody(required = false) byte[] body,
+                                      HttpServletRequest request) {
+        return handle("DPO", dpo, body, request);
     }
 
     @PostMapping("/chapa/webhook")

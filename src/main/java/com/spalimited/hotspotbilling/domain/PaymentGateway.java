@@ -124,7 +124,13 @@ public class PaymentGateway {
          * pay: there is no mobile money to speak of and nothing international
          * collects dinars.
          */
-        CHARGILY
+        CHARGILY,
+        /**
+         * DPO Group -- nineteen countries on one integration, and the aggregator
+         * East and Southern African ISPs already use. Cards and most regional
+         * wallets behind a hosted page. The only rail here that speaks XML.
+         */
+        DPO
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -300,6 +306,10 @@ public class PaymentGateway {
             // One key, and it does both jobs: authorises the call and verifies
             // the webhook signature, the way Paystack's does.
             case CHARGILY -> filled(secretKey);
+            // The company token identifies the merchant; the service type is
+            // which of their DPO services to bill against, and DPO refuses a
+            // transaction without one. Neither is derivable.
+            case DPO -> filled(secretKey) && filled(shortCode);
         };
     }
 
@@ -313,7 +323,7 @@ public class PaymentGateway {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
                     AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
-                    KONNECT, WAAFIPAY, CMI, MULTICAIXA, CHARGILY -> true;
+                    KONNECT, WAAFIPAY, CMI, MULTICAIXA, CHARGILY, DPO -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }

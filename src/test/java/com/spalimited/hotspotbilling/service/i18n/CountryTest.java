@@ -153,7 +153,7 @@ class CountryTest {
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
                 "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "MULTICAIXA",
-                "CHARGILY", "NONE");
+                "CHARGILY", "DPO", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -242,8 +242,10 @@ class CountryTest {
     @Test
     @DisplayName("The countries nothing reaches are named, not discovered")
     void unreachableCountriesAreExactlyThese() {
-        // Eleven, all of them domestic-only payment schemes with no API to
-        // integrate with, or somewhere a merchant account cannot be had. They are
+        // Nine. Mauritius and Namibia left this list when DPO arrived -- neither
+        // has a domestic gateway anybody outside can reach, so the aggregator was
+        // the only way in rather than a second-best. The rest are domestic-only
+        // schemes with no API, or somewhere a merchant account cannot be had. They are
         // in the table on purpose: absent, an operator there falls through to
         // OTHER and gets dollars, English and no phone validation, which is
         // worse than being told plainly that payments need matching by hand.
@@ -256,8 +258,18 @@ class CountryTest {
                 .toList())
                 .containsExactlyInAnyOrder(
                         Country.BI, Country.CV, Country.DJ, Country.ER, Country.GQ,
-                        Country.KM, Country.LY, Country.MU, Country.NA, Country.SD,
-                        Country.ST);
+                        Country.KM, Country.LY, Country.SD, Country.ST);
+    }
+
+    @Test
+    @DisplayName("DPO covers the two countries nothing else could")
+    void dpoCoversMauritiusAndNamibia() {
+        // The reason DPO was worth adding on top of nineteen markets that mostly
+        // already had a rail: these two had none at all.
+        assertThat(Country.MU.rail()).isEqualTo(Country.Rail.DPO);
+        assertThat(Country.NA.rail()).isEqualTo(Country.Rail.DPO);
+        assertThat(Country.MU.needsManualCollection()).isFalse();
+        assertThat(Country.NA.needsManualCollection()).isFalse();
     }
 
     @Test

@@ -237,9 +237,12 @@ public enum Country {
             List.of("Holo", "MVola"), "269", 7, List.of()),
     LY("Libya", "LYD", "en", "Sadad", Rail.NONE,
             List.of("Sadad", "Moamalat"), "218", 9, List.of()),
-    MU("Mauritius", "MUR", "en", "card", Rail.NONE,
+    // Both were Rail.NONE until DPO, which serves them. Neither has a gateway
+    // of its own that anybody outside can reach, so an aggregator is not a
+    // second-best here -- it is the only way in.
+    MU("Mauritius", "MUR", "en", "card", Rail.DPO,
             List.of("MCB Juice", "Card"), "230", 8, List.of()),
-    NA("Namibia", "NAD", "en", "card", Rail.NONE,
+    NA("Namibia", "NAD", "en", "card", Rail.DPO,
             List.of("MTC Money", "FNB eWallet", "Card"), "264", 9, List.of()),
     SD("Sudan", "SDG", "en", "cash", Rail.NONE,
             List.of("Cash"), "249", 9, List.of()),
@@ -266,7 +269,7 @@ public enum Country {
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
         PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY,
-        CMI, MULTICAIXA, CHARGILY, NONE
+        CMI, MULTICAIXA, CHARGILY, DPO, NONE
     }
 
     private final String countryName;

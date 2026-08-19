@@ -101,6 +101,20 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.chargily:https://pay.chargily.net/api/v2}")
     private String chargily;
 
+    /**
+     * DPO, which needs two addresses for two audiences: the XML API this server
+     * posts to, and the page the customer opens.
+     *
+     * <p>One host for both testing and live -- neither sandbox hostname DPO
+     * documents resolves, so which credentials the merchant holds is what decides
+     * whether money moves.
+     */
+    @Value("${payments.base-url.dpo:https://secure.3gdirectpay.com/API/v6/}")
+    private String dpo;
+
+    @Value("${payments.base-url.dpo-checkout:https://secure.3gdirectpay.com/payv2.php}")
+    private String dpoCheckout;
+
     public String paystack() {
         return paystack;
     }
@@ -169,6 +183,14 @@ public class PaymentEndpoints {
 
     public String chargily() {
         return chargily;
+    }
+
+    public String dpo() {
+        return dpo;
+    }
+
+    public String dpoCheckout() {
+        return dpoCheckout;
     }
 
     /** Konnect picks its environment by host, the way Daraja and MTN do. */

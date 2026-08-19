@@ -181,6 +181,9 @@ public class PaymentController {
             case CMI -> "Card";
             case MULTICAIXA -> "Multicaixa Express";
             case CHARGILY -> "EDAHABIA or CIB";
+            // Deliberately not "DPO", which means nothing to a customer. It
+            // reaches cards and the local wallets, and that is what to say.
+            case DPO -> "Card or mobile money";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

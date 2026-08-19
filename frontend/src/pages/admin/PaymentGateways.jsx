@@ -151,6 +151,21 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'DPO',
+    name: 'DPO Group',
+    provider: 'Botswana · Côte d’Ivoire · Egypt · Ethiopia · Ghana · Kenya · Malawi · Mauritius · '
+      + 'Morocco · Mozambique · Namibia · Nigeria · Rwanda · Senegal · South Africa · Tanzania · '
+      + 'Uganda · Zambia · Zimbabwe',
+    badge: 'API KEYS',
+    chips: ['Cards', 'Mobile money', '19 countries', 'Automatic'],
+    settlement: 'Instant to us, confirmed by asking DPO',
+    icon: 'public',
+    blurb: 'The widest single integration on the continent, and what a lot of African ISPs and '
+      + 'hotels already use. Cards and most regional wallets on a page DPO hosts. In Mauritius '
+      + 'and Namibia it is the only way to take a payment at all.',
+    webhook: '/api/payments/dpo/webhook',
+  },
+  {
     kind: 'CHARGILY',
     name: 'Chargily',
     provider: 'Algeria',
@@ -303,6 +318,16 @@ const TELCO_FIELDS = {
     { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
+  ],
+  DPO: [
+    { key: 'secretKey', label: 'Company token', secret: true, wide: true,
+      placeholder: 'the GUID from your DPO account manager',
+      hint: 'DPO calls this the Company Token. If payments come back “Company is not active”, '
+        + 'this is right but DPO has not switched the account on yet.' },
+    { key: 'shortCode', label: 'Service type',
+      placeholder: 'e.g. 3854',
+      hint: 'Which of your DPO services to bill against. Not a secret, and DPO refuses '
+        + 'every transaction without it.' },
   ],
   MULTICAIXA: [
     { key: 'secretKey', label: 'Merchant frame token', secret: true, wide: true,
