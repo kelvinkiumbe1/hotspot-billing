@@ -92,7 +92,13 @@ public class PaymentGateway {
          * InstaPay, Meeza and ordinary cards behind one hosted page. Egypt has
          * more people than any other country this system reaches.
          */
-        PAYMOB
+        PAYMOB,
+        /**
+         * Konnect — Tunisia. Reaches the Konnect and Flouci wallets, e-DINAR
+         * and bank cards. Nothing else here collects dinars: Stripe does not
+         * serve Tunisia and the pan-African aggregators do not reach it.
+         */
+        KONNECT
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -251,6 +257,10 @@ public class PaymentGateway {
             // so it is better to refuse here than to find out three calls in.
             case PAYMOB -> filled(secretKey) && filled(webhookSecret)
                     && filled(shortCode) && filled(publicKey);
+            // An API key and the wallet the money lands in. No webhook secret,
+            // and not because Konnect signs badly -- it does not sign at all, so
+            // the settlement path re-queries rather than trusting the callback.
+            case KONNECT -> filled(secretKey) && filled(shortCode);
         };
     }
 
@@ -263,7 +273,8 @@ public class PaymentGateway {
     public boolean isAutomatic() {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
-                    AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB -> true;
+                    AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
+                    KONNECT -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }
@@ -287,8 +298,8 @@ public class PaymentGateway {
             // Paymob's test and live keys are both long opaque strings with no
             // prefix to read, so unlike Paystack there is nothing to check them
             // against and the stored environment is the only answer available.
-            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, VODACOM_MPESA, PAYMOB ->
-                    environment == Environment.PRODUCTION;
+            case MPESA_API, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, VODACOM_MPESA, PAYMOB,
+                    KONNECT -> environment == Environment.PRODUCTION;
             // Wave keys carry their own market and mode: wave_sn_prod_… against
             // wave_sn_test_…, so the key is the truth rather than a dropdown an
             // operator can set to the opposite of reality.

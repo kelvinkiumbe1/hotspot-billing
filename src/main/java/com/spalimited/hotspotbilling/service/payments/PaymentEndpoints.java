@@ -65,6 +65,12 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.paymob:https://accept.paymob.com/api}")
     private String paymob;
 
+    @Value("${payments.base-url.konnect-sandbox:https://api.preprod.konnect.network/api/v2}")
+    private String konnectSandbox;
+
+    @Value("${payments.base-url.konnect-production:https://api.konnect.network/api/v2}")
+    private String konnectProduction;
+
     public String paystack() {
         return paystack;
     }
@@ -117,6 +123,11 @@ public class PaymentEndpoints {
      */
     public String paymob() {
         return paymob;
+    }
+
+    /** Konnect picks its environment by host, the way Daraja and MTN do. */
+    public String konnect(boolean live) {
+        return live ? konnectProduction : konnectSandbox;
     }
 
     public String vodacom(boolean live, String market) {

@@ -147,6 +147,16 @@ public enum Country {
     EG("Egypt", "EGP", "en", "Vodafone Cash or card", Rail.PAYMOB,
             List.of("Vodafone Cash", "InstaPay", "Meeza", "Card"), "20", 10, List.of()),
 
+    // Tunisia. The dinar is one of the few currencies with three decimal
+    // places rather than two -- a thousand millimes -- which is the single thing
+    // to be careful about here. Set Currency decimals to 3 under Branding, or
+    // prices will be shown rounded to the piastre-equivalent and read wrong.
+    //
+    // French because that is the language this system has for it; Arabic is the
+    // other half of the country and a bigger job than a country entry.
+    TN("Tunisia", "TND", "fr", "wallet or card", Rail.KONNECT,
+            List.of("Konnect", "Flouci", "e-DINAR", "Card"), "216", 8, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
@@ -166,7 +176,7 @@ public enum Country {
      */
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
-        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, NONE
+        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, NONE
     }
 
     private final String countryName;

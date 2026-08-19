@@ -141,7 +141,7 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "PAYMOB", "NONE");
+                "PAYNOW", "PAYMOB", "KONNECT", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -195,6 +195,16 @@ class CountryTest {
         assertThat(Country.EG.rail()).isEqualTo(Country.Rail.PAYMOB);
         assertThat(Country.EG.currency()).isEqualTo("EGP");
         assertThat(Country.EG.needsManualCollection()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Tunisia is reached, and its currency has three decimals")
+    void tunisiaIsCovered() {
+        assertThat(Country.TN.rail()).isEqualTo(Country.Rail.KONNECT);
+        // The dinar has a thousand millimes. Konnect takes the amount in them,
+        // and every other minor-unit rail in this system uses a hundred -- so
+        // this is the currency most likely to be charged wrong by a tenth.
+        assertThat(Country.TN.currency()).isEqualTo("TND");
     }
 
     @Test

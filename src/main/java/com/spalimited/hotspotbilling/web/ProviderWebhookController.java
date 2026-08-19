@@ -9,6 +9,7 @@ import com.spalimited.hotspotbilling.service.payments.OrangeMoneyProvider;
 import com.spalimited.hotspotbilling.service.payments.PaynowProvider;
 import com.spalimited.hotspotbilling.service.payments.MandateService;
 import com.spalimited.hotspotbilling.service.payments.PaymentProvider;
+import com.spalimited.hotspotbilling.service.payments.KonnectProvider;
 import com.spalimited.hotspotbilling.service.payments.PaymobProvider;
 import com.spalimited.hotspotbilling.service.payments.PaystackProvider;
 import com.spalimited.hotspotbilling.service.payments.Signatures;
@@ -18,7 +19,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,6 +58,7 @@ public class ProviderWebhookController {
     private final OrangeMoneyProvider orangeMoney;
     private final WaveProvider wave;
     private final PaymobProvider paymob;
+    private final KonnectProvider konnect;
     private final PaymentService payments;
     private final MandateService mandates;
 
@@ -103,6 +107,33 @@ public class ProviderWebhookController {
     public ResponseEntity<String> paymob(@RequestBody(required = false) byte[] body,
                                          HttpServletRequest request) {
         return handle("Paymob", paymob, body, request);
+    }
+
+    /**
+     * Konnect's callback, which arrives as a GET.
+     *
+     * <p>The only one here that is not a POST, and it carries a payment
+     * reference in the query string rather than a body. There is nothing to
+     * verify — Konnect does not sign it — so this goes straight to asking
+     * Konnect what happened, which is the same thing {@code settle} would do
+     * with a body and the same thing the sweep does an hour later.
+     */
+    @GetMapping("/konnect/webhook")
+    public ResponseEntity<String> konnectCallback(
+            @RequestParam(name = "payment_ref", required = false) String paymentRef) {
+        if (paymentRef == null || paymentRef.isBlank()) {
+            // Not an error worth a 500: Konnect retries, and a bare GET with no
+            // reference is as likely to be a health check as a lost payment.
+            return ResponseEntity.ok("ignored");
+        }
+        return finish("Konnect", konnect.poll(paymentRef));
+    }
+
+    /** The same, for a merchant account configured to POST instead. */
+    @PostMapping("/konnect/webhook")
+    public ResponseEntity<String> konnect(@RequestBody(required = false) byte[] body,
+                                          HttpServletRequest request) {
+        return handle("Konnect", konnect, body, request);
     }
 
     @PostMapping("/chapa/webhook")

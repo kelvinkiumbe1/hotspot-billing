@@ -151,6 +151,19 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'KONNECT',
+    name: 'Konnect',
+    provider: 'Tunisia',
+    badge: 'API KEYS',
+    chips: ['Wallets', 'e-DINAR', 'Cards', 'Automatic'],
+    settlement: 'Instant to us, confirmed by asking Konnect',
+    icon: 'account_balance_wallet',
+    blurb: 'The domestic gateway, and the only way to take a Tunisian payment — Stripe does '
+      + 'not serve Tunisia and the pan-African aggregators do not collect dinars. Reaches the '
+      + 'Konnect and Flouci wallets, e-DINAR and bank cards.',
+    webhook: '/api/payments/konnect/webhook',
+  },
+  {
     kind: 'PAYMOB',
     name: 'Paymob',
     provider: 'Egypt',
@@ -225,6 +238,15 @@ const TELCO_FIELDS = {
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
   ],
+  KONNECT: [
+    { key: 'secretKey', label: 'API key', secret: true, wide: true,
+      placeholder: 'from your Konnect dashboard → Developers',
+      hint: 'Sent as x-api-key on every call.' },
+    { key: 'shortCode', label: 'Receiver wallet ID', wide: true,
+      placeholder: 'e.g. 5f7a209dfc9c6a0021a4b3ce',
+      hint: 'Which of your wallets the money lands in. Not a secret. Konnect refuses '
+        + 'every payment without it.' },
+  ],
   PAYMOB: [
     { key: 'secretKey', label: 'API key', secret: true, wide: true,
       placeholder: 'the long key from Dashboard → Settings → Account Info',
@@ -275,6 +297,8 @@ const SANDBOX_NOTE = {
     + 'The service provider code there is 000000.',
   PAYMOB: 'Paymob’s test mode takes their test card numbers and collects nothing. Switch to '
     + 'Production and paste your live keys before pointing customers at it.',
+  KONNECT: 'Konnect’s preprod environment accepts test payments and collects nothing. Note the '
+    + 'dinar has a thousand millimes — set Currency decimals to 3 under Branding.',
 }
 
 

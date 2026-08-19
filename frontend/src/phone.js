@@ -27,6 +27,8 @@ const DIALLING = {
   LS: ['266', 8], SC: ['248', 7],
   // Egypt. Ten digits after the trunk zero: 010 1234 5678 -> 1012345678.
   EG: ['20', 10],
+  // Tunisia. Eight digits, no trunk zero in the national form.
+  TN: ['216', 8],
   OTHER: ['', 0],
 }
 
