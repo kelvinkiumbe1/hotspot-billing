@@ -214,7 +214,7 @@ public class VodacomMpesaProvider implements PaymentProvider {
         Map<String, Object> body = new LinkedHashMap<>();
         // Major units. Vodacom reads "2000" as two thousand shillings; the
         // hundredfold a card processor expects would be a fortune.
-        body.put("input_Amount", request.amount().setScale(2, RoundingMode.HALF_UP).toPlainString());
+        body.put("input_Amount", amount(request.amount()));
         body.put("input_Country", cfg.market().code());
         body.put("input_Currency", cfg.currency());
         body.put("input_CustomerMSISDN", msisdn(request.phoneNumber()));
@@ -418,14 +418,48 @@ public class VodacomMpesaProvider implements PaymentProvider {
         };
     }
 
-    /** Vodacom's own words where it has any, and the code where it does not. */
+    /**
+     * Vodacom's own words where it has any, and the code where it does not.
+     *
+     * <p>Two shapes, because Vodacom uses two. A refusal from inside the payment
+     * platform carries {@code output_ResponseCode} and
+     * {@code output_ResponseDesc}, which is what the documentation describes. A
+     * refusal at the gate -- a key the market does not recognise -- carries
+     * neither, and says only {@code {"output_error":"API or Session key is not
+     * authorized"}}.
+     *
+     * <p>Reading only the documented pair turned that one useful sentence into
+     * "Vodacom M-Pesa refused the payment ()", which tells an operator with a
+     * mistyped key nothing at all. Found by pointing this at the real sandbox.
+     */
     private static String describe(JsonNode response, String code) {
-        String desc = response == null ? null
-                : response.path("output_ResponseDesc").asString(null);
-        if (desc != null && !desc.isBlank()) {
-            return desc;
+        if (response != null) {
+            for (String field : new String[]{"output_ResponseDesc", "output_error", "output_ErrorDesc"}) {
+                String value = response.path(field).asString(null);
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
         }
-        return "Vodacom M-Pesa refused the payment (" + code + ")";
+        return code == null || code.isBlank()
+                ? "Vodacom M-Pesa refused it without saying why"
+                : "Vodacom M-Pesa refused the payment (" + code + ")";
+    }
+
+    /**
+     * The amount, in the shape Vodacom's own SDK sample sends.
+     *
+     * <p>Their sample sends {@code "10"} rather than {@code "10.00"}, so a whole
+     * amount goes without a decimal point -- byte-identical to the request they
+     * publish, which is the only request anybody can point at and say it works.
+     * Cents are kept where the amount actually has them, because the metical
+     * does have subunits even though the shilling in practice does not.
+     */
+    static String amount(java.math.BigDecimal value) {
+        java.math.BigDecimal rounded = value.setScale(2, RoundingMode.HALF_UP);
+        return rounded.stripTrailingZeros().scale() <= 0
+                ? rounded.setScale(0, RoundingMode.UNNECESSARY).toPlainString()
+                : rounded.toPlainString();
     }
 
     // --- session and plumbing ---

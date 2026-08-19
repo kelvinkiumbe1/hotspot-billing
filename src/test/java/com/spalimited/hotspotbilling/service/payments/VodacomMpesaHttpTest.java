@@ -203,7 +203,7 @@ class VodacomMpesaHttpTest {
 
         String body = vodacom.call(BASE + "/c2bPayment/singleStage/").body();
         // Major units. 200000 here is a hundred times the price, unattended.
-        assertThat(body).containsPattern("\"input_Amount\":\"?2000\\.00\"?");
+        assertThat(body).contains("\"input_Amount\":\"2000\"");
         assertThat(body).contains("\"input_Country\":\"TZN\"");
         assertThat(body).contains("\"input_Currency\":\"TZS\"");
         assertThat(body).contains("\"input_ServiceProviderCode\":\"000000\"");
@@ -399,6 +399,67 @@ class VodacomMpesaHttpTest {
         assertThatThrownBy(() -> provider.charge(request()))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(vodacom.calls()).isEmpty();
+    }
+
+    // ------------------------------------------------- what the real API said
+
+    @Test
+    @DisplayName("The gate's own refusal reaches the operator verbatim")
+    void theRealUnauthorisedBodyIsUnderstood() {
+        // Copied byte for byte from openapi.m-pesa.com. Vodacom refuses a key a
+        // market does not recognise with this and nothing else: no
+        // output_ResponseCode, no output_ResponseDesc, neither of the two fields
+        // the documentation describes. Reading only those turned the one useful
+        // sentence into "Vodacom M-Pesa refused the payment ()".
+        vodacom.on("GET " + BASE + "/getSession/", 401,
+                "{\"output_error\":\"API or Session key is not authorized\"}");
+
+        assertThatThrownBy(() -> provider.charge(request()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("API or Session key is not authorized");
+    }
+
+    @Test
+    @DisplayName("A refusal with nothing in it does not read as our own bug")
+    void anEmptyRefusalStillSaysSomething() {
+        // The fallback used to render "refused the payment ()" with an empty
+        // bracket, which reads as something broken here rather than as a
+        // refusal there.
+        vodacom.on("GET " + BASE + "/getSession/", 500, "{}");
+
+        assertThatThrownBy(() -> provider.charge(request()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("without saying why")
+                .hasMessageNotContaining("()");
+    }
+
+    @Test
+    @DisplayName("An HTML error page is not mistaken for an answer")
+    void anHtmlErrorPageIsNotAnAnswer() {
+        // What the Egyptian market actually returns: a proxy page, not JSON.
+        // Nothing may be charged on the strength of it.
+        vodacom.on("GET " + BASE + "/getSession/", 503,
+                "<html><body><h1>503 Service Unavailable</h1></body></html>");
+
+        assertThatThrownBy(() -> provider.charge(request()))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(vodacom.calls()).noneMatch(c -> c.path().contains("c2bPayment"));
+    }
+
+    @Test
+    @DisplayName("Cents survive where a currency has them")
+    void centsAreKeptWhenTheAmountHasThem() {
+        sessionOpens();
+        vodacom.on("POST " + BASE + "/c2bPayment/singleStage/",
+                "{\"output_ResponseCode\":\"INS-0\",\"output_TransactionID\":\"6GC8ZQBJ\"}");
+
+        // A whole amount goes as "2000" to match their own SDK sample, but the
+        // metical does have subunits and dropping them would round a price.
+        provider.charge(new PaymentProvider.ChargeRequest(
+                "+255744553344", null, new BigDecimal("1250.75"), "TZS", "HS-32", "WiFi"));
+
+        assertThat(vodacom.call(BASE + "/c2bPayment/singleStage/").body())
+                .contains("\"input_Amount\":\"1250.75\"");
     }
 
     @Test
