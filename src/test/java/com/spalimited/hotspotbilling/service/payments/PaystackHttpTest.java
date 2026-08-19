@@ -38,6 +38,9 @@ class PaystackHttpTest {
     @Mock
     private PaymentGatewayService gateways;
 
+    @Mock
+    private com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
+
     private FakeGateway paystack;
     private PaystackProvider provider;
 
@@ -53,7 +56,12 @@ class PaystackHttpTest {
                 .secretKey("sk_test_abc123")
                 .build()));
 
-        provider = new PaystackProvider(gateways, new ObjectMapper(), endpoints);
+        // Kenya is one of Paystack's markets. Outside them the rail is not
+        // offered at all, which is the gate these tests must sit inside.
+        when(portalSettings.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PortalSettings.builder()
+                        .country("KE").currencyCode("KES").build());
+        provider = new PaystackProvider(gateways, portalSettings, new ObjectMapper(), endpoints);
     }
 
     @AfterEach

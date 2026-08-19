@@ -60,7 +60,15 @@ public class PaynowProvider implements PaymentProvider {
     private static final String[] STATUS_ORDER = {
             "reference", "paynowreference", "amount", "status", "pollurl"};
 
+    /**
+     * Zimbabwe, and only Zimbabwe. Paynow reaches EcoCash, OneMoney, InnBucks
+     * and Zimswitch, all of them domestic.
+     */
+    private static final java.util.Set<com.spalimited.hotspotbilling.service.i18n.Country> MARKETS =
+            java.util.Set.of(com.spalimited.hotspotbilling.service.i18n.Country.ZW);
+
     private final PaymentGatewayService gateways;
+    private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
     private final PaymentEndpoints endpoints;
     private final PublicUrls urls;
     /**
@@ -78,7 +86,7 @@ public class PaynowProvider implements PaymentProvider {
 
     @Override
     public boolean usable() {
-        return config() != null;
+        return availableHere() && config() != null;
     }
 
     @Override
@@ -88,6 +96,23 @@ public class PaynowProvider implements PaymentProvider {
 
     /** Integration id and key, from the Paynow merchant dashboard. */
     private record Config(String id, String key) {
+    }
+
+    /**
+     * True where Paynow is worth offering at all.
+     *
+     * <p>Deliberately not consulted when settling or polling. A payment already
+     * begun has to be finishable: a result posted back for money that has left a
+     * customer's wallet must be honoured even if the country setting changed
+     * underneath it, or the customer pays and gets nothing. The gate belongs on
+     * starting a charge, which is the only place it can still prevent anything.
+     */
+    public boolean availableHere() {
+        try {
+            return MarketGuard.servesHere("Paynow", MARKETS, portalSettings.settings().getCountry());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private Config config() {
@@ -101,7 +126,7 @@ public class PaynowProvider implements PaymentProvider {
 
     @Override
     public Charge charge(ChargeRequest request) {
-        Config cfg = config();
+        Config cfg = availableHere() ? config() : null;
         if (cfg == null) {
             throw new IllegalStateException("Paynow is not set up");
         }

@@ -30,6 +30,34 @@ final class MarketGuard {
     }
 
     /**
+     * Whether a rail that only exists in certain countries reaches this one.
+     *
+     * <p>Paystack, Chapa and Paynow are each licensed in a fixed list of
+     * countries and have nothing to offer outside it. Left ungated, an operator
+     * in Tanzania could switch Paystack on, the portal would offer "Card or
+     * bank", and every attempt would be refused by Paystack for an unsupported
+     * currency -- with nothing anywhere saying why. This is the same failure
+     * {@link #currencyAgrees} exists to prevent, one level up.
+     *
+     * <p>A country that is blank reads as Kenya, which is what {@link
+     * Country#of} does everywhere else and so is what the rest of the system
+     * already believes. A country outside the table reads as OTHER, which is in
+     * no rail's market list and is therefore refused.
+     */
+    static boolean servesHere(String rail, java.util.Set<Country> markets, String configured) {
+        Country here = Country.of(configured);
+        if (markets.contains(here)) {
+            return true;
+        }
+        log.warn("{} is switched on but not offered: it operates in {} and your country is set to {}. "
+                        + "Offering it there would show customers a way to pay that would be refused.",
+                rail,
+                markets.stream().map(Country::countryName).sorted().collect(java.util.stream.Collectors.joining(", ")),
+                here.countryName());
+        return false;
+    }
+
+    /**
      * Whether prices in {@code configured} can be collected in {@code country}.
      *
      * <p>A blank configured currency passes: an operator who has not set one is

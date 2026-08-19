@@ -52,7 +52,7 @@ class WebhookVerificationTest {
     void setUp() {
         // Null endpoints: these tests verify signatures, and never make a
         // request, so there is nothing for a base URL to point at.
-        paystack = new PaystackProvider(gateways, JSON, null);
+        paystack = new PaystackProvider(gateways, null, JSON, null);
         flutterwave = new FlutterwaveProvider(gateways, JSON, null);
         stripe = new StripeProvider(gateways, JSON, null);
     }

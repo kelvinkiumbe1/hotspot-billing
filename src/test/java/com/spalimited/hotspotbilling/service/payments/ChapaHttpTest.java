@@ -36,6 +36,9 @@ class ChapaHttpTest {
     @Mock
     private PaymentGatewayService gateways;
 
+    @Mock
+    private com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
+
     private FakeGateway chapa;
     private ChapaProvider provider;
 
@@ -52,7 +55,10 @@ class ChapaHttpTest {
                 .webhookSecret("chapa-whsec")
                 .build()));
 
-        provider = new ChapaProvider(gateways, new ObjectMapper(), endpoints);
+        when(portalSettings.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PortalSettings.builder()
+                        .country("ET").currencyCode("ETB").build());
+        provider = new ChapaProvider(gateways, portalSettings, new ObjectMapper(), endpoints);
     }
 
     @AfterEach

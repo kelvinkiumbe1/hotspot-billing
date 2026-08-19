@@ -40,6 +40,9 @@ class PaynowHttpTest {
     @Mock
     private PaymentGatewayService gateways;
 
+    @Mock
+    private com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
+
     private FakeGateway paynow;
     private PaynowProvider provider;
 
@@ -59,7 +62,10 @@ class PaynowHttpTest {
         PublicUrls urls = new PublicUrls(new MpesaProperties(
                 null, null, null, null, null, "https://isp.example.net/api/payments/mpesa/callback", null));
 
-        provider = new PaynowProvider(gateways, endpoints, urls);
+        when(portalSettings.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PortalSettings.builder()
+                        .country("ZW").currencyCode("USD").build());
+        provider = new PaynowProvider(gateways, portalSettings, endpoints, urls);
     }
 
     @AfterEach
@@ -168,7 +174,7 @@ class PaynowHttpTest {
                 null, null, null, null, null, "https://example.com/api/payments/mpesa/callback", null));
         PaymentEndpoints endpoints = new PaymentEndpoints();
         ReflectionTestUtils.setField(endpoints, "paynow", paynow.url());
-        PaynowProvider stranded = new PaynowProvider(gateways, endpoints, none);
+        PaynowProvider stranded = new PaynowProvider(gateways, portalSettings, endpoints, none);
 
         // Starting it anyway leaves the customer on Paynow's site having paid,
         // with no result ever posted back.

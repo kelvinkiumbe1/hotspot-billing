@@ -40,7 +40,16 @@ public class ChapaProvider implements PaymentProvider {
 
     // Address moved to PaymentEndpoints; the default there is this URL.
 
+    /**
+     * Ethiopia, and only Ethiopia. Chapa reaches telebirr and the Ethiopian
+     * banks; it has nothing to offer anywhere else, and offering it anyway
+     * gives a customer a way to pay that cannot take their money.
+     */
+    private static final java.util.Set<com.spalimited.hotspotbilling.service.i18n.Country> MARKETS =
+            java.util.Set.of(com.spalimited.hotspotbilling.service.i18n.Country.ET);
+
     private final PaymentGatewayService gateways;
+    private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
     private final ObjectMapper mapper;
     private final PaymentEndpoints endpoints;
     /**
@@ -58,12 +67,29 @@ public class ChapaProvider implements PaymentProvider {
 
     @Override
     public boolean usable() {
-        return secret() != null;
+        return availableHere() && secret() != null;
     }
 
     @Override
     public boolean pollable() {
         return true;
+    }
+
+    /**
+     * True where Chapa is worth offering at all.
+     *
+     * <p>Deliberately not consulted when settling or polling. A payment already
+     * begun has to be finishable: a webhook for money that has left a customer's
+     * account must be honoured even if the country setting changed underneath
+     * it, or the customer pays and gets nothing. The gate belongs on starting a
+     * charge, which is the only place it can still prevent anything.
+     */
+    public boolean availableHere() {
+        try {
+            return MarketGuard.servesHere("Chapa", MARKETS, portalSettings.settings().getCountry());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String secret() {
@@ -83,7 +109,7 @@ public class ChapaProvider implements PaymentProvider {
 
     @Override
     public Charge charge(ChargeRequest request) {
-        String secret = secret();
+        String secret = availableHere() ? secret() : null;
         if (secret == null) {
             throw new IllegalStateException("Chapa is not configured");
         }

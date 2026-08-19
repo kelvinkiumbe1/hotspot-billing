@@ -58,7 +58,28 @@ public class PaystackProvider implements PaymentProvider {
             "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG",
             "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF");
 
+    /**
+     * The countries Paystack actually onboards merchants in.
+     *
+     * <p>Gated because it was not, and the failure is the one this project has
+     * already fixed three times: a rail offered to a customer it cannot charge.
+     * A Tanzanian operator could switch Paystack on, the portal would offer
+     * "Card or bank", and every payment would be refused for an unsupported
+     * currency -- with nothing anywhere saying why.
+     *
+     * <p>Egypt is Paystack's too and is absent because the country table does
+     * not name it yet.
+     */
+    private static final java.util.Set<com.spalimited.hotspotbilling.service.i18n.Country> MARKETS =
+            java.util.Set.of(
+                    com.spalimited.hotspotbilling.service.i18n.Country.NG,
+                    com.spalimited.hotspotbilling.service.i18n.Country.GH,
+                    com.spalimited.hotspotbilling.service.i18n.Country.KE,
+                    com.spalimited.hotspotbilling.service.i18n.Country.ZA,
+                    com.spalimited.hotspotbilling.service.i18n.Country.CI);
+
     private final PaymentGatewayService gateways;
+    private final com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
     private final ObjectMapper mapper;
     private final PaymentEndpoints endpoints;
 
@@ -81,7 +102,24 @@ public class PaystackProvider implements PaymentProvider {
 
     @Override
     public boolean usable() {
-        return secret() != null;
+        return availableHere() && secret() != null;
+    }
+
+    /**
+     * True where Paystack is worth offering at all.
+     *
+     * <p>Deliberately not consulted when settling or polling. A payment already
+     * begun has to be finishable: a webhook for money that has left a customer's
+     * account must be honoured even if the country setting changed underneath
+     * it, or the customer pays and gets nothing. The gate belongs on starting a
+     * charge, which is the only place it can still prevent anything.
+     */
+    public boolean availableHere() {
+        try {
+            return MarketGuard.servesHere("Paystack", MARKETS, portalSettings.settings().getCountry());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String secret() {
@@ -121,7 +159,7 @@ public class PaystackProvider implements PaymentProvider {
 
     @Override
     public Charge charge(ChargeRequest request) {
-        String secret = secret();
+        String secret = availableHere() ? secret() : null;
         if (secret == null) {
             throw new IllegalStateException("Paystack is not configured");
         }
@@ -271,7 +309,7 @@ public class PaystackProvider implements PaymentProvider {
      */
     @Override
     public Charge chargeStored(String token, ChargeRequest request) {
-        String secret = secret();
+        String secret = availableHere() ? secret() : null;
         if (secret == null) {
             throw new IllegalStateException("Paystack is not set up");
         }

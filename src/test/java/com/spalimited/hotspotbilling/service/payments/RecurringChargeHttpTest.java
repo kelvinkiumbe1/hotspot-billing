@@ -42,6 +42,9 @@ class RecurringChargeHttpTest {
     @Mock
     private PaymentGatewayService gateways;
 
+    @Mock
+    private com.spalimited.hotspotbilling.service.PortalSettingsService portalSettings;
+
     private FakeGateway remote;
 
     @AfterEach
@@ -64,7 +67,10 @@ class RecurringChargeHttpTest {
         when(gateways.find(any())).thenReturn(Optional.of(PaymentGateway.builder()
                 .kind(PaymentGateway.Kind.PAYSTACK).active(true)
                 .secretKey("sk_live_x").build()));
-        return new PaystackProvider(gateways, new ObjectMapper(), endpoints);
+        when(portalSettings.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PortalSettings.builder()
+                        .country("KE").currencyCode("KES").build());
+        return new PaystackProvider(gateways, portalSettings, new ObjectMapper(), endpoints);
     }
 
     private FlutterwaveProvider flutterwave() {
@@ -195,7 +201,10 @@ class RecurringChargeHttpTest {
         remote = new FakeGateway();
         PaymentEndpoints endpoints = new PaymentEndpoints();
         ReflectionTestUtils.setField(endpoints, "chapa", remote.url());
-        ChapaProvider chapa = new ChapaProvider(gateways, new ObjectMapper(), endpoints);
+        when(portalSettings.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.PortalSettings.builder()
+                        .country("ET").currencyCode("ETB").build());
+        ChapaProvider chapa = new ChapaProvider(gateways, portalSettings, new ObjectMapper(), endpoints);
 
         assertThat(chapa.supportsRecurring()).isFalse();
         assertThatThrownBy(() -> chapa.chargeStored("anything", renewal("ETB", "500")))
