@@ -81,6 +81,14 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.waafipay:https://api.waafipay.net/asm}")
     private String waafipay;
 
+    /**
+     * CMI's 3-D Secure gate. Not an API address -- this is where a customer's
+     * browser posts, so it is the one value here that a customer's machine ever
+     * connects to.
+     */
+    @Value("${payments.base-url.cmi:https://payment.cmi.co.ma/fim/est3Dgate}")
+    private String cmi;
+
     public String paystack() {
         return paystack;
     }
@@ -137,6 +145,10 @@ public class PaymentEndpoints {
 
     public String waafipay() {
         return waafipay;
+    }
+
+    public String cmi() {
+        return cmi;
     }
 
     /** Konnect picks its environment by host, the way Daraja and MTN do. */

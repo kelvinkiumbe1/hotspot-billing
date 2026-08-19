@@ -31,6 +31,8 @@ const DIALLING = {
   TN: ['216', 8],
   // Somalia. Nine digits -- Hormuud numbers start 61, 62, 63.
   SO: ['252', 9],
+  // Morocco. Nine digits after the trunk zero: 06 12 34 56 78 -> 612345678.
+  MA: ['212', 9],
   OTHER: ['', 0],
 }
 

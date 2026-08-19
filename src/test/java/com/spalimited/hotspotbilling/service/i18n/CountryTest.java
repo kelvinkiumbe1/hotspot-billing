@@ -141,7 +141,7 @@ class CountryTest {
         // operator who sets their country correctly and can still sell nothing.
         Set<String> built = Set.of("MPESA", "VODACOM_MPESA", "MTN_MOMO", "AIRTEL_MONEY",
                 "ORANGE_MONEY", "WAVE", "PAYSTACK", "FLUTTERWAVE", "STRIPE", "CHAPA",
-                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "NONE");
+                "PAYNOW", "PAYMOB", "KONNECT", "WAAFIPAY", "CMI", "NONE");
         for (Country c : Country.values()) {
             assertThat(built)
                     .as("%s points at %s, which nothing implements", c, c.rail())
@@ -214,6 +214,17 @@ class CountryTest {
         // Not the shilling. Somalia is dollarised in practice, EVC Plus prices in
         // dollars, and a rail set up expecting SOS would refuse every payment.
         assertThat(Country.SO.currency()).isEqualTo("USD");
+    }
+
+    @Test
+    @DisplayName("Morocco is reached, by cards rather than a wallet")
+    void moroccoIsCovered() {
+        assertThat(Country.MA.rail()).isEqualTo(Country.Rail.CMI);
+        assertThat(Country.MA.currency()).isEqualTo("MAD");
+        // Named for what can actually be charged. Orange Money and inwi money
+        // are real in Morocco and no rail here reaches either, so the brand says
+        // card rather than a wallet a customer would look for and not find.
+        assertThat(Country.MA.paymentBrand()).isEqualTo("card");
     }
 
     @Test

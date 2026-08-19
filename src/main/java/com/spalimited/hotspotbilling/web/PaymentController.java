@@ -178,6 +178,7 @@ public class PaymentController {
             case PAYMOB -> "Vodafone Cash or card";
             case KONNECT -> "Wallet or card";
             case WAAFIPAY -> "EVC Plus";
+            case CMI -> "Card";
             case ORANGE_MONEY -> "Orange Money";
             case WAVE -> "Wave";
             default -> kind.name();

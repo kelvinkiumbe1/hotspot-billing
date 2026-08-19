@@ -104,7 +104,14 @@ public class PaymentGateway {
          * the only rail here whose purchase is settled where it is made: there
          * is no webhook and no status service to ask.
          */
-        WAAFIPAY
+        WAAFIPAY,
+        /**
+         * CMI — Morocco. Clears very nearly every Moroccan card, and nothing
+         * else here collects dirhams. Not an API: the customer's browser posts
+         * signed fields to CMI's 3-D Secure gateway and is posted back with a
+         * signed result.
+         */
+        CMI
     }
 
     public enum Environment { SANDBOX, PRODUCTION }
@@ -270,6 +277,10 @@ public class PaymentGateway {
             // Three, all issued together by Hormuud, and all three travel in the
             // body of every request -- there is no token to exchange them for.
             case WAAFIPAY -> filled(shortCode) && filled(consumerKey) && filled(secretKey);
+            // The merchant id and the store key. The store key is the whole of
+            // the security in both directions -- it salts the hash we send and
+            // the one we check on the way back.
+            case CMI -> filled(shortCode) && filled(secretKey);
         };
     }
 
@@ -283,7 +294,7 @@ public class PaymentGateway {
         return switch (kind) {
             case MPESA_API, PAYSTACK, FLUTTERWAVE, STRIPE, MTN_MOMO, CHAPA, PAYNOW,
                     AIRTEL_MONEY, ORANGE_MONEY, WAVE, VODACOM_MPESA, PAYMOB,
-                    KONNECT, WAAFIPAY -> true;
+                    KONNECT, WAAFIPAY, CMI -> true;
             case MPESA_PAYBILL_MANUAL, MPESA_TILL_MANUAL, BANK_TRANSFER -> false;
         };
     }

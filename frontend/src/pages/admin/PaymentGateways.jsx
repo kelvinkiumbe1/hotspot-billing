@@ -151,6 +151,19 @@ const GATEWAYS = [
     webhook: '/api/payments/paynow/webhook',
   },
   {
+    kind: 'CMI',
+    name: 'CMI',
+    provider: 'Morocco',
+    badge: 'API KEYS',
+    chips: ['Cards', '3-D Secure', 'Automatic'],
+    settlement: 'Instant to us, paid out on the bank’s schedule',
+    icon: 'credit_card',
+    blurb: 'Centre Monétique Interbancaire clears very nearly every Moroccan card, and nothing '
+      + 'else here collects dirhams. The customer pays on CMI’s own 3-D Secure page, so no card '
+      + 'number touches this server. Needs a public address — CMI posts the result back and '
+      + 'there is nothing to ask if it cannot reach you.',
+  },
+  {
     kind: 'WAAFIPAY',
     name: 'EVC Plus (WaafiPay)',
     provider: 'Somalia',
@@ -258,6 +271,15 @@ const TELCO_FIELDS = {
     { key: 'consumerKey', label: 'Client ID', placeholder: 'from your Airtel developer app' },
     { key: 'consumerSecret', label: 'Client secret', secret: true,
       placeholder: 'beside the client ID' },
+  ],
+  CMI: [
+    { key: 'shortCode', label: 'Merchant ID (clientid)',
+      placeholder: 'e.g. 600001234',
+      hint: 'From your CMI merchant pack.' },
+    { key: 'secretKey', label: 'Store key', secret: true, wide: true,
+      placeholder: 'the store key CMI issued',
+      hint: 'This signs what goes to CMI and checks what comes back — it is the whole of '
+        + 'the security on this rail. Never put it anywhere a customer could see it.' },
   ],
   WAAFIPAY: [
     { key: 'shortCode', label: 'Merchant UID',

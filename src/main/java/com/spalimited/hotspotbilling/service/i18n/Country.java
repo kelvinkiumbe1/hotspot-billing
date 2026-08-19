@@ -166,6 +166,13 @@ public enum Country {
     SO("Somalia", "USD", "en", "EVC Plus", Rail.WAAFIPAY,
             List.of("EVC Plus", "Zaad", "Sahal"), "252", 9, List.of()),
 
+    // Morocco. Cards rather than wallets: CMI clears very nearly all of them
+    // and nothing else here collects dirhams. Orange Money and inwi money exist
+    // and are not reachable through any rail this system has, so the brand says
+    // card rather than naming a wallet that cannot be charged.
+    MA("Morocco", "MAD", "fr", "card", Rail.CMI,
+            List.of("Card", "CMI"), "212", 9, List.of()),
+
     OTHER("Somewhere else", "USD", "en", "card", Rail.STRIPE,
             List.of("Card"), "", 0, List.of());
 
@@ -185,7 +192,8 @@ public enum Country {
      */
     public enum Rail {
         MPESA, VODACOM_MPESA, MTN_MOMO, AIRTEL_MONEY, ORANGE_MONEY, WAVE,
-        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY, NONE
+        PAYSTACK, FLUTTERWAVE, STRIPE, CHAPA, PAYNOW, PAYMOB, KONNECT, WAAFIPAY,
+        CMI, NONE
     }
 
     private final String countryName;
