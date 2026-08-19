@@ -14,6 +14,21 @@
  * owners — CC0 covers the drawing, not permission to imply a relationship.
  * Each file keeps the official brand colour and is otherwise untouched.
  *
+ * <h2>Wikimedia Commons, for the official marks</h2>
+ *
+ * M-Pesa, MTN and Paystack are on Commons as public domain -- these logos are
+ * below the threshold of originality, so no copyright subsists in them. That
+ * makes Commons a better source than any icon set: it is the real mark rather
+ * than somebody's redraw of it. Checked per file via the API rather than
+ * assumed, because Commons also hosts plenty that is only CC-BY-SA.
+ *
+ *   M-Pesa       commons.wikimedia.org — File:M-PESA LOGO-01.svg
+ *   MTN          commons.wikimedia.org — File:MTN 2022 logo.svg
+ *   Paystack     commons.wikimedia.org — File:Paystack Logo.svg
+ *
+ * Copyright and trademark are different questions. Public domain settles the
+ * first; the second is why rule 2 below still applies in full.
+ *
  * <h2>Where to get the rest</h2>
  *
  *   Paystack     paystack.com/press
@@ -62,6 +77,10 @@
 import stripe from './stripe.svg'
 import airtel from './airtel.svg'
 import orange from './orange.svg'
+import mpesa from './mpesa.svg'
+import mtn from './mtn.svg'
+import paystack from './paystack.svg'
+import paynow from './paynow.svg'
 
 /**
  * One mark, rendered without being interfered with.
@@ -71,31 +90,32 @@ import orange from './orange.svg'
  * forbids.
  */
 const mark = (src, alt) => function GatewayLogo() {
-  return <img src={src} alt={alt} className="w-6 h-6 object-contain" />
+  // Height-constrained with width free, so a square icon renders 20x20 and a
+  // wordmark renders at its own ratio rather than being squashed into a box.
+  // max-w keeps a very wide one (Paystack is 5.6:1) from pushing the card title.
+  return <img src={src} alt={alt} className="h-5 w-auto max-w-[92px] object-contain" />
 }
 
 /** Keyed by PaymentGateway.Kind. Anything absent falls back to a glyph. */
 export const GATEWAY_LOGOS = {
+  MPESA_API: mark(mpesa, 'M-Pesa'),
+  MPESA_PAYBILL_MANUAL: mark(mpesa, 'M-Pesa'),
+  MPESA_TILL_MANUAL: mark(mpesa, 'M-Pesa'),
+  MTN_MOMO: mark(mtn, 'MTN'),
+  PAYSTACK: mark(paystack, 'Paystack'),
+  PAYNOW: mark(paynow, 'Paynow'),
   STRIPE: mark(stripe, 'Stripe'),
   AIRTEL_MONEY: mark(airtel, 'Airtel Money'),
   ORANGE_MONEY: mark(orange, 'Orange Money'),
 }
 
 /**
- * Wordmarks: correct, and the wrong shape for the gateway chip.
- *
- * Paynow publishes its logo as an 88x19 SVG wordmark. The chip on a gateway
- * card is a 44px square, so object-contain renders that wordmark about five
- * pixels tall -- legible to nobody. An illegible logo is worse than the clean
- * generic glyph it would replace, so this is deliberately not in
- * GATEWAY_LOGOS; it is here for the places that have horizontal room, like a
- * "works with" strip.
- *
- * Its single fill (#175FF8) measures 3.3:1 against the dark chip background,
- * which clears the 3:1 threshold for non-text, so colour was never the problem
- * -- only the aspect ratio.
+ * Also exported by name, for the places that lay marks out horizontally -- a
+ * "works with" strip wants the wordmark directly rather than through the
+ * gateway-keyed map.
  */
 export { default as paynowWordmark } from './paynow.svg'
+export { default as mpesaWordmark } from './mpesa.svg'
 
 /**
  * Card-network marks, kept for the "cards accepted" row on the checkout and the

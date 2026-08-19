@@ -729,7 +729,11 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
 function GatewayMark({ gateway }) {
   const Logo = GATEWAY_LOGOS[gateway.kind]
   return (
-    <span className="w-11 h-11 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 overflow-hidden">
+    // Was a fixed 44px square, which suits an icon-form mark and crushes a
+    // wordmark: M-Pesa, MTN, Paystack and Paynow all publish wide logos, and
+    // Paystack's is 5.6:1 -- eight pixels tall in a square. The chip grows
+    // instead, so each mark is shown at the shape its owner drew it.
+    <span className="h-11 min-w-11 px-2 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 overflow-hidden">
       {Logo ? <Logo /> : <Icon name={gateway.icon} className="text-[22px]!" />}
     </span>
   )
