@@ -32,7 +32,8 @@ import java.util.Optional;
 @Slf4j
 public class PaystackProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.paystack.co";
+    // The address moved to PaymentEndpoints so a test can stand in front of it.
+     // The default there is this same URL, so nothing changes in production.
 
     /**
      * Currencies Paystack quotes in whole units rather than hundredths. Every
@@ -40,11 +41,38 @@ public class PaystackProvider implements PaymentProvider {
      * charges a customer a hundred times too much or too little, so it is
      * stated explicitly rather than guessed from the decimal setting.
      */
-    private static final java.util.Set<String> ZERO_DECIMAL = java.util.Set.of("JPY", "KRW", "VND");
+    /**
+     * Currencies with no minor unit, which Paystack therefore quotes whole.
+     *
+     * <p>This list decides whether a customer is charged the right amount or a
+     * hundred times it, and it held three currencies none of this system's
+     * operators use while omitting every African one that qualifies. Paystack
+     * runs in Cote d'Ivoire, which is XOF: a 150-franc pass was being sent as
+     * 15,000. The same list on StripeProvider was already complete, which is
+     * how the gap survived -- the two were never compared.
+     *
+     * <p>ISO 4217 zero-decimal, restricted to currencies this system knows
+     * about plus the non-African ones already here.
+     */
+    private static final java.util.Set<String> ZERO_DECIMAL = java.util.Set.of(
+            "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG",
+            "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF");
 
     private final PaymentGatewayService gateways;
     private final ObjectMapper mapper;
-    private final RestClient client = RestClient.create(BASE);
+    private final PaymentEndpoints endpoints;
+
+    /**
+     * Built per call rather than once at construction.
+     *
+     * <p>The field initialiser froze the base URL before Spring had injected
+     * anything, which is precisely why this conversation had never been
+     * exercised. Every other rail in this package already builds its client per
+     * call, so this is also the consistent shape.
+     */
+    private RestClient client() {
+        return RestClient.create(endpoints.paystack());
+    }
 
     @Override
     public PaymentGateway.Kind kind() {
@@ -123,7 +151,7 @@ public class PaystackProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/transaction/initialize")
                     .header("Authorization", "Bearer " + secret)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -258,7 +286,7 @@ public class PaystackProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/transaction/charge_authorization")
                     .header("Authorization", "Bearer " + secret)
                     .contentType(MediaType.APPLICATION_JSON)

@@ -84,7 +84,7 @@ class MandateModelTest {
     @Test
     @DisplayName("Paystack: only a reusable authorization is stored")
     void paystackReusableOnly() {
-        PaystackProvider p = new PaystackProvider(null, MAPPER);
+        PaystackProvider p = new PaystackProvider(null, MAPPER, null);
 
         assertThat(p.reusableToken(body("""
                 {"data":{"authorization":{"authorization_code":"AUTH_ok","reusable":true}}}""")))

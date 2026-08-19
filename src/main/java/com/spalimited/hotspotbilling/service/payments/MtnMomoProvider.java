@@ -55,8 +55,7 @@ import java.util.UUID;
 @Slf4j
 public class MtnMomoProvider implements PaymentProvider {
 
-    private static final String SANDBOX = "https://sandbox.momodeveloper.mtn.com";
-    private static final String PRODUCTION = "https://proxy.momoapi.mtn.com";
+    // Both addresses moved to PaymentEndpoints, defaulting to these values.
 
     /**
      * MTN's own name for each market, sent as {@code X-Target-Environment}.
@@ -74,6 +73,7 @@ public class MtnMomoProvider implements PaymentProvider {
             Country.CI, "mtnivorycoast");
 
     private final PaymentGatewayService gateways;
+    private final PaymentEndpoints endpoints;
     private final PortalSettingsService portalSettings;
 
     /** Tokens last an hour; fetching one per charge would be slow and rude. */
@@ -118,7 +118,7 @@ public class MtnMomoProvider implements PaymentProvider {
             // better than sending a charge that fails for an unexplained reason.
             return null;
         }
-        return new Config(live ? PRODUCTION : SANDBOX,
+        return new Config(endpoints.mtn(live),
                 g.getSecretKey().trim(), g.getConsumerKey().trim(), g.getConsumerSecret().trim(),
                 target, live);
     }
