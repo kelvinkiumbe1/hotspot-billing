@@ -37,7 +37,7 @@ import java.util.Optional;
 @Slf4j
 public class StripeProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.stripe.com/v1";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     /** How stale a signed webhook may be. Stripe's own default. */
     private static final Duration TOLERANCE = Duration.ofMinutes(5);
@@ -53,7 +53,14 @@ public class StripeProvider implements PaymentProvider {
 
     private final PaymentGatewayService gateways;
     private final ObjectMapper mapper;
-    private final RestClient client = RestClient.create(BASE);
+    private final PaymentEndpoints endpoints;
+    /**
+     * Built per call rather than frozen at construction, so the address can be
+     * stood in front of by a test. Every other rail here already does this.
+     */
+    private RestClient client() {
+        return RestClient.create(endpoints.stripe());
+    }
 
     @Override
     public PaymentGateway.Kind kind() {
@@ -95,7 +102,7 @@ public class StripeProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/checkout/sessions")
                     .header("Authorization", "Bearer " + cfg.getSecretKey())
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -288,7 +295,7 @@ public class StripeProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/payment_intents")
                     .header("Authorization", "Bearer " + cfg.getSecretKey())
                     .header("Idempotency-Key", request.reference())

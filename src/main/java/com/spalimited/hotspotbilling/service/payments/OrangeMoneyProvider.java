@@ -66,7 +66,7 @@ import java.util.Set;
 @Slf4j
 public class OrangeMoneyProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.orange.com";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     /** Separates the three values Orange needs to answer a status query. */
     static final String REF_SEPARATOR = "|";
@@ -98,6 +98,7 @@ public class OrangeMoneyProvider implements PaymentProvider {
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;
     private final PublicUrls urls;
+    private final PaymentEndpoints endpoints;
 
     private volatile String token;
     private volatile Instant tokenExpiresAt = Instant.EPOCH;
@@ -391,7 +392,7 @@ public class OrangeMoneyProvider implements PaymentProvider {
     // --- plumbing ---
 
     private RestClient client() {
-        return RestClient.create(BASE);
+        return RestClient.create(endpoints.orange());
     }
 
     /**

@@ -52,7 +52,7 @@ import java.util.Set;
 @Slf4j
 public class WaveProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.wave.com";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     /** How stale a signed webhook may be, matching Wave's own guidance. */
     private static final Duration TOLERANCE = Duration.ofMinutes(5);
@@ -71,6 +71,7 @@ public class WaveProvider implements PaymentProvider {
     private final PaymentGatewayService gateways;
     private final PortalSettingsService portalSettings;
     private final PublicUrls urls;
+    private final PaymentEndpoints endpoints;
     private final ObjectMapper mapper;
 
     @Override
@@ -336,7 +337,7 @@ public class WaveProvider implements PaymentProvider {
     // --- plumbing ---
 
     private RestClient client() {
-        return RestClient.create(BASE);
+        return RestClient.create(endpoints.wave());
     }
 
     private static String enc(String value) {

@@ -38,11 +38,18 @@ import java.util.Optional;
 @Slf4j
 public class ChapaProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.chapa.co/v1";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     private final PaymentGatewayService gateways;
     private final ObjectMapper mapper;
-    private final RestClient client = RestClient.create(BASE);
+    private final PaymentEndpoints endpoints;
+    /**
+     * Built per call rather than frozen at construction, so the address can be
+     * stood in front of by a test. Every other rail here already does this.
+     */
+    private RestClient client() {
+        return RestClient.create(endpoints.chapa());
+    }
 
     @Override
     public PaymentGateway.Kind kind() {
@@ -99,7 +106,7 @@ public class ChapaProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/transaction/initialize")
                     .header("Authorization", "Bearer " + secret)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -133,7 +140,7 @@ public class ChapaProvider implements PaymentProvider {
         }
         JsonNode response;
         try {
-            response = client.get()
+            response = client().get()
                     .uri("/transaction/verify/{ref}", providerRef)
                     .header("Authorization", "Bearer " + secret)
                     .retrieve()

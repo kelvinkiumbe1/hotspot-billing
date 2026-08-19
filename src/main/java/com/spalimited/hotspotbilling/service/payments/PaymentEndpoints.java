@@ -53,6 +53,12 @@ public class PaymentEndpoints {
     @Value("${payments.base-url.wave:https://api.wave.com}")
     private String wave;
 
+    @Value("${payments.base-url.chapa:https://api.chapa.co/v1}")
+    private String chapa;
+
+    @Value("${payments.base-url.paynow:https://www.paynow.co.zw}")
+    private String paynow;
+
     public String paystack() {
         return paystack;
     }
@@ -80,5 +86,13 @@ public class PaymentEndpoints {
 
     public String wave() {
         return wave;
+    }
+
+    public String chapa() {
+        return chapa;
+    }
+
+    public String paynow() {
+        return paynow;
     }
 }

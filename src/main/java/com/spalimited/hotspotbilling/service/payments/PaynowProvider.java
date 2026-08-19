@@ -45,7 +45,7 @@ import java.util.Optional;
 @Slf4j
 public class PaynowProvider implements PaymentProvider {
 
-    private static final String BASE = "https://www.paynow.co.zw";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     /**
      * The fields that go into the hash, in Paynow's documented order.
@@ -61,7 +61,15 @@ public class PaynowProvider implements PaymentProvider {
             "reference", "paynowreference", "amount", "status", "pollurl"};
 
     private final PaymentGatewayService gateways;
-    private final RestClient client = RestClient.create(BASE);
+    private final PaymentEndpoints endpoints;
+    private final PublicUrls urls;
+    /**
+     * Built per call rather than frozen at construction, so the address can be
+     * stood in front of by a test. Every other rail here already does this.
+     */
+    private RestClient client() {
+        return RestClient.create(endpoints.paynow());
+    }
 
     @Override
     public PaymentGateway.Kind kind() {
@@ -97,6 +105,15 @@ public class PaynowProvider implements PaymentProvider {
         if (cfg == null) {
             throw new IllegalStateException("Paynow is not set up");
         }
+        String base = urls.origin();
+        if (base == null) {
+            // Paynow needs somewhere to send the customer back to and somewhere
+            // to post the result. Without a public address neither is possible,
+            // and starting the payment anyway strands the customer on Paynow's
+            // site after they have paid.
+            throw new IllegalStateException("Paynow needs this server's public address. "
+                    + "Set the callback URL in settings first.");
+        }
 
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("id", cfg.id());
@@ -104,8 +121,14 @@ public class PaynowProvider implements PaymentProvider {
         // Paynow quotes in whole units with two decimals, never minor units.
         fields.put("amount", request.amount().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
         fields.put("additionalinfo", request.description() == null ? "" : request.description());
-        fields.put("returnurl", BASE);
-        fields.put("resulturl", BASE);
+        // These were both Paynow's own address, which is the bug this rail was
+        // hiding. resulturl is where Paynow POSTs the outcome, so pointing it at
+        // paynow.co.zw meant the callback never arrived here at all and every
+        // payment waited on the reconciliation sweep instead; returnurl sent the
+        // customer who had just paid to Paynow's home page rather than back to
+        // the portal that sold them the pass.
+        fields.put("returnurl", base + "/?paid=" + enc(request.reference()));
+        fields.put("resulturl", base + "/api/payments/paynow/webhook");
         fields.put("status", "Message");
         fields.put("hash", hash(fields, INITIATE_ORDER, cfg.key()));
 
@@ -281,7 +304,7 @@ public class PaynowProvider implements PaymentProvider {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         fields.forEach(form::add);
         try {
-            String body = client.post().uri(path)
+            String body = client().post().uri(path)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(form)
                     .retrieve()
@@ -305,6 +328,11 @@ public class PaynowProvider implements PaymentProvider {
         } catch (NumberFormatException e) {
             return BigDecimal.ZERO;
         }
+    }
+
+    private static String enc(String value) {
+        return java.net.URLEncoder.encode(value == null ? "" : value,
+                java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static boolean blank(String v) {

@@ -23,7 +23,7 @@ class WaveProviderTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SECRET = "wave_whsec_test";
 
-    private final WaveProvider provider = new WaveProvider(null, null, null, MAPPER);
+    private final WaveProvider provider = new WaveProvider(null, null, null, null, MAPPER);
 
     @Test
     @DisplayName("A succeeded payment settles with its amount")

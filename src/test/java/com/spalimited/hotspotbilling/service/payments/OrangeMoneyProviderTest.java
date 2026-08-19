@@ -112,7 +112,7 @@ class OrangeMoneyProviderTest {
         // cannot go in the notif_url either — Orange only issues it in the reply
         // to the request that sets that URL. Acknowledging here would tell
         // Orange a payment was handled when nothing had happened.
-        OrangeMoneyProvider provider = new OrangeMoneyProvider(null, null, null);
+        OrangeMoneyProvider provider = new OrangeMoneyProvider(null, null, null, null);
         assertThat(catchThrowable(() -> provider.settle(bytes("{}"), java.util.Map.of())))
                 .isInstanceOf(UnsupportedOperationException.class);
     }

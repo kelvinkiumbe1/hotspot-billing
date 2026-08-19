@@ -35,11 +35,18 @@ import java.util.Optional;
 @Slf4j
 public class FlutterwaveProvider implements PaymentProvider {
 
-    private static final String BASE = "https://api.flutterwave.com/v3";
+    // Address moved to PaymentEndpoints; the default there is this URL.
 
     private final PaymentGatewayService gateways;
     private final ObjectMapper mapper;
-    private final RestClient client = RestClient.create(BASE);
+    private final PaymentEndpoints endpoints;
+    /**
+     * Built per call rather than frozen at construction, so the address can be
+     * stood in front of by a test. Every other rail here already does this.
+     */
+    private RestClient client() {
+        return RestClient.create(endpoints.flutterwave());
+    }
 
     @Override
     public PaymentGateway.Kind kind() {
@@ -80,7 +87,7 @@ public class FlutterwaveProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/payments")
                     .header("Authorization", "Bearer " + cfg.getSecretKey())
                     .contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +207,7 @@ public class FlutterwaveProvider implements PaymentProvider {
 
         JsonNode response;
         try {
-            response = client.post()
+            response = client().post()
                     .uri("/tokenized-charges")
                     .header("Authorization", "Bearer " + cfg.getSecretKey())
                     .contentType(MediaType.APPLICATION_JSON)

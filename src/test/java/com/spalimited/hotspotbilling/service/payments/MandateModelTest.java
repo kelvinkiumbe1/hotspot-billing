@@ -104,7 +104,7 @@ class MandateModelTest {
     @Test
     @DisplayName("Flutterwave: a token only from a successful card charge")
     void flutterwaveCardOnly() {
-        FlutterwaveProvider f = new FlutterwaveProvider(null, MAPPER);
+        FlutterwaveProvider f = new FlutterwaveProvider(null, MAPPER, null);
 
         assertThat(f.reusableToken(body("""
                 {"data":{"status":"successful","card":{"token":"flw-tok"}}}""")))
@@ -120,7 +120,7 @@ class MandateModelTest {
     @Test
     @DisplayName("Stripe: both halves or nothing")
     void stripeNeedsCustomerAndMethod() {
-        StripeProvider s = new StripeProvider(null, MAPPER);
+        StripeProvider s = new StripeProvider(null, MAPPER, null);
 
         assertThat(s.reusableToken(body("""
                 {"data":{"object":{"customer":"cus_1","payment_method":"pm_1"}}}""")))
@@ -138,9 +138,9 @@ class MandateModelTest {
     void honestAboutWhatCannotRecur() {
         // Claiming the ability and failing at renewal is worse than not claiming
         // it: the operator stops chasing on the strength of it.
-        assertThat(new AirtelProvider(null, null).supportsRecurring()).isFalse();
-        assertThat(new WaveProvider(null, null, null, MAPPER).supportsRecurring()).isFalse();
-        assertThat(new OrangeMoneyProvider(null, null, null).supportsRecurring()).isFalse();
+        assertThat(new AirtelProvider(null, null, null).supportsRecurring()).isFalse();
+        assertThat(new WaveProvider(null, null, null, null, MAPPER).supportsRecurring()).isFalse();
+        assertThat(new OrangeMoneyProvider(null, null, null, null).supportsRecurring()).isFalse();
     }
 
     private static byte[] body(String json) {

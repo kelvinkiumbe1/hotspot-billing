@@ -49,8 +49,7 @@ import java.util.UUID;
 @Slf4j
 public class AirtelProvider implements PaymentProvider {
 
-    private static final String SANDBOX = "https://openapiuat.airtel.africa";
-    private static final String PRODUCTION = "https://openapi.airtel.africa";
+    // Both addresses moved to PaymentEndpoints, defaulting to these values.
 
     /**
      * The markets Airtel Money serves that this system also knows about.
@@ -65,6 +64,7 @@ public class AirtelProvider implements PaymentProvider {
             Country.NE, Country.TD, Country.GA, Country.CG, Country.MG);
 
     private final PaymentGatewayService gateways;
+    private final PaymentEndpoints endpoints;
     private final PortalSettingsService portalSettings;
 
     private volatile String token;
@@ -117,7 +117,7 @@ public class AirtelProvider implements PaymentProvider {
             return null;
         }
         boolean live = g.getEnvironment() == PaymentGateway.Environment.PRODUCTION;
-        return new Config(live ? PRODUCTION : SANDBOX,
+        return new Config(endpoints.airtel(live),
                 g.getConsumerKey().trim(), g.getConsumerSecret().trim(),
                 country, country.currency());
     }
