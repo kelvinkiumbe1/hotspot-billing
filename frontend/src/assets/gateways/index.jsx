@@ -29,15 +29,17 @@
  * Copyright and trademark are different questions. Public domain settles the
  * first; the second is why rule 2 below still applies in full.
  *
- * <h2>Where to get the rest</h2>
+ * <h2>What is still missing</h2>
  *
- *   Paystack     paystack.com/press
+ * Only BANK_TRANSFER, which has no logo by nature — it is "any bank", so the
+ * generic glyph is the correct answer rather than a gap.
+ *
+ * Everything else now carries a real mark. If a better vector turns up for
+ * Chapa, Flutterwave or Wave, replacing the PNG is a one-line change:
+ *
  *   Flutterwave  flutterwave.com — press / media enquiries
  *   Wave         wave.com — press
- *   M-Pesa       Safaricom brand portal (developer.safaricom.co.ke → partner access)
- *   MTN MoMo     momodeveloper.mtn.com → MTN brand portal
  *   Chapa        chapa.co
- *   Paynow       paynow.co.zw
  *
  * Checked live rather than recited: several of those hosts return 403 to a
  * command-line request and open perfectly in a browser, so a failed fetch there
@@ -81,6 +83,14 @@ import mpesa from './mpesa.svg'
 import mtn from './mtn.svg'
 import paystack from './paystack.svg'
 import paynow from './paynow.svg'
+// PNG, not SVG. Chapa, Flutterwave and Wave publish no vector mark anywhere
+// reachable -- no inline SVG, nothing logo-named, nothing on Commons -- so
+// these are their own app icons. Each is comfortably larger than the 20px it
+// renders at (68, 76 and 192 square), which covers a 3x display, and each has
+// a real alpha channel rather than a background baked in.
+import chapa from './chapa.png'
+import flutterwave from './flutterwave.png'
+import wave from './wave.png'
 
 /**
  * One mark, rendered without being interfered with.
@@ -107,6 +117,9 @@ export const GATEWAY_LOGOS = {
   STRIPE: mark(stripe, 'Stripe'),
   AIRTEL_MONEY: mark(airtel, 'Airtel Money'),
   ORANGE_MONEY: mark(orange, 'Orange Money'),
+  CHAPA: mark(chapa, 'Chapa'),
+  FLUTTERWAVE: mark(flutterwave, 'Flutterwave'),
+  WAVE: mark(wave, 'Wave'),
 }
 
 /**
