@@ -129,8 +129,7 @@ public class PaystackProvider implements PaymentProvider {
         // Paystack requires an email. A hotspot customer has a phone number and
         // nothing else, so one is derived from it rather than blocking the sale
         // — it only ever appears on the receipt Paystack sends itself.
-        body.put("email", request.email() != null && request.email().contains("@")
-                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        body.put("email", PaymentEmails.forCustomer(request.email(), request.phoneNumber()));
         body.put("amount", minorUnits(request.amount(), request.currency()));
         body.put("currency", request.currency());
         body.put("reference", request.reference());
@@ -278,8 +277,7 @@ public class PaystackProvider implements PaymentProvider {
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("authorization_code", token);
-        body.put("email", request.email() != null && request.email().contains("@")
-                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        body.put("email", PaymentEmails.forCustomer(request.email(), request.phoneNumber()));
         body.put("amount", minorUnits(request.amount(), request.currency()));
         body.put("currency", request.currency());
         body.put("reference", request.reference());

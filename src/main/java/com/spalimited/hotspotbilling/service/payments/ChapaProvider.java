@@ -95,8 +95,7 @@ public class ChapaProvider implements PaymentProvider {
         body.put("tx_ref", request.reference());
         // Chapa wants an email. A hotspot customer has a phone number and
         // nothing else, so one is derived rather than blocking the sale.
-        body.put("email", request.email() != null && request.email().contains("@")
-                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        body.put("email", PaymentEmails.forCustomer(request.email(), request.phoneNumber()));
         if (request.phoneNumber() != null) {
             body.put("phone_number", request.phoneNumber());
         }

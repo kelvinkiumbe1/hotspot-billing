@@ -79,8 +79,7 @@ public class FlutterwaveProvider implements PaymentProvider {
         body.put("currency", request.currency());
         body.put("payment_options", "card,mobilemoney,ussd");
         body.put("customer", Map.of(
-                "email", request.email() != null && request.email().contains("@")
-                        ? request.email() : request.phoneNumber() + "@no-email.invalid",
+                "email", PaymentEmails.forCustomer(request.email(), request.phoneNumber()),
                 "phonenumber", request.phoneNumber() == null ? "" : request.phoneNumber()));
         body.put("customizations", Map.of("title",
                 request.description() == null ? "Internet access" : request.description()));
@@ -199,8 +198,7 @@ public class FlutterwaveProvider implements PaymentProvider {
         // customer who is not watching.
         body.put("amount", request.amount().toPlainString());
         body.put("tx_ref", request.reference());
-        body.put("email", request.email() != null && request.email().contains("@")
-                ? request.email() : request.phoneNumber() + "@no-email.invalid");
+        body.put("email", PaymentEmails.forCustomer(request.email(), request.phoneNumber()));
         if (request.description() != null) {
             body.put("narration", request.description());
         }
