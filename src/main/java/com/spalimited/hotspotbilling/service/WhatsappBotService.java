@@ -44,6 +44,12 @@ public class WhatsappBotService {
     private final PortalSettingsService portalSettings;
     private final ReferralService referralService;
     private final VoucherService voucherService;
+    private final SmsService smsService;
+
+    /** How often one number may pull its own code back out of history. */
+    private static final int RESEND_PER_HOUR = 3;
+
+    private final Map<String, List<Instant>> resendLog = new ConcurrentHashMap<>();
     private final CustomPlanService customPlanService;
     private final FieldOpsService fieldOps;
     private final com.spalimited.hotspotbilling.repository.LeadRepository leads;
@@ -205,6 +211,15 @@ public class WhatsappBotService {
                     "Sorry, that didn't work: %s",
                     "Samahani, haikufanikiwa: %s"}),
             Map.entry("resendFound", new String[]{"🎟️ Your latest code is *%s* (%s).", "🎟️ Nambari yako ya hivi karibuni ni *%s* (%s)."}),
+            Map.entry("resendTexted", new String[]{
+                    "🎟️ Your latest code ends *%s* (%s).\n\nWe have texted the full code to %s — chat history is not the place to leave it.",
+                    "🎟️ Nambari yako ya hivi karibuni inaishia *%s* (%s).\n\nTumeituma kamili kwa SMS kwa %s."}),
+            Map.entry("resendNoSms", new String[]{
+                    "🎟️ Your latest code is *%s* (%s).\n\n_Keep it to yourself — anyone with it can use your time._",
+                    "🎟️ Nambari yako ni *%s* (%s).\n\n_Isiwe kwa mtu mwingine — mwenye nayo anaweza kutumia muda wako._"}),
+            Map.entry("resendTooMany", new String[]{
+                    "You have asked for that a few times just now. Try again in a little while.",
+                    "Umeomba hiyo mara kadhaa sasa. Jaribu tena baada ya muda."}),
             Map.entry("planNo", new String[]{"Reply with a plan number from the list, or *menu* to go back.", "Jibu na nambari ya kifurushi, au *menu*."}),
             Map.entry("unknown", new String[]{"Sorry, I didn't get that.\n\n%s", "Samahani, sijaelewa.\n\n%s"}),
             Map.entry("langSet", new String[]{"Language set to English.", "Lugha imewekwa Kiswahili."})
@@ -620,9 +635,60 @@ public class WhatsappBotService {
         return m == 0 ? h + "h" : h + "h " + m + "m";
     }
 
+    /**
+     * Hands back the customer's last code — but not in the chat.
+     *
+     * <p>Buying a pass and being sent the code is the customer acting now. Asking
+     * for an old one is retrieval of history, and history is what somebody who
+     * has taken over a WhatsApp account mines. So the chat shows only the last
+     * three characters and the full code goes to the SIM, which an account
+     * takeover does not reach. Rate limited, because the tail alone is worth
+     * guessing at if you can ask often enough.
+     */
     private String resend(Session s, String fromPhone) {
-        Voucher v = vouchers.findByPhoneNumberOrderByCreatedAtDesc(loose(fromPhone)).stream().findFirst().orElse(null);
-        return v == null ? t(s, "resendNone") : t(s, "resendFound", v.getCode(), voucherState(v));
+        Voucher v = vouchers.findByPhoneNumberOrderByCreatedAtDesc(loose(fromPhone))
+                .stream().findFirst().orElse(null);
+        if (v == null) {
+            return t(s, "resendNone");
+        }
+        if (!resendAllowed(fromPhone)) {
+            return t(s, "resendTooMany");
+        }
+        if (!smsService.isEnabled()) {
+            // No second channel to move it to. Saying nothing at all would be
+            // worse than the chat: the customer would be locked out of a pass
+            // they paid for.
+            return t(s, "resendNoSms", v.getCode(), voucherState(v));
+        }
+        String business = portalSettings.settings().getBusinessName();
+        smsService.trySend(fromPhone,
+                business + ": your WiFi code is " + v.getCode() + " (" + voucherState(v) + ").");
+        return t(s, "resendTexted", tail(v.getCode()), voucherState(v), fromPhone);
+    }
+
+    /** The last three characters, enough for a customer to recognise their own code. */
+    private static String tail(String code) {
+        if (code == null || code.length() <= 3) {
+            return code == null ? "" : code;
+        }
+        return "•••" + code.substring(code.length() - 3);
+    }
+
+    /** At most {@value #RESEND_PER_HOUR} resends an hour for one number. */
+    private boolean resendAllowed(String phone) {
+        String key = loose(phone);
+        Instant now = Instant.now();
+        resendLog.values().removeIf(times -> {
+            times.removeIf(at -> at.isBefore(now.minus(Duration.ofHours(1))));
+            return times.isEmpty();
+        });
+        List<Instant> mine = resendLog.computeIfAbsent(key, k -> new ArrayList<>());
+        mine.removeIf(at -> at.isBefore(now.minus(Duration.ofHours(1))));
+        if (mine.size() >= RESEND_PER_HOUR) {
+            return false;
+        }
+        mine.add(now);
+        return true;
     }
 
     /**

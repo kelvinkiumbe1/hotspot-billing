@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,6 +58,10 @@ class FieldBotServiceTest {
 
     private FieldOpsService fieldOps;
     private FieldBotService bot;
+    private FieldChatPin fieldChatPin;
+
+    /** Ann's PIN throughout. Varied digits, because all-same is refused. */
+    private static final String PIN = "2468";
 
     private final Map<Long, SupportTicket> stored = new LinkedHashMap<>();
     private Technician ann;
@@ -66,7 +71,11 @@ class FieldBotServiceTest {
     void setUp() {
         fieldOps = new FieldOpsService(settingsRepo, technicians, tickets, smsService,
                 operatorAlerts, messagingSettings, portalSettings);
-        bot = new FieldBotService(fieldOps, tickets);
+        fieldChatPin = new FieldChatPin(technicians,
+                org.springframework.security.crypto.factory.PasswordEncoderFactories
+                        .createDelegatingPasswordEncoder(),
+                operatorAlerts);
+        bot = new FieldBotService(fieldOps, tickets, fieldChatPin);
 
         settings = FieldSettings.builder().id(FieldSettings.SINGLETON_ID).build();
         when(settingsRepo.findById(FieldSettings.SINGLETON_ID)).thenReturn(Optional.of(settings));
@@ -94,6 +103,17 @@ class FieldBotServiceTest {
             List<SupportTicket.Status> want = new ArrayList<>(i.getArgument(0));
             return stored.values().stream().filter(t -> want.contains(t.getStatus())).toList();
         });
+
+        // Ann signs in once, so the tests below exercise the bot rather than the
+        // lock on the front of it. The lock has its own tests at the bottom.
+        fieldChatPin.setPin(7L, PIN, "test");
+        bot.reply(TECH_PHONE, "hi");
+        bot.reply(TECH_PHONE, PIN);
+    }
+
+    /** A bot with its own session map, for testing the lock from a cold start. */
+    private FieldBotService coldBot() {
+        return new FieldBotService(fieldOps, tickets, fieldChatPin);
     }
 
     private SupportTicket job(long id, SupportTicket.Status status, Instant created, Long... assignees) {
@@ -258,5 +278,106 @@ class FieldBotServiceTest {
 
         assertThat(result).containsEntry("nudged", 0).containsEntry("escalated", 0);
         verify(smsService, never()).trySend(anyString(), anyString());
+    }
+
+    // ------------------------------------------------------------ the lock
+
+    @Test
+    @DisplayName("a cold chat is asked for a PIN and told nothing else")
+    void coldChatAsksForThePin() {
+        job(42, SupportTicket.Status.OPEN, Instant.now());
+        FieldBotService cold = coldBot();
+
+        String first = cold.reply(TECH_PHONE, "jobs");
+
+        // Not the name, not a job count. Either would tell whoever is holding
+        // the phone that this number is a technician's and how much work is on.
+        assertThat(first).contains("Enter your field PIN");
+        assertThat(first).doesNotContain("Ann");
+        assertThat(first).doesNotContain("42");
+    }
+
+    @Test
+    @DisplayName("the right PIN opens the menu")
+    void rightPinOpensTheMenu() {
+        FieldBotService cold = coldBot();
+        cold.reply(TECH_PHONE, "jobs");
+
+        assertThat(cold.reply(TECH_PHONE, PIN)).contains("Field Connect", "Ann");
+    }
+
+    @Test
+    @DisplayName("a wrong PIN says how many tries are left and shows nothing")
+    void wrongPinCountsDown() {
+        FieldBotService cold = coldBot();
+        cold.reply(TECH_PHONE, "jobs");
+
+        String reply = cold.reply(TECH_PHONE, "9999");
+
+        assertThat(reply).contains("not right", "tries left");
+        assertThat(reply).doesNotContain("Ann");
+    }
+
+    @Test
+    @DisplayName("five wrong PINs lock the chat and tell the operator")
+    void fiveWrongPinsLock() {
+        FieldBotService cold = coldBot();
+        cold.reply(TECH_PHONE, "jobs");
+        for (int i = 0; i < 4; i++) {
+            cold.reply(TECH_PHONE, "9999");
+        }
+
+        assertThat(cold.reply(TECH_PHONE, "9999")).contains("locked");
+        // The operator is the only one who can tell a forgotten PIN from a
+        // stolen phone, so they are told either way.
+        verify(operatorAlerts).alert(org.mockito.ArgumentMatchers.contains("locked"));
+        // And the right PIN does not work while it is locked.
+        assertThat(cold.reply(TECH_PHONE, PIN)).contains("locked");
+    }
+
+    @Test
+    @DisplayName("the guess budget survives saying menu between tries")
+    void budgetSurvivesAReset() {
+        FieldBotService cold = coldBot();
+        cold.reply(TECH_PHONE, "jobs");
+        for (int i = 0; i < 4; i++) {
+            cold.reply(TECH_PHONE, "9999");
+            // The obvious way to get a fresh budget, if the count lived in the
+            // chat session rather than on the technician.
+            cold.reply(TECH_PHONE, "menu");
+        }
+
+        assertThat(cold.reply(TECH_PHONE, "9999")).contains("locked");
+    }
+
+    @Test
+    @DisplayName("a technician with no PIN set cannot use the chat at all")
+    void noPinNoChat() {
+        fieldChatPin.clearPin(7L, "test");
+        FieldBotService cold = coldBot();
+
+        String reply = cold.reply(TECH_PHONE, "jobs");
+
+        // Fail closed, and say who can fix it. Letting them set their own here
+        // would mean whoever holds the phone sets it first.
+        assertThat(reply).contains("not set up", "office");
+        assertThat(reply).doesNotContain("Ann");
+    }
+
+    @Test
+    @DisplayName("a stranger still gets nothing, PIN or no PIN")
+    void strangerStillGetsNothing() {
+        assertThat(coldBot().reply(STRANGER, "2468")).isNull();
+    }
+
+    @Test
+    @DisplayName("an easily guessed PIN is refused when it is set")
+    void weakPinRefused() {
+        assertThatThrownBy(() -> fieldChatPin.setPin(7L, "0000", "test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("too easy");
+        assertThatThrownBy(() -> fieldChatPin.setPin(7L, "12", "test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("digits");
     }
 }

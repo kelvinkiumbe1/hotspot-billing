@@ -45,6 +45,26 @@ public class Technician {
     /** May generate vouchers in Field Connect. Null means allowed (legacy default). */
     private Boolean canVouchers;
 
+    /**
+     * PIN for the WhatsApp field bot, encoded.
+     *
+     * <p>Null means this technician cannot use the bot at all. The office sets
+     * it; a technician cannot choose their own on first contact, because whoever
+     * is holding the phone would simply choose it first.
+     */
+    @Column(name = "chat_pin_hash", length = 200)
+    private String chatPinHash;
+
+    @Column(name = "chat_pin_set_at")
+    private Instant chatPinSetAt;
+
+    @Builder.Default
+    @Column(name = "chat_pin_failures", nullable = false)
+    private int chatPinFailures = 0;
+
+    @Column(name = "chat_pin_locked_until")
+    private Instant chatPinLockedUntil;
+
     /** May create/manage PPPoE subscribers in Field Connect. Null means not allowed. */
     private Boolean canPppoe;
 

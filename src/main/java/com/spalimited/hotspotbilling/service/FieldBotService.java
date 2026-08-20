@@ -39,17 +39,24 @@ public class FieldBotService {
 
     private static final Duration TTL = Duration.ofMinutes(30);
 
-    private enum Step { MENU, JOB_PICK, JOB, NOTE, DONE_NOTE, QUEUE_PICK }
+    private enum Step { PIN, MENU, JOB_PICK, JOB, NOTE, DONE_NOTE, QUEUE_PICK }
 
     private static final class Session {
         Step step = Step.MENU;
         Long jobId;
         List<Long> listed = new ArrayList<>();
         Instant touched = Instant.now();
+        /** When the PIN they entered stops counting. Null means never entered. */
+        Instant unlockedUntil;
+
+        boolean unlocked() {
+            return unlockedUntil != null && unlockedUntil.isAfter(Instant.now());
+        }
     }
 
     private final FieldOpsService fieldOps;
     private final SupportTicketRepository tickets;
+    private final FieldChatPin pin;
 
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
@@ -73,12 +80,21 @@ public class FieldBotService {
         String lower = text.toLowerCase();
         Session s = session(fromPhone);
 
+        // Nothing about the queue is said before the PIN. Answering "menu" with
+        // a job count would already leak how much work is on, and who from.
+        if (!s.unlocked()) {
+            return askForPin(s, tech, text);
+        }
+
         if (lower.isEmpty() || lower.matches("menu|hi|hello|start|0|hey|habari|jobs|job")) {
-            reset(s);
+            s.step = Step.MENU;
+            s.jobId = null;
+            s.listed = new ArrayList<>();
             return menu(tech);
         }
 
         return switch (s.step) {
+            case PIN -> askForPin(s, tech, text);
             case MENU -> handleMenu(s, tech, text);
             case JOB_PICK -> handlePick(s, tech, text, false);
             case QUEUE_PICK -> handlePick(s, tech, text, true);
@@ -86,6 +102,46 @@ public class FieldBotService {
             case NOTE -> handleNote(s, tech, text);
             case DONE_NOTE -> handleDone(s, tech, text);
         };
+    }
+
+    // --- The PIN ---
+
+    /**
+     * Asks for the PIN, or takes one.
+     *
+     * <p>Deliberately says nothing about the technician or the work — not their
+     * name, not a job count. A number that is not a technician's already gets
+     * null from {@link #reply}, so this only ever talks to the right person's
+     * phone; the point is that holding the phone is no longer enough.
+     */
+    private String askForPin(Session s, Technician tech, String text) {
+        if (!pin.hasPin(tech)) {
+            s.step = Step.PIN;
+            return "🔒 Field Connect is not set up for this number yet. "
+                    + "Ask the office to set your field PIN.";
+        }
+        if (pin.lockedOut(tech)) {
+            s.step = Step.PIN;
+            return "🔒 Too many wrong PINs. This chat is locked for a few minutes. "
+                    + "If that was not you, tell the office now.";
+        }
+        if (s.step != Step.PIN) {
+            // First message of a session: ask, do not judge what they sent.
+            s.step = Step.PIN;
+            return "🔒 *Field Connect*\n\nEnter your field PIN to continue.";
+        }
+        if (pin.accept(tech, text)) {
+            s.step = Step.MENU;
+            s.unlockedUntil = Instant.now().plus(FieldChatPin.UNLOCK_FOR);
+            return menu(tech);
+        }
+        if (pin.lockedOut(tech)) {
+            return "🔒 That PIN was wrong too many times. This chat is locked for a few minutes. "
+                    + "If that was not you, tell the office now.";
+        }
+        int left = pin.triesLeft(tech);
+        return "That PIN is not right. " + left + " tr" + (left == 1 ? "y" : "ies")
+                + " left before this chat locks.";
     }
 
     // --- Menu ---
