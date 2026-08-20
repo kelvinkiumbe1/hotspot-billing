@@ -30,6 +30,7 @@ import CpePage from './admin/Cpe.jsx'
 import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
 import BankImportPage from './admin/BankImport.jsx'
+import BillingDocumentsPage from './admin/BillingDocuments.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
@@ -520,6 +521,7 @@ const NAV_GROUPS = [
       { key: 'payments', label: 'Payments', icon: 'payments', need: 'FINANCE' },
       { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
       { key: 'bank', label: 'Bank transfers', icon: 'account_balance_wallet', need: 'FINANCE' },
+      { key: 'documents', label: 'Quotes & credits', icon: 'request_quote', need: 'FINANCE' },
       { key: 'assurance', label: 'Revenue Guard', icon: 'policy', need: 'FINANCE' },
       { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
       { key: 'agents', label: 'Agents', icon: 'storefront', need: 'SELL' },
@@ -1291,6 +1293,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'usage' && <UsagePage auth={auth} />}
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
+        {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
