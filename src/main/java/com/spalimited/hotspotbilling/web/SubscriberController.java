@@ -7,6 +7,7 @@ import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
 import com.spalimited.hotspotbilling.service.BranchScope;
 import com.spalimited.hotspotbilling.service.FupService;
+import com.spalimited.hotspotbilling.service.SubscriberProvisioningService;
 import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import com.spalimited.hotspotbilling.service.SubscriptionService;
 import jakarta.validation.Valid;
@@ -31,6 +32,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/subscribers")
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 @PreAuthorize("hasAuthority('CUSTOMERS')")
 public class SubscriberController {
 
@@ -40,6 +42,7 @@ public class SubscriberController {
     private final SubscriberUsageService subscriberUsage;
     private final FupService fupService;
     private final BranchScope branchScope;
+    private final SubscriberProvisioningService provisioning;
 
     /**
      * Every customer, or every customer of the caller's branch.
@@ -218,6 +221,69 @@ public class SubscriberController {
     public void delete(@PathVariable Long id) {
         reachable(id);
         subscriptionService.delete(id);
+    }
+
+    /**
+     * What a static customer types into their own router.
+     *
+     * <p>The whole point of a static service from the customer's side: four
+     * values. Assembled from the subnet the address came from rather than
+     * remembered by whoever is on the call, because a gateway recalled wrongly is
+     * an installation that fails and a van that goes back out.
+     */
+    @GetMapping("/{id}/connection")
+    public Map<String, Object> connection(@PathVariable Long id) {
+        return provisioning.customerSettings(reachable(id));
+    }
+
+    public record ConnectionRequest(
+            @NotNull Subscriber.ConnectionType connectionType,
+            @Pattern(regexp = "|([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}",
+                    message = "A device address looks like AA:BB:CC:DD:EE:FF")
+            String macAddress) {
+    }
+
+    /**
+     * Switches a customer between PPPoE and static, and records their equipment.
+     *
+     * <p>Re-provisions immediately, because the two are different objects on the
+     * router: leaving the old one behind means a customer who is billed as static
+     * and still connecting over PPPoE, or the reverse.
+     */
+    @PatchMapping("/{id}/connection")
+    public Map<String, Object> setConnection(@PathVariable Long id,
+                                             @Valid @RequestBody ConnectionRequest request) {
+        Subscriber sub = reachable(id);
+        Subscriber.ConnectionType was = sub.getConnectionType();
+
+        if (was != request.connectionType()) {
+            // Off the old arrangement first. Done before the switch so it uses
+            // the right one -- removing after would look for a static queue on a
+            // customer the record now calls PPPoE.
+            try {
+                provisioning.remove(sub);
+            } catch (Exception e) {
+                // A router that will not let go must not block the change: the
+                // record has to be able to say what is true even when the
+                // hardware disagrees.
+                log.warn("Could not clean up the old arrangement for {}: {}",
+                        sub.getPppoeUsername(), e.getMessage());
+            }
+        }
+        sub.setConnectionType(request.connectionType());
+        sub.setMacAddress(request.macAddress() == null || request.macAddress().isBlank()
+                ? null : request.macAddress().trim().toUpperCase());
+        subscribers.save(sub);
+        provisioning.provision(sub);
+
+        Map<String, Object> out = new LinkedHashMap<>(provisioning.customerSettings(sub));
+        out.put("message", was == request.connectionType()
+                ? "Saved."
+                : "Moved to " + request.connectionType() + ". "
+                        + (request.connectionType() == Subscriber.ConnectionType.STATIC
+                                ? "Give the customer the settings below to type into their router."
+                                : "Their router now dials in with its PPPoE username and password."));
+        return out;
     }
 
     /* ---------------------------------------------------------------- */

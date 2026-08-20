@@ -46,6 +46,7 @@ public class RouterFleetService {
     private final SubscriberRepository subscribers;
     private final RouterMoveRepository moves;
     private final MikrotikService mikrotikService;
+    private final SubscriberProvisioningService provisioning;
     private final AuditService audit;
 
     /** What a move did. */
@@ -187,11 +188,11 @@ public class RouterFleetService {
     private void moveOne(Subscriber sub, Router destination) {
         Long oldRouterId = sub.getRouterId();
         Subscriber onDestination = copyFor(sub, destination.getId());
-        mikrotikService.provisionPppoe(onDestination);
+        provisioning.provision(onDestination);
 
         if (oldRouterId != null && !oldRouterId.equals(destination.getId())) {
             try {
-                mikrotikService.removePppoe(copyFor(sub, oldRouterId));
+                provisioning.remove(copyFor(sub, oldRouterId));
             } catch (Exception e) {
                 // A stale secret on the old box is untidy; failing the move over
                 // it would leave the customer provisioned in two places and the

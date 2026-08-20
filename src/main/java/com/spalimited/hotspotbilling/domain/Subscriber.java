@@ -24,6 +24,20 @@ public class Subscriber {
 
     public enum Status { ACTIVE, SUSPENDED }
 
+    /**
+     * How this customer is connected, which decides everything about how they
+     * are provisioned, throttled and cut off.
+     *
+     * <p>PPPOE: the router dials in and is handed an address, a speed and a
+     * session. Suspension disables the secret.
+     *
+     * <p>STATIC: the customer typed an address, a mask and a gateway into their
+     * own equipment. There is no session and no secret, so the speed comes from a
+     * queue against their address and suspension is a firewall address list --
+     * see V80__static_ip_service.sql for why not the obvious alternatives.
+     */
+    public enum ConnectionType { PPPOE, STATIC }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -61,6 +75,26 @@ public class Subscriber {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status = Status.ACTIVE;
+
+    /** Every subscriber that existed before this column is PPPoE. */
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "connection_type", nullable = false, length = 16)
+    private ConnectionType connectionType = ConnectionType.PPPOE;
+
+    /**
+     * The customer's own equipment, for pinning a static address to it.
+     *
+     * <p>Without it the address is a suggestion: the neighbour who types it in
+     * gets the service and the customer who pays for it gets a conflict.
+     */
+    @Column(name = "mac_address", length = 32)
+    private String macAddress;
+
+    @Transient
+    public boolean isStatic() {
+        return connectionType == ConnectionType.STATIC;
+    }
 
     @Column(nullable = false)
     private Instant paidUntil;

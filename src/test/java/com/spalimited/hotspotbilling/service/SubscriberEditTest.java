@@ -49,6 +49,9 @@ class SubscriberEditTest {
     private MikrotikService mikrotikService;
 
     @Mock
+    private SubscriberProvisioningService provisioning;
+
+    @Mock
     private AuditService audit;
 
     @InjectMocks
@@ -85,7 +88,7 @@ class SubscriberEditTest {
         assertThat(mary.getFullName()).isEqualTo("Mary Wanjiku");
         // Reprovisioning for a spelling correction would drop a live customer
         // for no reason.
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
@@ -95,7 +98,7 @@ class SubscriberEditTest {
 
         assertThat(result.changes()).containsExactly("monthly fee");
         assertThat(mary.getMonthlyFee()).isEqualByComparingTo("3000");
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
@@ -107,7 +110,7 @@ class SubscriberEditTest {
         assertThat(result.changes()).isEmpty();
         assertThat(result.note()).isEqualTo("Nothing was different.");
         verify(subscribers, never()).save(any());
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
@@ -118,9 +121,9 @@ class SubscriberEditTest {
         assertThat(result.changes()).containsExactly("PPPoE username");
         // The whole point. Remove-then-create leaves the customer with no secret
         // at all if the create fails; this way the worst case is a duplicate.
-        InOrder order = inOrder(mikrotikService);
-        order.verify(mikrotikService).provisionPppoe(any());
-        order.verify(mikrotikService).removePppoe(any());
+        InOrder order = inOrder(provisioning);
+        order.verify(provisioning).provision(any());
+        order.verify(provisioning).remove(any());
     }
 
     @Test
@@ -130,7 +133,7 @@ class SubscriberEditTest {
 
         org.mockito.ArgumentCaptor<Subscriber> removed =
                 org.mockito.ArgumentCaptor.forClass(Subscriber.class);
-        verify(mikrotikService).removePppoe(removed.capture());
+        verify(provisioning).remove(removed.capture());
         // Removing under the new name would delete the secret we just created
         // and leave the customer offline with a database that says otherwise.
         assertThat(removed.getValue().getPppoeUsername()).isEqualTo("mkamau");
@@ -158,7 +161,7 @@ class SubscriberEditTest {
                 .hasMessageContaining("already taken");
 
         assertThat(mary.getPppoeUsername()).isEqualTo("mkamau");
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
@@ -182,8 +185,8 @@ class SubscriberEditTest {
         // RouterOS applies a profile at dial-in. Reporting this as done would be
         // a lie the operator repeats to the customer.
         assertThat(result.note()).contains("reconnects");
-        verify(mikrotikService).provisionPppoe(any());
-        verify(mikrotikService, never()).removePppoe(any());
+        verify(provisioning).provision(any());
+        verify(provisioning, never()).remove(any());
     }
 
     @Test
@@ -217,7 +220,7 @@ class SubscriberEditTest {
 
         org.mockito.ArgumentCaptor<Subscriber> removed =
                 org.mockito.ArgumentCaptor.forClass(Subscriber.class);
-        verify(mikrotikService).removePppoe(removed.capture());
+        verify(provisioning).remove(removed.capture());
         // Cleaned off the router they came FROM. Passing the updated subscriber
         // would delete the secret from the router they just moved to.
         assertThat(removed.getValue().getRouterId()).isEqualTo(3L);
@@ -227,7 +230,7 @@ class SubscriberEditTest {
     @DisplayName("a router that refuses the change fails the edit rather than lying about it")
     void routerFailureFailsTheEdit() {
         doThrow(new IllegalStateException("MikroTik API call failed: connection refused"))
-                .when(mikrotikService).provisionPppoe(any());
+                .when(provisioning).provision(any());
 
         assertThatThrownBy(() -> edit(null, null, "20M/20M", null, null))
                 .isInstanceOf(IllegalStateException.class)
@@ -235,14 +238,14 @@ class SubscriberEditTest {
 
         // The transaction rolls back, so the database never claims a speed the
         // router does not have. Nothing was removed either.
-        verify(mikrotikService, never()).removePppoe(any());
+        verify(provisioning, never()).remove(any());
     }
 
     @Test
     @DisplayName("a failed cleanup does not undo an edit that already worked")
     void failedCleanupIsToleratedAndLogged() {
         doThrow(new IllegalStateException("connection refused"))
-                .when(mikrotikService).removePppoe(any());
+                .when(provisioning).remove(any());
 
         SubscriptionService.Edited result = edit(null, "mwanjiku", null, null, null);
 

@@ -34,6 +34,7 @@ public class RouterMonitorJob {
     private final VoucherRepository vouchers;
     private final TrafficUsageRepository trafficUsage;
     private final MikrotikService mikrotikService;
+    private final SubscriberProvisioningService provisioning;
     private final SmsService smsService;
     private final OperatorAlertService operatorAlerts;
     private final AuditService audit;
@@ -132,7 +133,7 @@ public class RouterMonitorJob {
                         int reasserted = 0;
                         for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.SUSPENDED)) {
                             try {
-                                mikrotikService.setPppoeEnabled(sub, false);
+                                provisioning.setEnabled(sub, false);
                                 reasserted++;
                             } catch (Exception ignore) {
                                 // one bad user shouldn't stop the rest

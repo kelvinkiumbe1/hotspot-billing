@@ -31,6 +31,7 @@ import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
 import RemoteAccessPage from './admin/RemoteAccess.jsx'
 import FleetPage from './admin/Fleet.jsx'
+import AddressesPage from './admin/Addresses.jsx'
 import TroubleshootPage from './admin/Troubleshoot.jsx'
 import BankImportPage from './admin/BankImport.jsx'
 import BillingDocumentsPage from './admin/BillingDocuments.jsx'
@@ -518,6 +519,7 @@ const NAV_GROUPS = [
       { key: 'backups', label: 'Router backups', icon: 'backup', need: 'NETWORK' },
       { key: 'remote', label: 'Remote access', icon: 'vpn_key', need: 'NETWORK' },
       { key: 'fleet', label: 'Router fleet', icon: 'lan', need: 'NETWORK' },
+      { key: 'addresses', label: 'Addresses', icon: 'pin', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
     ],
   },
@@ -1322,6 +1324,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
         {tab === 'remote' && <RemoteAccessPage auth={auth} />}
         {tab === 'fleet' && <FleetPage auth={auth} />}
+        {tab === 'addresses' && <AddressesPage auth={auth} />}
         {tab === 'troubleshoot' && <TroubleshootPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
         {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
@@ -2673,6 +2676,9 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
   // actually differs is sent -- the backend treats null as "leave alone".
   const [edit, setEdit] = useState({})
   const [editLists, setEditLists] = useState({ routers: [], branches: [] })
+  const [conn, setConn] = useState({})
+  const [settings, setSettings] = useState(null)
+  const [connMsg, setConnMsg] = useState(null)
 
   const s = subscriber
   const st = subscriberState(s)
@@ -2709,6 +2715,38 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
       branches: Array.isArray(branches) ? branches : (branches?.branches || []),
     }))
   }, [editing, auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Read once per customer. The settings are derived from the subnet their
+  // address came from, so they change only when the address or the type does.
+  useEffect(() => {
+    setConn({ connectionType: s.connectionType || 'PPPOE', macAddress: s.macAddress || '' })
+    setConnMsg(null)
+    api(`/admin/subscribers/${s.id}/connection`, { auth })
+      .then(setSettings).catch(() => setSettings(null))
+  }, [s.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveConnection() {
+    setBusy(true)
+    setConnMsg(null)
+    try {
+      const r = await api(`/admin/subscribers/${s.id}/connection`, {
+        method: 'PATCH', auth,
+        body: {
+          connectionType: conn.connectionType || 'PPPOE',
+          macAddress: conn.macAddress || null,
+        },
+      })
+      setSettings(r)
+      // The server's own sentence: it knows whether anything had to be torn down
+      // on the router and what the customer now needs to do.
+      setConnMsg({ ok: true, text: r.message })
+      onChanged()
+    } catch (err) {
+      setConnMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function saveEdit() {
     setBusy(true)
@@ -2807,6 +2845,103 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
                 ? `${payLabel(s.lastPaymentMethod)}${s.lastPaymentAt ? ` · ${fmtDate(s.lastPaymentAt)}` : ''}`
                 : <span className="text-on-surface-variant">No payment yet</span>}
             </Row>
+          </div>
+
+          {/* How they connect, and -- for a static customer -- the four values
+              they type into their own router.
+
+              Worth its own panel rather than a field in the edit form, because
+              the settings are the thing somebody reads down the phone during an
+              installation, and hunting for them inside a nine-field form while a
+              customer waits is how a gateway gets remembered wrongly. */}
+          <div>
+            <h4 className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2">
+              How they connect
+            </h4>
+
+            <div className="bg-surface-container-low rounded-md p-3 space-y-3">
+              <div className="flex gap-2">
+                {[['PPPOE', 'PPPoE'], ['STATIC', 'Static IP']].map(([value, label]) => (
+                  <button key={value} type="button"
+                    onClick={() => setConn({ ...conn, connectionType: value })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold cursor-pointer border ${
+                      (conn.connectionType || 'PPPOE') === value
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {conn.connectionType === 'STATIC' && (
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">
+                    Their device address (MAC)
+                  </label>
+                  <input value={conn.macAddress || ''} placeholder="AA:BB:CC:DD:EE:FF"
+                    onChange={(e) => setConn({ ...conn, macAddress: e.target.value })}
+                    className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm font-mono focus:outline-none focus:border-primary" />
+                  {/* Not optional in spirit, even though it is in code. */}
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Pins the address to their equipment. Without it the neighbour who types
+                    the same address in gets the service, and the customer who pays for it
+                    gets a conflict.
+                  </p>
+                </div>
+              )}
+
+              <button type="button" disabled={busy} onClick={saveConnection}
+                className="w-full h-10 rounded-lg bg-primary text-on-primary text-sm font-semibold disabled:opacity-60 cursor-pointer">
+                {busy ? 'Saving…' : 'Save connection type'}
+              </button>
+
+              {connMsg && (
+                <p className={`text-sm ${connMsg.ok ? 'text-secondary' : 'text-error'}`}>
+                  {connMsg.text}
+                </p>
+              )}
+
+              {settings?.usable && (
+                <div className="border-t border-outline-variant/40 pt-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-xs font-semibold tracking-wider text-on-surface-variant uppercase">
+                      Read these to the customer
+                    </p>
+                    <button type="button"
+                      onClick={() => navigator.clipboard?.writeText(
+                        `IP address: ${settings.ipAddress}\nSubnet mask: ${settings.subnetMask}\n`
+                        + `Gateway: ${settings.gateway}\nDNS: ${settings.dns}`
+                        + (settings.vlanId ? `\nVLAN: ${settings.vlanId}` : ''))}
+                      className="text-xs text-primary cursor-pointer hover:underline">
+                      Copy
+                    </button>
+                  </div>
+                  <dl className="text-sm space-y-1">
+                    {[['IP address', settings.ipAddress], ['Subnet mask', settings.subnetMask],
+                      ['Gateway', settings.gateway], ['DNS', settings.dns],
+                      ...(settings.vlanId ? [['VLAN', String(settings.vlanId)]] : [])]
+                      .map(([label, value]) => (
+                        <div key={label} className="flex justify-between gap-3">
+                          <dt className="text-on-surface-variant">{label}</dt>
+                          <dd className="font-mono font-medium">{value || '—'}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                  {!settings.pinnedToDevice && (
+                    <p className="text-xs text-warning mt-2 flex items-start gap-1.5">
+                      <Icon name="warning" className="text-[14px]! mt-0.5" />
+                      No device address recorded, so this IP is not pinned to their equipment.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {settings && !settings.usable && settings.note && (
+                <p className="text-xs text-on-surface-variant border-t border-outline-variant/40 pt-3">
+                  {settings.note}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Edit details.

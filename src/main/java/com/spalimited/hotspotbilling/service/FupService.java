@@ -44,6 +44,7 @@ public class FupService {
     private static final long MB_BYTES = 1024L * 1024L;
 
     private final MikrotikService mikrotikService;
+    private final SubscriberProvisioningService provisioning;
     private final NotificationService notificationService;
     private final PortalSettingsService portalSettingsService;
     private final VoucherRepository vouchers;
@@ -163,8 +164,8 @@ public class FupService {
                 // Both restore paths are the subscriber's own stored settings, so
                 // this cannot hand somebody the wrong speed even if the package
                 // changed while they were throttled.
-                case THROTTLE -> mikrotikService.setPppoeRate(sub, null);
-                case BLOCK -> mikrotikService.setPppoeEnabled(sub, true);
+                case THROTTLE -> provisioning.setRate(sub, null);
+                case BLOCK -> provisioning.setEnabled(sub, true);
                 case NOTIFY -> { }
             }
         } catch (Exception e) {
@@ -183,7 +184,7 @@ public class FupService {
             return true; // no rate set -- behaves as notify-only
         }
         try {
-            mikrotikService.setPppoeRate(sub, sub.getFupRate());
+            provisioning.setRate(sub, sub.getFupRate());
             return true;
         } catch (Exception e) {
             log.warn("FUP throttle failed for subscriber {}: {}", sub.getId(), e.getMessage());
@@ -193,7 +194,7 @@ public class FupService {
 
     private boolean blockSubscriber(Subscriber sub) {
         try {
-            mikrotikService.setPppoeEnabled(sub, false);
+            provisioning.setEnabled(sub, false);
             return true;
         } catch (Exception e) {
             log.warn("FUP block failed for subscriber {}: {}", sub.getId(), e.getMessage());

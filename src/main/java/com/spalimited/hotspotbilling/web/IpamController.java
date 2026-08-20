@@ -53,6 +53,13 @@ public class IpamController {
             IpSubnet.Purpose purpose,
             String gateway,
             Integer vlanId,
+            /*
+             * Which interface this subnet lives on, needed to pin a static
+             * customer's address to their equipment. Explicit rather than derived
+             * from the VLAN id: a subnet might be on a bridge, a VLAN or a
+             * physical port, and guessing produces a name most boards do not have.
+             */
+            String interfaceName,
             Long routerId,
             Long branchId,
             String description) {
@@ -66,6 +73,7 @@ public class IpamController {
                 .purpose(request.purpose() == null ? IpSubnet.Purpose.STATIC : request.purpose())
                 .gateway(blankToNull(request.gateway()))
                 .vlanId(request.vlanId())
+                .interfaceName(blankToNull(request.interfaceName()))
                 .routerId(request.routerId())
                 .branchId(request.branchId())
                 .description(blankToNull(request.description()))
@@ -86,6 +94,7 @@ public class IpamController {
         subnet.setName(request.name().trim());
         subnet.setPurpose(request.purpose() == null ? subnet.getPurpose() : request.purpose());
         subnet.setVlanId(request.vlanId());
+        subnet.setInterfaceName(blankToNull(request.interfaceName()));
         subnet.setRouterId(request.routerId());
         subnet.setBranchId(request.branchId());
         subnet.setDescription(blankToNull(request.description()));

@@ -734,6 +734,200 @@ public class MikrotikService {
         }
     }
 
+    // --- Static-IP customers: no PPPoE, no session, no secret ---
+
+    /**
+     * Everything needed to put a static customer on a router.
+     *
+     * <p>Assembled by whoever knows IPAM, so this class does not have to. The
+     * mask and gateway come from the subnet the address was allocated from, which
+     * is also what the customer types into their own equipment -- so the same
+     * record is what gets read down the phone to them.
+     */
+    public record StaticPlacement(String address, int prefix, String gateway,
+                                  String interfaceName, String macAddress) {
+    }
+
+    /** The firewall list a suspended static customer sits in. */
+    private static final String SUSPEND_LIST = "zidi-suspended";
+
+    /**
+     * Puts a static customer on the router: an address pinned to their equipment,
+     * and a speed limit.
+     *
+     * <p>Two objects, and both are needed for different reasons. The ARP entry
+     * ties the address to their MAC, so the neighbour who types the same address
+     * in does not get the service. The simple queue is the speed -- a PPPoE
+     * customer gets theirs from a PPP profile and a static customer has no
+     * profile, so without this they run at line rate whatever they paid for.
+     */
+    public void provisionStatic(Subscriber sub, StaticPlacement placement) {
+        Router router = routerFor(sub.getRouterId());
+        if (!live(router)) {
+            log.info("MikroTik disabled -- not provisioning static customer {}",
+                    sub.getPppoeUsername());
+            return;
+        }
+        if (placement == null || placement.address() == null || placement.address().isBlank()) {
+            throw new IllegalStateException("This customer has no static address allocated. "
+                    + "Give them one under Addresses first.");
+        }
+        String name = queueName(sub);
+        try (ApiConnection connection = login(router)) {
+            // Pin the address to their equipment, when we know what that is. A
+            // customer whose MAC has not been recorded still gets service and a
+            // speed limit -- refusing to provision them over a missing MAC would
+            // be worse than the address being unpinned.
+            if (placement.macAddress() != null && !placement.macAddress().isBlank()
+                    && placement.interfaceName() != null && !placement.interfaceName().isBlank()) {
+                try {
+                    connection.execute("/ip/arp/remove [find address=" + placement.address() + "]");
+                } catch (Exception none) {
+                    log.debug("No existing ARP entry for {}", placement.address());
+                }
+                connection.execute("/ip/arp/add address=" + placement.address()
+                        + " mac-address=" + placement.macAddress().trim().toUpperCase(java.util.Locale.ROOT)
+                        + " interface=" + placement.interfaceName()
+                        + " comment=\"zidi:" + sub.getId() + "\"");
+            } else {
+                log.warn("Static customer {} has no MAC or no subnet interface, so their "
+                        + "address is not pinned to their equipment", sub.getPppoeUsername());
+            }
+
+            // The speed. Replaced rather than added, so re-provisioning does not
+            // leave two queues on one address fighting each other.
+            String rate = sub.getBandwidth() != null && !sub.getBandwidth().isBlank()
+                    ? sub.getBandwidth().trim() : "";
+            try {
+                connection.execute("/queue/simple/remove [find name=" + name + "]");
+            } catch (Exception none) {
+                log.debug("No existing queue for {}", name);
+            }
+            connection.execute("/queue/simple/add name=" + name
+                    + " target=" + placement.address() + "/32"
+                    + (rate.isBlank() ? "" : " max-limit=" + rate)
+                    + " comment=\"zidi:" + sub.getId() + "\"");
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Provisioned static customer {} at {} on {}",
+                sub.getPppoeUsername(), placement.address(), router.getName());
+    }
+
+    /**
+     * Cuts a static customer off, or lets them back on.
+     *
+     * <p>An address list plus one drop rule. The obvious alternatives both fail:
+     * deleting the queue removes their speed LIMIT rather than their service, and
+     * deleting the ARP entry only blocks anything if the interface is set to
+     * reply-only, which is not something this code can assume about somebody
+     * else's router.
+     */
+    public void setStaticEnabled(Subscriber sub, StaticPlacement placement, boolean enabled) {
+        Router router = routerFor(sub.getRouterId());
+        if (!live(router) || placement == null || placement.address() == null) {
+            return;
+        }
+        try (ApiConnection connection = login(router)) {
+            if (enabled) {
+                connection.execute("/ip/firewall/address-list/remove [find list=" + SUSPEND_LIST
+                        + " address=" + placement.address() + "]");
+            } else {
+                ensureSuspendRule(connection);
+                try {
+                    connection.execute("/ip/firewall/address-list/add list=" + SUSPEND_LIST
+                            + " address=" + placement.address()
+                            + " comment=\"zidi:" + sub.getId() + "\"");
+                } catch (Exception alreadyListed) {
+                    log.debug("{} is already suspended on {}", placement.address(), router.getName());
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("Static customer {} {}", sub.getPppoeUsername(), enabled ? "restored" : "suspended");
+    }
+
+    /**
+     * Makes sure the rule that actually blocks the list exists.
+     *
+     * <p>Without it the address list is a list of addresses and nothing more --
+     * the customer stays online, the admin says suspended, and nobody finds out
+     * until somebody checks a bill. Created once and found by its comment
+     * thereafter, because a second identical rule is harmless but a rule added on
+     * every suspension is a filter chain that grows forever.
+     */
+    private void ensureSuspendRule(ApiConnection connection) throws Exception {
+        List<Map<String, String>> existing = connection.execute(
+                "/ip/firewall/filter/print where comment=\"zidi-suspend-rule\"");
+        if (!existing.isEmpty()) {
+            return;
+        }
+        // Placed at the top of forward, because a rule underneath an accept
+        // somebody else added would never be reached.
+        connection.execute("/ip/firewall/filter/add chain=forward action=drop"
+                + " src-address-list=" + SUSPEND_LIST
+                + " comment=\"zidi-suspend-rule\" place-before=0");
+        log.info("Created the suspended-customer drop rule");
+    }
+
+    /** Changes a static customer's speed by rewriting their queue. */
+    public void setStaticRate(Subscriber sub, String rate) {
+        Router router = routerFor(sub.getRouterId());
+        if (!live(router)) {
+            return;
+        }
+        String effective = rate != null && !rate.isBlank() ? rate.trim() : sub.getBandwidth();
+        try (ApiConnection connection = login(router)) {
+            connection.execute("/queue/simple/set [find name=" + queueName(sub) + "]"
+                    + (effective == null || effective.isBlank()
+                            ? " max-limit=0/0" : " max-limit=" + effective));
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        // Unlike PPPoE, this takes effect immediately: a queue applies to traffic
+        // rather than to a session, so there is nothing to reconnect.
+        log.info("Static customer {} rate set to {}", sub.getPppoeUsername(),
+                effective == null || effective.isBlank() ? "unlimited" : effective);
+    }
+
+    /** Takes a static customer off the router entirely. */
+    public void removeStatic(Subscriber sub, StaticPlacement placement) {
+        Router router = routerFor(sub.getRouterId());
+        if (!live(router)) {
+            return;
+        }
+        try (ApiConnection connection = login(router)) {
+            for (String command : List.of(
+                    "/queue/simple/remove [find name=" + queueName(sub) + "]",
+                    "/ip/arp/remove [find comment=\"zidi:" + sub.getId() + "\"]",
+                    "/ip/firewall/address-list/remove [find comment=\"zidi:" + sub.getId() + "\"]")) {
+                try {
+                    connection.execute(command);
+                } catch (Exception notThere) {
+                    // Each is independent: a missing queue must not stop the ARP
+                    // entry being cleaned up, or the address stays pinned to
+                    // equipment that has gone.
+                    log.debug("Nothing to remove for: {}", command);
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * The queue name for one customer.
+     *
+     * <p>Keyed on the id rather than the username, so renaming a customer does
+     * not orphan their queue and leave them unlimited.
+     */
+    private static String queueName(Subscriber sub) {
+        return "zidi-" + sub.getId();
+    }
+
     // --- Roaming: a pass that works at more than one site ---
 
     /**

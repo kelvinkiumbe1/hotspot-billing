@@ -34,6 +34,7 @@ public class SubscriptionService {
     private final RouterRepository routers;
     private final SubscriptionPaymentRepository payments;
     private final MikrotikService mikrotikService;
+    private final SubscriberProvisioningService provisioning;
     private final MpesaService mpesaService;
     private final NotificationService notificationService;
     private final PortalSettingsService portalSettingsService;
@@ -113,7 +114,7 @@ public class SubscriptionService {
                 .lastPaymentAt(cash && initialMonths > 0 ? Instant.now() : null)
                 .createdBy(createdBy)
                 .build());
-        mikrotikService.provisionPppoe(sub);
+        provisioning.provision(sub);
         if (cash && initialMonths > 0) {
             BigDecimal paid = monthlyFee.multiply(BigDecimal.valueOf(initialMonths));
             payments.save(SubscriptionPayment.builder()
@@ -365,7 +366,7 @@ public class SubscriptionService {
         sub.setLastPaymentMethod(method);
         sub.setLastPaymentAt(Instant.now());
         if (sub.getStatus() == Subscriber.Status.SUSPENDED) {
-            mikrotikService.setPppoeEnabled(sub, true);
+            provisioning.setEnabled(sub, true);
             sub.setStatus(Subscriber.Status.ACTIVE);
         }
         clearDunning(sub); // a payment landed — stop chasing this customer
@@ -540,7 +541,7 @@ public class SubscriptionService {
         if (touchesRouter) {
             // The new secret first, so a failure cannot leave the customer with
             // nothing at all. See the note above.
-            mikrotikService.provisionPppoe(sub);
+            provisioning.provision(sub);
 
             if (renamed || moved) {
                 // Clean up what they used to be. Best-effort: a stale secret is
@@ -553,7 +554,7 @@ public class SubscriptionService {
                         .routerId(oldRouterId)
                         .build();
                 try {
-                    mikrotikService.removePppoe(before);
+                    provisioning.remove(before);
                 } catch (Exception e) {
                     log.warn("Left a stale PPPoE secret for {} on router {}: {}",
                             oldUsername, oldRouterId, e.getMessage());
@@ -612,7 +613,7 @@ public class SubscriptionService {
         };
         sub.setPaidUntil(newPaidUntil);
         if (sub.getStatus() == Subscriber.Status.SUSPENDED) {
-            mikrotikService.setPppoeEnabled(sub, true);
+            provisioning.setEnabled(sub, true);
             sub.setStatus(Subscriber.Status.ACTIVE);
         }
         notify(com.spalimited.hotspotbilling.domain.NotificationTemplate.Key.SUBSCRIPTION_EXTENDED, sub,
@@ -690,7 +691,7 @@ public class SubscriptionService {
     @Transactional
     public Subscriber suspend(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.setPppoeEnabled(sub, false);
+        provisioning.setEnabled(sub, false);
         sub.setStatus(Subscriber.Status.SUSPENDED);
         return subscribers.save(sub);
     }
@@ -698,7 +699,7 @@ public class SubscriptionService {
     @Transactional
     public Subscriber activate(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.setPppoeEnabled(sub, true);
+        provisioning.setEnabled(sub, true);
         sub.setStatus(Subscriber.Status.ACTIVE);
         return subscribers.save(sub);
     }
@@ -706,7 +707,7 @@ public class SubscriptionService {
     @Transactional
     public void delete(Long id) {
         Subscriber sub = get(id);
-        mikrotikService.removePppoe(sub);
+        provisioning.remove(sub);
         payments.deleteBySubscriberId(id);
         subscribers.delete(sub);
     }
@@ -745,7 +746,7 @@ public class SubscriptionService {
         for (Subscriber sub : subscribers.findByStatus(Subscriber.Status.ACTIVE)) {
             if (sub.getPaidUntil().isBefore(now)) {
                 try {
-                    mikrotikService.setPppoeEnabled(sub, false);
+                    provisioning.setEnabled(sub, false);
                 } catch (Exception e) {
                     log.warn("Could not disable {} on router: {}", sub.getPppoeUsername(), e.getMessage());
                 }

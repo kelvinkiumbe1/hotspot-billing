@@ -50,6 +50,9 @@ class SubscriberFupTest {
     private MikrotikService mikrotikService;
 
     @Mock
+    private SubscriberProvisioningService provisioning;
+
+    @Mock
     private NotificationService notificationService;
 
     @Mock
@@ -101,7 +104,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isFalse();
 
-        verify(mikrotikService, never()).setPppoeRate(any(), any());
+        verify(provisioning, never()).setRate(any(), any());
         assertThat(sub.getFupAppliedAt()).isNull();
     }
 
@@ -112,7 +115,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isTrue();
 
-        verify(mikrotikService).setPppoeRate(sub, "2M/2M");
+        verify(provisioning).setRate(sub, "2M/2M");
         assertThat(sub.getFupAppliedAt()).isNotNull();
         // The cycle, not the date. This is what makes the rollover check work.
         assertThat(sub.getFupCycle()).isEqualTo(LocalDate.of(2026, 7, 1));
@@ -129,7 +132,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isFalse();
 
-        verify(mikrotikService, never()).setPppoeRate(any(), any());
+        verify(provisioning, never()).setRate(any(), any());
         // And crucially no second SMS -- one a month, not one every ten minutes.
         verify(notificationService, never()).send(any(), any(), anyMap());
     }
@@ -146,7 +149,7 @@ class SubscriberFupTest {
 
         // Null restores the subscriber's own bandwidth rather than a remembered
         // one, so a package change while throttled cannot hand back the wrong speed.
-        verify(mikrotikService).setPppoeRate(sub, null);
+        verify(provisioning).setRate(sub, null);
         assertThat(sub.getFupAppliedAt()).isNull();
         assertThat(sub.getFupCycle()).isNull();
     }
@@ -160,7 +163,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isTrue();
 
-        verify(mikrotikService).setPppoeRate(sub, null);
+        verify(provisioning).setRate(sub, null);
         assertThat(sub.getFupAppliedAt()).isNull();
     }
 
@@ -171,7 +174,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isFalse();
 
-        verify(mikrotikService, never()).setPppoeRate(any(), any());
+        verify(provisioning, never()).setRate(any(), any());
     }
 
     @Test
@@ -179,7 +182,7 @@ class SubscriberFupTest {
     void routerDownDoesNotMarkApplied() {
         used(60_000);
         doThrow(new IllegalStateException("connection refused"))
-                .when(mikrotikService).setPppoeRate(any(), any());
+                .when(provisioning).setRate(any(), any());
 
         assertThat(fup.reviewSubscriber(sub)).isFalse();
 
@@ -197,7 +200,7 @@ class SubscriberFupTest {
         sub.setFupAppliedAt(Instant.now());
         sub.setFupCycle(LocalDate.of(2026, 6, 1));
         doThrow(new IllegalStateException("connection refused"))
-                .when(mikrotikService).setPppoeRate(any(), isNull());
+                .when(provisioning).setRate(any(), isNull());
 
         assertThat(fup.reviewSubscriber(sub)).isFalse();
 
@@ -214,11 +217,11 @@ class SubscriberFupTest {
         used(50_000);
 
         assertThat(fup.reviewSubscriber(sub)).isTrue();
-        verify(mikrotikService).setPppoeEnabled(sub, false);
+        verify(provisioning).setEnabled(sub, false);
 
         sub.setFupCycle(LocalDate.of(2026, 6, 1));
         assertThat(fup.reviewSubscriber(sub)).isTrue();
-        verify(mikrotikService).setPppoeEnabled(sub, true);
+        verify(provisioning).setEnabled(sub, true);
     }
 
     @Test
@@ -231,8 +234,8 @@ class SubscriberFupTest {
 
         verify(notificationService).send(eq(NotificationTemplate.Key.FUP_NOTICE),
                 eq("254700000001"), anyMap());
-        verify(mikrotikService, never()).setPppoeRate(any(), any());
-        verify(mikrotikService, never()).setPppoeEnabled(any(), anyBoolean());
+        verify(provisioning, never()).setRate(any(), any());
+        verify(provisioning, never()).setEnabled(any(), anyBoolean());
     }
 
     @Test
@@ -243,7 +246,7 @@ class SubscriberFupTest {
 
         assertThat(fup.reviewSubscriber(sub)).isTrue();
 
-        verify(mikrotikService, never()).setPppoeRate(any(), any());
+        verify(provisioning, never()).setRate(any(), any());
         // Still marked and still messaged: a half-configured cap that silently
         // did nothing at all would be worse than one that tells the customer.
         assertThat(sub.getFupAppliedAt()).isNotNull();

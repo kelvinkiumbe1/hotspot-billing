@@ -221,6 +221,7 @@ public class IpamService {
         row.put("purpose", subnet.getPurpose().name());
         row.put("gateway", subnet.getGateway());
         row.put("vlanId", subnet.getVlanId());
+        row.put("interfaceName", subnet.getInterfaceName());
         row.put("routerId", subnet.getRouterId());
         row.put("description", subnet.getDescription());
         row.put("firstUsable", Cidr.toAddress(cidr.firstUsable()));

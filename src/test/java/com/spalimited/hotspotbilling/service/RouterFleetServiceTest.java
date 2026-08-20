@@ -58,6 +58,9 @@ class RouterFleetServiceTest {
     private MikrotikService mikrotikService;
 
     @Mock
+    private SubscriberProvisioningService provisioning;
+
+    @Mock
     private AuditService audit;
 
     @InjectMocks
@@ -114,9 +117,9 @@ class RouterFleetServiceTest {
 
         // Reversed, a failure on the second call leaves the customer with no
         // secret anywhere while the database says they are fine.
-        InOrder order = inOrder(mikrotikService);
-        order.verify(mikrotikService).provisionPppoe(any());
-        order.verify(mikrotikService).removePppoe(any());
+        InOrder order = inOrder(provisioning);
+        order.verify(provisioning).provision(any());
+        order.verify(provisioning).remove(any());
     }
 
     @Test
@@ -127,7 +130,7 @@ class RouterFleetServiceTest {
         fleet.transfer(List.of(1L), 2L, "grace");
 
         ArgumentCaptor<Subscriber> removed = ArgumentCaptor.forClass(Subscriber.class);
-        verify(mikrotikService).removePppoe(removed.capture());
+        verify(provisioning).remove(removed.capture());
         // Passing the updated customer would delete the secret from the router
         // they were just moved onto.
         assertThat(removed.getValue().getRouterId()).isEqualTo(1L);
@@ -138,7 +141,7 @@ class RouterFleetServiceTest {
     void databaseFollowsTheRouter() {
         Subscriber s = sub(1, "a", 1L);
         doThrow(new IllegalStateException("connection refused"))
-                .when(mikrotikService).provisionPppoe(any());
+                .when(provisioning).provision(any());
 
         RouterFleetService.Outcome out = fleet.transfer(List.of(1L), 2L, "grace");
 
@@ -154,7 +157,7 @@ class RouterFleetServiceTest {
         Subscriber ok = sub(1, "ok", 1L);
         Subscriber bad = sub(2, "bad", 1L);
         doThrow(new IllegalStateException("timed out"))
-                .when(mikrotikService).provisionPppoe(
+                .when(provisioning).provision(
                         org.mockito.ArgumentMatchers.argThat(s -> "bad".equals(s.getPppoeUsername())));
 
         RouterFleetService.Outcome out = fleet.transfer(List.of(1L, 2L), 2L, "grace");
@@ -177,7 +180,7 @@ class RouterFleetServiceTest {
 
         assertThat(out.moved()).isZero();
         assertThat(out.failed()).isZero();
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
@@ -190,14 +193,14 @@ class RouterFleetServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("switched off");
 
-        verify(mikrotikService, never()).provisionPppoe(any());
+        verify(provisioning, never()).provision(any());
     }
 
     @Test
     @DisplayName("a stale secret left on the old router does not fail the move")
     void staleSecretIsTolerated() {
         Subscriber s = sub(1, "a", 1L);
-        doThrow(new IllegalStateException("old box is dead")).when(mikrotikService).removePppoe(any());
+        doThrow(new IllegalStateException("old box is dead")).when(provisioning).remove(any());
 
         RouterFleetService.Outcome out = fleet.transfer(List.of(1L), 2L, "grace");
 
@@ -211,7 +214,7 @@ class RouterFleetServiceTest {
     @DisplayName("the attempt is recorded with what failed")
     void attemptIsRecorded() {
         sub(1, "a", 1L);
-        doThrow(new IllegalStateException("timed out")).when(mikrotikService).provisionPppoe(any());
+        doThrow(new IllegalStateException("timed out")).when(provisioning).provision(any());
 
         fleet.transfer(List.of(1L), 2L, "grace");
 
@@ -249,7 +252,7 @@ class RouterFleetServiceTest {
         sub(1, "ok", 1L);
         sub(2, "bad", 1L);
         doThrow(new IllegalStateException("timed out"))
-                .when(mikrotikService).provisionPppoe(
+                .when(provisioning).provision(
                         org.mockito.ArgumentMatchers.argThat(s -> "bad".equals(s.getPppoeUsername())));
 
         RouterFleetService.Outcome out = fleet.replace(1L, 2L, false, "grace");

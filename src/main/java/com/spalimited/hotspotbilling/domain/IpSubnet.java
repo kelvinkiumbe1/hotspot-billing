@@ -47,6 +47,16 @@ public class IpSubnet {
     @Column(length = 64)
     private String gateway;
 
+    /**
+     * Which interface this subnet lives on, for pinning a static ARP entry.
+     *
+     * <p>Explicit rather than derived from {@link #vlanId}: a subnet might be on
+     * a bridge, a VLAN or a physical port, and guessing "vlan" + id produces a
+     * name that does not exist on most boards.
+     */
+    @Column(name = "interface_name", length = 64)
+    private String interfaceName;
+
     private Integer vlanId;
 
     private Long routerId;
