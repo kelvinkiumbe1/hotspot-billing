@@ -81,7 +81,13 @@ public class ApiExceptionHandler {
         // genuinely useful; the rest of its output is noise.
         if (detail != null && detail.contains("not one of the values accepted")) {
             int from = detail.indexOf("accepted for Enum class");
-            return Map.of("message", "That is not a valid choice — " + detail.substring(from));
+            // Stop at the end of the value list. Running to the end of Jackson's
+            // message also shipped the byte offset and the reference chain, which
+            // named the request class and the package it lives in — free
+            // reconnaissance in return for nothing a caller can use.
+            int listEnd = detail.indexOf(']', from);
+            String useful = listEnd < 0 ? detail.substring(from) : detail.substring(from, listEnd + 1);
+            return Map.of("message", "That is not a valid choice — " + useful);
         }
         return Map.of("message", "That request could not be read. Check the values and try again.");
     }
