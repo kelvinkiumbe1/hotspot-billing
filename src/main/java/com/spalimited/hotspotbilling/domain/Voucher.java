@@ -121,6 +121,17 @@ public class Voucher {
     /** The router this voucher was last seen active on; null until observed. */
     private Long routerId;
 
+    /**
+     * Which routers this code was actually pushed to, comma-separated.
+     *
+     * <p>Only meaningful with roaming on. Without it a router that was down
+     * during provisioning is indistinguishable from one that was never meant to
+     * have the code, and the gap cannot be repaired -- which is the whole reason
+     * to record it.
+     */
+    @Column(name = "pushed_router_ids", length = 500)
+    private String pushedRouterIds;
+
     /** The duration this voucher actually grants (custom minutes if set, else the plan's). */
     @Transient
     public int getEffectiveDurationMinutes() {

@@ -207,6 +207,23 @@ public class MikrotikService {
      * is left of the original, not a fresh full allowance.
      */
     public void provisionVoucher(Voucher voucher, int limitMinutes) {
+        // With roaming on the pass goes to every site. Handled here rather than
+        // at the three call sites in VoucherService, so a code sold, reissued or
+        // renewed all behave the same way -- one of those paths being missed is
+        // exactly how a customer ends up with a code that works in one shop.
+        if (roamingOn()) {
+            Pushed pushed = provisionVoucherEverywhere(voucher, limitMinutes);
+            voucher.setPushedRouterIds(pushed.routerIds().isEmpty() ? null
+                    : pushed.routerIds().stream().map(String::valueOf)
+                            .collect(java.util.stream.Collectors.joining(",")));
+            if (!pushed.failures().isEmpty()) {
+                log.warn("Voucher {} reached {} of {} routers: {}", voucher.getCode(),
+                        pushed.routerIds().size(),
+                        pushed.routerIds().size() + pushed.failures().size(),
+                        String.join("; ", pushed.failures()));
+            }
+            return;
+        }
         Router router = defaultRouter();
         if (!live(router)) {
             log.info("MikroTik disabled — skipping provisioning of voucher {}", voucher.getCode());
@@ -651,6 +668,367 @@ public class MikrotikService {
     }
 
     // --- Monitoring & usage ---
+
+    /**
+     * Everything the router knows about one hotspot code, in one round trip.
+     *
+     * <p>Four questions in one call because they are asked together, by somebody
+     * on the phone to a customer: is the code on this router, is anybody logged in
+     * on it, is this device tied to a different pass, and does the plan's profile
+     * exist. Four separate calls would each pay the login cost again.
+     *
+     * <p>Never throws for a missing thing -- absence is the answer. It throws only
+     * when the router itself cannot be reached, which the caller reports as "and
+     * nothing below could be checked".
+     */
+    public Map<String, Object> hotspotUserState(Router router, String code, String mac) {
+        Map<String, Object> out = new HashMap<>();
+        out.put("userExists", false);
+        out.put("profileExists", false);
+        try (ApiConnection connection = login(router)) {
+            String profileWanted = null;
+            for (Map<String, String> row : connection.execute(
+                    "/ip/hotspot/user/print where name=" + code)) {
+                out.put("userExists", true);
+                profileWanted = row.get("profile");
+                out.put("limitUptime", row.getOrDefault("limit-uptime", ""));
+                out.put("disabled", row.getOrDefault("disabled", "false"));
+            }
+
+            for (Map<String, String> row : connection.execute(
+                    "/ip/hotspot/active/print where user=" + code)) {
+                out.put("activeMac", row.getOrDefault("mac-address", ""));
+                out.put("activeAddress", row.getOrDefault("address", ""));
+                out.put("activeUptime", row.getOrDefault("uptime", ""));
+            }
+
+            // A binding is the reason nobody can guess from the outside: the code
+            // is fine, the router is fine, and the device is refused because it is
+            // tied to a different pass.
+            if (mac != null && !mac.isBlank()) {
+                for (Map<String, String> row : connection.execute(
+                        "/ip/hotspot/ip-binding/print where mac-address="
+                                + mac.trim().toUpperCase(java.util.Locale.ROOT))) {
+                    String comment = row.getOrDefault("comment", "");
+                    String boundTo = comment.isBlank()
+                            ? row.getOrDefault("address", "another pass") : comment;
+                    if (!boundTo.equalsIgnoreCase(code)) {
+                        out.put("macBoundTo", boundTo);
+                    }
+                }
+            }
+
+            if (profileWanted != null && !profileWanted.isBlank()) {
+                out.put("profileExists", !connection.execute(
+                        "/ip/hotspot/user/profile/print where name=" + profileWanted).isEmpty());
+                out.put("profileName", profileWanted);
+            } else {
+                // No user means no profile to look for. Reported as present so a
+                // missing user is not also reported as a missing profile -- one
+                // problem, one line.
+                out.put("profileExists", true);
+            }
+            return out;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    // --- Roaming: a pass that works at more than one site ---
+
+    /**
+     * Every router we are allowed to talk to, default first.
+     *
+     * <p>Default first so that with roaming off the behaviour is exactly what it
+     * was, and with roaming on the site most likely to be used is provisioned
+     * before the ones that might time out.
+     */
+    @Transactional(readOnly = true)
+    public List<Router> manageableRouters() {
+        List<Router> out = new java.util.ArrayList<>();
+        Router preferred = null;
+        try {
+            preferred = defaultRouter();
+        } catch (Exception none) {
+            log.debug("No default router configured");
+        }
+        if (preferred != null && manageable(preferred)) {
+            out.add(preferred);
+        }
+        for (Router r : routers.findAll()) {
+            if (manageable(r) && (preferred == null || !r.getId().equals(preferred.getId()))) {
+                out.add(r);
+            }
+        }
+        return out;
+    }
+
+    /** Whether a pass should exist on every site rather than just one. */
+    public boolean roamingOn() {
+        return settings().isRoamingEnabled();
+    }
+
+    /** What a roaming push managed. */
+    public record Pushed(List<Long> routerIds, List<String> failures) {
+    }
+
+    /**
+     * Puts a hotspot user on every managed router.
+     *
+     * <p>Does not stop at the first failure. A router that is down must not
+     * prevent the code working at the five that are up -- the customer standing
+     * at one of those five is the person this is for. Which routers took it is
+     * returned so the gap can be repaired later rather than being invisible.
+     */
+    public Pushed provisionVoucherEverywhere(Voucher voucher, int limitMinutes) {
+        List<Long> done = new java.util.ArrayList<>();
+        List<String> failures = new java.util.ArrayList<>();
+        for (Router router : manageableRouters()) {
+            try {
+                pushVoucherTo(router, voucher, limitMinutes);
+                done.add(router.getId());
+            } catch (Exception e) {
+                failures.add(router.getName() + ": " + e.getMessage());
+                log.warn("Could not push voucher {} to {}: {}",
+                        voucher.getCode(), router.getName(), e.getMessage());
+            }
+        }
+        return new Pushed(done, failures);
+    }
+
+    /** One router, one voucher. Extracted so roaming and the single push share it. */
+    public void pushVoucherTo(Router router, Voucher voucher, int limitMinutes) {
+        if (!live(router)) {
+            return;
+        }
+        String limitUptime = Math.max(1, limitMinutes) + "m";
+        try (ApiConnection connection = login(router)) {
+            String profile = ensureHotspotProfile(connection, voucher.getPlan());
+            try {
+                connection.execute(String.format(
+                        "/ip/hotspot/user/add name=%s password=%s profile=%s limit-uptime=%s",
+                        voucher.getCode(), voucher.getCode(), profile, limitUptime));
+            } catch (Exception exists) {
+                // Already there, from an earlier push or a repair sweep. Setting
+                // rather than failing keeps the repair path idempotent.
+                connection.execute(String.format(
+                        "/ip/hotspot/user/set [find name=%s] password=%s profile=%s limit-uptime=%s",
+                        voucher.getCode(), voucher.getCode(), profile, limitUptime));
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Removes a hotspot user from every managed router.
+     *
+     * <p>Best-effort per router and deliberately not transactional: a code left
+     * behind on one box is a customer getting free minutes at one site, which is
+     * bad, but refusing to remove it from the other five because one is down is
+     * worse.
+     */
+    public List<String> removeVoucherEverywhere(String code) {
+        List<String> failures = new java.util.ArrayList<>();
+        for (Router router : manageableRouters()) {
+            try (ApiConnection connection = login(router)) {
+                connection.execute("/ip/hotspot/user/remove [find name=" + code + "]");
+            } catch (Exception e) {
+                failures.add(router.getName() + ": " + e.getMessage());
+            }
+        }
+        return failures;
+    }
+
+    // --- Looking inside a router ---
+
+    /**
+     * The router's own log.
+     *
+     * <p>Worth having in the admin for one reason: when a customer cannot get
+     * online, the answer is very often already written on the router -- a failed
+     * PPPoE login naming the wrong password, a DHCP pool with nothing left, an
+     * interface flapping. Today that means somebody opening WinBox, which means
+     * somebody who has WinBox and the password, which means it does not happen.
+     *
+     * <p>Newest first, because the reason is nearly always the last thing that
+     * happened.
+     */
+    public List<Map<String, String>> logs(Router router, String topicFilter, int limit) {
+        if (!live(router)) {
+            return List.of();
+        }
+        // RouterOS keeps the log in memory oldest-first and has no "tail". Asking
+        // for everything and reversing here is the only option, so the limit is
+        // applied after the read rather than saving anything on the wire.
+        String command = "/log/print";
+        if (topicFilter != null && !topicFilter.isBlank()) {
+            // Matched on the router rather than here: the log can be tens of
+            // thousands of lines on a busy box.
+            command += " where topics~\"" + topicFilter.replace("\"", "") + "\"";
+        }
+        try (ApiConnection connection = login(router)) {
+            List<Map<String, String>> rows = new java.util.ArrayList<>(connection.execute(command));
+            java.util.Collections.reverse(rows);
+            List<Map<String, String>> out = new java.util.ArrayList<>();
+            for (Map<String, String> row : rows) {
+                if (out.size() >= Math.max(1, Math.min(1000, limit))) {
+                    break;
+                }
+                out.add(Map.of(
+                        "time", row.getOrDefault("time", ""),
+                        "topics", row.getOrDefault("topics", ""),
+                        "message", row.getOrDefault("message", "")));
+            }
+            return out;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Wireless interfaces, on either of the two APIs RouterOS has.
+     *
+     * <p>RouterOS 6 and the older 7 builds use {@code /interface/wireless}; newer
+     * 7 with wifiwave2 uses {@code /interface/wifi} and the field names differ.
+     * Both are tried and the shape is normalised, because an operator should not
+     * have to know which build their board shipped with -- and a mixed estate is
+     * completely normal.
+     */
+    public List<Map<String, String>> wireless(Router router) {
+        if (!live(router)) {
+            return List.of();
+        }
+        try (ApiConnection connection = login(router)) {
+            List<Map<String, String>> out = new java.util.ArrayList<>();
+            for (String menu : List.of("/interface/wireless", "/interface/wifi")) {
+                try {
+                    for (Map<String, String> row : connection.execute(menu + "/print")) {
+                        Map<String, String> n = new java.util.LinkedHashMap<>();
+                        n.put("api", menu.endsWith("wifi") ? "wifi" : "wireless");
+                        n.put("id", row.getOrDefault(".id", ""));
+                        n.put("name", row.getOrDefault("name", ""));
+                        n.put("ssid", row.getOrDefault("ssid", ""));
+                        n.put("band", row.getOrDefault("band",
+                                row.getOrDefault("channel.band", "")));
+                        n.put("disabled", row.getOrDefault("disabled", "false"));
+                        n.put("running", row.getOrDefault("running", ""));
+                        n.put("macAddress", row.getOrDefault("mac-address", ""));
+                        // The security profile, not the key. RouterOS will hand
+                        // over a pre-shared key over the API and there is no
+                        // reason for it to travel to a browser.
+                        n.put("securityProfile", row.getOrDefault("security-profile",
+                                row.getOrDefault("security", "")));
+                        out.add(n);
+                    }
+                } catch (Exception notThisMenu) {
+                    log.debug("{} not available on {}", menu, router.getName());
+                }
+            }
+            return out;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Changes a wireless network's name, and optionally its password.
+     *
+     * <p>The password goes to the security profile the interface points at, which
+     * is where RouterOS keeps it -- setting it on the interface silently does
+     * nothing. A profile shared by two interfaces changes both, which is why the
+     * profile name is reported back rather than assumed.
+     */
+    public String setWireless(Router router, String api, String name, String ssid,
+                              String password) {
+        if (!live(router)) {
+            throw new IllegalStateException("MikroTik management is switched off");
+        }
+        String menu = "wifi".equals(api) ? "/interface/wifi" : "/interface/wireless";
+        try (ApiConnection connection = login(router)) {
+            if (ssid != null && !ssid.isBlank()) {
+                connection.execute(menu + "/set [find name=" + name + "] ssid=\""
+                        + ssid.replace("\"", "") + "\"");
+            }
+            if (password == null || password.isBlank()) {
+                return null;
+            }
+            if ("wifi".equals(api)) {
+                // wifiwave2 keeps the passphrase on the interface itself.
+                connection.execute(menu + "/set [find name=" + name
+                        + "] security.passphrase=\"" + password.replace("\"", "") + "\"");
+                return "the interface";
+            }
+            // Classic wireless: find which profile this interface uses, then set
+            // the key there.
+            String profile = "default";
+            for (Map<String, String> row : connection.execute(
+                    menu + "/print where name=" + name)) {
+                String p = row.get("security-profile");
+                if (p != null && !p.isBlank()) {
+                    profile = p;
+                }
+            }
+            connection.execute("/interface/wireless/security-profiles/set [find name="
+                    + profile + "] mode=dynamic-keys authentication-types=wpa2-psk"
+                    + " wpa2-pre-shared-key=\"" + password.replace("\"", "") + "\"");
+            return profile;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /** Bridges and what is in them. */
+    public Map<String, Object> bridges(Router router) {
+        if (!live(router)) {
+            return Map.of("bridges", List.of(), "ports", List.of());
+        }
+        try (ApiConnection connection = login(router)) {
+            List<Map<String, String>> bridges = new java.util.ArrayList<>();
+            for (Map<String, String> row : connection.execute("/interface/bridge/print")) {
+                bridges.add(Map.of(
+                        "name", row.getOrDefault("name", ""),
+                        "protocolMode", row.getOrDefault("protocol-mode", ""),
+                        "vlanFiltering", row.getOrDefault("vlan-filtering", "false"),
+                        "disabled", row.getOrDefault("disabled", "false"),
+                        "macAddress", row.getOrDefault("mac-address", "")));
+            }
+            List<Map<String, String>> ports = new java.util.ArrayList<>();
+            for (Map<String, String> row : connection.execute("/interface/bridge/port/print")) {
+                ports.add(Map.of(
+                        "bridge", row.getOrDefault("bridge", ""),
+                        "interfaceName", row.getOrDefault("interface", ""),
+                        "pvid", row.getOrDefault("pvid", ""),
+                        "disabled", row.getOrDefault("disabled", "false")));
+            }
+            return Map.of("bridges", bridges, "ports", ports);
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /** Every interface, with the counters -- the "is this port even up" question. */
+    public List<Map<String, String>> interfaces(Router router) {
+        if (!live(router)) {
+            return List.of();
+        }
+        try (ApiConnection connection = login(router)) {
+            List<Map<String, String>> out = new java.util.ArrayList<>();
+            for (Map<String, String> row : connection.execute("/interface/print")) {
+                out.add(Map.of(
+                        "name", row.getOrDefault("name", ""),
+                        "type", row.getOrDefault("type", ""),
+                        "running", row.getOrDefault("running", "false"),
+                        "disabled", row.getOrDefault("disabled", "false"),
+                        "rxByte", row.getOrDefault("rx-byte", "0"),
+                        "txByte", row.getOrDefault("tx-byte", "0"),
+                        "comment", row.getOrDefault("comment", "")));
+            }
+            return out;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
 
     // --- WireGuard, so a router behind NAT can be reached ---
 

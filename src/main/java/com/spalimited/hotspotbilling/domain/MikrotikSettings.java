@@ -57,6 +57,19 @@ public class MikrotikSettings {
     private String dnsName;
 
     /**
+     * Push every hotspot voucher to every managed router, so a code sold at one
+     * site works at all of them.
+     *
+     * <p>Off by default because the cost is real: provisioning becomes one API
+     * call per router instead of one, and a router that is down when a code is
+     * sold will not have it until the next sweep. An operator with a single site
+     * gains nothing and pays for every voucher.
+     */
+    @Column(name = "roaming_enabled", nullable = false)
+    @Builder.Default
+    private boolean roamingEnabled = false;
+
+    /**
      * Lock each voucher to the first device that uses it (MAC binding).
      * Nullable so the column can be added to existing databases; null
      * means off.

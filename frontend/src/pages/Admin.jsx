@@ -30,6 +30,8 @@ import CpePage from './admin/Cpe.jsx'
 import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
 import RemoteAccessPage from './admin/RemoteAccess.jsx'
+import FleetPage from './admin/Fleet.jsx'
+import TroubleshootPage from './admin/Troubleshoot.jsx'
 import BankImportPage from './admin/BankImport.jsx'
 import BillingDocumentsPage from './admin/BillingDocuments.jsx'
 import CallsPage from './admin/Calls.jsx'
@@ -499,6 +501,7 @@ const NAV_GROUPS = [
       { key: 'usage', label: 'Data usage', icon: 'data_usage', need: 'CUSTOMERS' },
       { key: 'support', label: 'Tickets', icon: 'support_agent', need: 'CUSTOMERS' },
       { key: 'calls', label: 'Phone line', icon: 'phone_in_talk', need: 'CUSTOMERS' },
+      { key: 'troubleshoot', label: 'Troubleshoot', icon: 'troubleshoot', need: 'CUSTOMERS' },
     ],
   },
   {
@@ -514,6 +517,7 @@ const NAV_GROUPS = [
       { key: 'cpe', label: 'Customer routers', icon: 'router', need: 'NETWORK' },
       { key: 'backups', label: 'Router backups', icon: 'backup', need: 'NETWORK' },
       { key: 'remote', label: 'Remote access', icon: 'vpn_key', need: 'NETWORK' },
+      { key: 'fleet', label: 'Router fleet', icon: 'lan', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
     ],
   },
@@ -1317,6 +1321,8 @@ function Shell({ auth, onLogout }) {
         {tab === 'usage' && <UsagePage auth={auth} />}
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
         {tab === 'remote' && <RemoteAccessPage auth={auth} />}
+        {tab === 'fleet' && <FleetPage auth={auth} />}
+        {tab === 'troubleshoot' && <TroubleshootPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
         {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
         {tab === 'calls' && <CallsPage auth={auth} />}
