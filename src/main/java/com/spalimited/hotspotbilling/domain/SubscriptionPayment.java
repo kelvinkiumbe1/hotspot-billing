@@ -21,7 +21,13 @@ public class SubscriptionPayment {
       * ONLINE is any rail reached through the provider abstraction, with
       * {@code provider} saying which.
       */
-    public enum Method { MPESA, CASH, ONLINE }
+    /**
+     * How the money arrived. BANK is a transfer matched off a statement -- see
+     * BankStatementService -- and is kept apart from CASH because "how do our
+     * business customers pay" is a question somebody will ask, and because a
+     * bank transfer has a reference somebody can look up and cash does not.
+     */
+    public enum Method { MPESA, CASH, ONLINE, BANK }
 
     public enum Status { PENDING, SUCCESS, FAILED }
 

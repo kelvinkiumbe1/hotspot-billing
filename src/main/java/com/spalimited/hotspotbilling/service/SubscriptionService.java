@@ -412,6 +412,31 @@ public class SubscriptionService {
     }
 
     /**
+     * Credits a bank transfer that has been matched to this customer.
+     *
+     * <p>Separate from creditExternalPayment only because that one hard-codes
+     * MPESA as the method. The reference is the bank's own where there is one,
+     * which is what somebody will search for when the customer rings up holding
+     * their transfer slip.
+     */
+    @Transactional
+    public SubscriptionPayment creditBankTransfer(Long subscriberId, int months,
+                                                 BigDecimal amount, String reference) {
+        Subscriber sub = get(subscriberId);
+        SubscriptionPayment payment = payments.save(SubscriptionPayment.builder()
+                .subscriber(sub)
+                .amount(amount)
+                .months(months)
+                .method(SubscriptionPayment.Method.BANK)
+                .status(SubscriptionPayment.Status.SUCCESS)
+                .mpesaReceiptNumber(reference)
+                .completedAt(Instant.now())
+                .build());
+        extend(sub, months, "BANK");
+        return payment;
+    }
+
+    /**
      * Goodwill/manual extension without a payment — hours, days or months
      * (e.g. compensation for downtime). Reactivates a suspended account.
      */

@@ -29,6 +29,7 @@ import FiberPage from './admin/Fiber.jsx'
 import CpePage from './admin/Cpe.jsx'
 import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
+import BankImportPage from './admin/BankImport.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
@@ -46,6 +47,7 @@ import { Icon } from '../components/icons.jsx'
 import { payBrand, payPinPhrase } from '../payBrand.js'
 import { phoneExample } from '../phone.js'
 import { money } from '../money.js'
+import { parseCsv } from '../csv.js'
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes} min`
@@ -517,6 +519,7 @@ const NAV_GROUPS = [
       { key: 'ledger', label: 'Ledger', icon: 'account_balance_wallet', need: 'FINANCE' },
       { key: 'payments', label: 'Payments', icon: 'payments', need: 'FINANCE' },
       { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
+      { key: 'bank', label: 'Bank transfers', icon: 'account_balance_wallet', need: 'FINANCE' },
       { key: 'assurance', label: 'Revenue Guard', icon: 'policy', need: 'FINANCE' },
       { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
       { key: 'agents', label: 'Agents', icon: 'storefront', need: 'SELL' },
@@ -1287,6 +1290,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'cpe' && <CpePage auth={auth} />}
         {tab === 'usage' && <UsagePage auth={auth} />}
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
+        {tab === 'bank' && <BankImportPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
@@ -2800,29 +2804,6 @@ function subscriberState(s) {
   if (days < 0) return { label: 'Overdue', cls: 'bg-error-container text-on-error-container' }
   if (days <= 3) return { label: 'Expiring', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
   return { label: 'Active', cls: 'bg-secondary-container text-on-secondary-container' }
-}
-
-/* Minimal RFC-4180-ish CSV parser: handles quoted fields, embedded commas and
-   newlines, and doubled "" escapes. Returns an array of string arrays. */
-function parseCsv(text) {
-  const rows = []
-  let row = []
-  let field = ''
-  let inQuotes = false
-  const s = String(text).replace(/\r\n?/g, '\n')
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]
-    if (inQuotes) {
-      if (c === '"') {
-        if (s[i + 1] === '"') { field += '"'; i++ } else inQuotes = false
-      } else field += c
-    } else if (c === '"') inQuotes = true
-    else if (c === ',') { row.push(field); field = '' }
-    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
-    else field += c
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row) }
-  return rows
 }
 
 const SAMPLE_CSV = `fullName,phoneNumber,pppoeUsername,pppoePassword,bandwidth,monthlyFee,expiry
