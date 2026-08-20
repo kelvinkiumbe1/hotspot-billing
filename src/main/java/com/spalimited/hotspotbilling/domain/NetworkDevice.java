@@ -180,6 +180,23 @@ public class NetworkDevice {
     /** The divisor for a fixed-point reading -- 100 for hundredths of a dBm. */
     private Double onuPowerScale;
 
+    // --- OLT: the command line, for provisioning ---
+    //
+    // Telnet, because these boxes offer it and no SSH client is available to this
+    // build. Which means these credentials cross the management network in the
+    // clear -- a real thing to know rather than a detail, and one more reason an
+    // OLT belongs on an isolated management VLAN. The admin says so where the
+    // password is entered.
+
+    @Column(length = 120)
+    private String cliUsername;
+
+    @Column(length = 120)
+    private String cliPassword;
+
+    /** Telnet unless told otherwise. */
+    private Integer cliPort;
+
     @Column(length = 1000)
     private String notes;
 
