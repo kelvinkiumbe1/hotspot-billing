@@ -34,6 +34,7 @@ import FleetPage from './admin/Fleet.jsx'
 import AddressesPage from './admin/Addresses.jsx'
 import TroubleshootPage from './admin/Troubleshoot.jsx'
 import BankImportPage from './admin/BankImport.jsx'
+import MigrationPage from './admin/Migration.jsx'
 import BillingDocumentsPage from './admin/BillingDocuments.jsx'
 import CallsPage from './admin/Calls.jsx'
 import StaffPage from './admin/Staff.jsx'
@@ -532,6 +533,7 @@ const NAV_GROUPS = [
       { key: 'paybill', label: 'PayBill', icon: 'account_balance', need: 'FINANCE' },
       { key: 'bank', label: 'Bank transfers', icon: 'account_balance_wallet', need: 'FINANCE' },
       { key: 'documents', label: 'Quotes & credits', icon: 'request_quote', need: 'FINANCE' },
+      { key: 'migration', label: 'Move in', icon: 'arrow_forward', need: 'SETTINGS' },
       { key: 'assurance', label: 'Revenue Guard', icon: 'policy', need: 'FINANCE' },
       { key: 'vouchers', label: 'Vouchers', icon: 'confirmation_number', need: 'SELL' },
       { key: 'agents', label: 'Agents', icon: 'storefront', need: 'SELL' },
@@ -1327,6 +1329,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'addresses' && <AddressesPage auth={auth} />}
         {tab === 'troubleshoot' && <TroubleshootPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
+        {tab === 'migration' && <MigrationPage auth={auth} />}
         {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
         {tab === 'calls' && <CallsPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}

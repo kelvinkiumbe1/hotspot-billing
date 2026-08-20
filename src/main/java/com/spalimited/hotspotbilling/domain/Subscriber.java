@@ -150,6 +150,22 @@ public class Subscriber {
     private Long branchId;
 
     /**
+     * Where this customer came from, if they were not created here.
+     *
+     * <p>Kept because a support call about a balance that looks wrong is far
+     * easier to answer when the answer is "they came over from Splynx in March"
+     * than when it has to be guessed at.
+     */
+    @Column(name = "migrated_from", length = 24)
+    private String migratedFrom;
+
+    @Column(name = "migrated_ref", length = 120)
+    private String migratedRef;
+
+    @Column(name = "migrated_at")
+    private Instant migratedAt;
+
+    /**
      * Rolling data usage in MB, refreshed by the monitor job. Nullable so
      * the column can be added to databases that already hold subscribers;
      * read it through {@link #getDataUsedMbOrZero()}.
