@@ -31,6 +31,7 @@ import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
 import BankImportPage from './admin/BankImport.jsx'
 import BillingDocumentsPage from './admin/BillingDocuments.jsx'
+import CallsPage from './admin/Calls.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
@@ -496,6 +497,7 @@ const NAV_GROUPS = [
       { key: 'retention', label: 'Keeping customers', icon: 'monitor_heart', need: 'CUSTOMERS' },
       { key: 'usage', label: 'Data usage', icon: 'data_usage', need: 'CUSTOMERS' },
       { key: 'support', label: 'Tickets', icon: 'support_agent', need: 'CUSTOMERS' },
+      { key: 'calls', label: 'Phone line', icon: 'phone_in_talk', need: 'CUSTOMERS' },
     ],
   },
   {
@@ -1294,6 +1296,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
         {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
+        {tab === 'calls' && <CallsPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}
