@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../../api.js'
+import FiberLight from './FiberLight.jsx'
+import FiberProvision from './FiberProvision.jsx'
 import {
   Icon, Skeleton, PageHeader, PrimaryButton, StatCard, INPUT_CLS, LABEL_CLS,
 } from '../../components/ui.jsx'
@@ -337,7 +339,7 @@ function RouteForm({ nodes, onCancel, onSave }) {
   )
 }
 
-export default function FiberPage({ auth }) {
+function FiberMap({ auth }) {
   const [plant, setPlant] = useState(null)
   const [subscribers, setSubscribers] = useState([])
   const [routers, setRouters] = useState([])
@@ -716,5 +718,51 @@ export default function FiberPage({ auth }) {
         </aside>
       </div>
     </div>
+  )
+}
+
+
+/**
+ * The fibre plant, the light on it, and putting new ONUs onto it.
+ *
+ * Three tabs rather than three nav entries: an operator with a fibre fault moves
+ * between them in one sitting -- the map says where the drop is, the light says
+ * whether it is the fibre, and provisioning is what happens when the answer is a
+ * new ONU. Splitting them across the sidebar would make that three journeys.
+ */
+export default function FiberPage({ auth }) {
+  const [tab, setTab] = useState('map')
+  return (
+    <>
+      <div className="flex gap-2 mb-4">
+        {[['map', 'Map', 'polyline'],
+          ['light', 'Light levels', 'wb_incandescent'],
+          ['provision', 'New ONUs', 'add_link']].map(([key, label, icon]) => (
+          <button key={key} type="button" onClick={() => setTab(key)} aria-pressed={tab === key}
+            className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-colors flex items-center gap-2 ${
+              tab === key
+                ? 'bg-primary-container text-on-primary-container font-semibold'
+                : 'border border-outline-variant hover:bg-surface-container-high'
+            }`}>
+            <Icon name={icon} className="text-[16px]!" />{label}
+          </button>
+        ))}
+      </div>
+      {tab === 'map' && <FiberMap auth={auth} />}
+      {tab === 'light' && (
+        <>
+          <PageHeader title="Light levels"
+            subtitle="How much light each customer's fibre is getting, worst first." />
+          <FiberLight auth={auth} />
+        </>
+      )}
+      {tab === 'provision' && (
+        <>
+          <PageHeader title="New ONUs"
+            subtitle="Boxes the OLT can see that nobody has authorised yet." />
+          <FiberProvision auth={auth} />
+        </>
+      )}
+    </>
   )
 }

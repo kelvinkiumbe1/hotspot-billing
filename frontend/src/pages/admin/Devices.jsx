@@ -11,14 +11,17 @@ const KINDS = [
   ['UPS', 'UPS', 'battery_charging_full'],
   ['SERVER', 'Server', 'dns'],
   ['ROUTER', 'Router', 'router'],
+  ['OLT', 'OLT (fibre)', 'settings_input_antenna'],
   ['OTHER', 'Other', 'device_hub'],
 ]
+
+const OLT_VENDORS = ['HUAWEI', 'ZTE', 'VSOL', 'BDCOM', 'FIBERHOME']
 
 const AUTH_PROTOCOLS = ['NONE', 'MD5', 'SHA1', 'SHA224', 'SHA256', 'SHA384', 'SHA512']
 const PRIV_PROTOCOLS = ['NONE', 'DES', 'TRIPLE_DES', 'AES128', 'AES192', 'AES256']
 
-const kindIcon = (kind) => (KINDS.find((k) => k[0] === kind) || KINDS[6])[2]
-const kindLabel = (kind) => (KINDS.find((k) => k[0] === kind) || KINDS[6])[1]
+const kindIcon = (kind) => (KINDS.find((k) => k[0] === kind) || KINDS.at(-1))[2]
+const kindLabel = (kind) => (KINDS.find((k) => k[0] === kind) || KINDS.at(-1))[1]
 
 /** Bits per second, at whatever scale keeps it to three digits. */
 function bps(value) {
@@ -56,7 +59,27 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
     privProtocol: device?.privProtocol || 'AES128',
     privPassphrase: '',
     notes: device?.notes || '',
+    // OLT only. Blank means "use the vendor preset" everywhere here, which is
+    // why none of these is defaulted to anything.
+    oltVendor: device?.oltVendor || '',
+    onuSerialOid: device?.onuSerialOid || '',
+    onuRxPowerOid: device?.onuRxPowerOid || '',
+    onuTxPowerOid: device?.onuTxPowerOid || '',
+    onuStatusOid: device?.onuStatusOid || '',
+    onuPowerUnit: device?.onuPowerUnit || '',
+    onuPowerScale: device?.onuPowerScale ?? '',
+    cliUsername: device?.cliUsername || '',
+    cliPassword: '',
+    cliPort: device?.cliPort || 23,
   })
+  // What a vendor's preset actually is, so the OID boxes can show it as their
+  // placeholder rather than leaving an operator to guess what blank means.
+  const [presets, setPresets] = useState({})
+  useEffect(() => {
+    api('/admin/devices/olt-presets', { auth })
+      .then((d) => setPresets(d.presets || {}))
+      .catch(() => {})
+  }, [auth])
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
@@ -215,8 +238,117 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
               </div>
             )}
 
+            {form.kind === 'OLT' && (
+              <div className="rounded-lg border border-outline-variant p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold">Fibre</p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Where to find the ONUs on this OLT, and how to log in to provision them.
+                    Leave the OID boxes blank to use the vendor&rsquo;s defaults.
+                  </p>
+                </div>
+
+                <div>
+                  <label className={LABEL_CLS}>Vendor</label>
+                  <select className={INPUT_CLS} value={form.oltVendor}
+                    onChange={(e) => set({ oltVendor: e.target.value })}>
+                    <option value="">Choose one — nothing works without it</option>
+                    {OLT_VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Vendors share nothing here: the ONU tables and the provisioning commands
+                    are different on every one.
+                  </p>
+                </div>
+
+                {form.oltVendor && (
+                  <>
+                    <details className="text-sm">
+                      <summary className="cursor-pointer text-primary">
+                        ONU table addresses (only if the defaults don&rsquo;t work)
+                      </summary>
+                      <div className="mt-3 space-y-3">
+                        <p className="text-xs text-[#b45309]">
+                          These defaults have never been checked against a real
+                          {' '}{form.oltVendor} OLT &mdash; there is no test OLT anywhere. If the
+                          light readings come back empty, run <code>snmpwalk</code> against your
+                          own box, find the right column, and put it here.
+                        </p>
+                        {[
+                          ['onuSerialOid', 'Serial number column', 'serial'],
+                          ['onuRxPowerOid', 'Receive power column', 'rxPower'],
+                          ['onuTxPowerOid', 'Transmit power column', 'txPower'],
+                          ['onuStatusOid', 'Status column', 'status'],
+                        ].map(([field, label, presetKey]) => (
+                          <div key={field}>
+                            <label className={LABEL_CLS}>{label}</label>
+                            <input className={`${INPUT_CLS} font-mono text-xs`}
+                              value={form[field]}
+                              placeholder={presets[form.oltVendor]?.[presetKey] || ''}
+                              onChange={(e) => set({ [field]: e.target.value })} />
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className={LABEL_CLS}>Power is reported as</label>
+                            <select className={INPUT_CLS} value={form.onuPowerUnit}
+                              onChange={(e) => set({ onuPowerUnit: e.target.value })}>
+                              <option value="">
+                                {presets[form.oltVendor]?.unit || 'the vendor default'}
+                              </option>
+                              <option value="DBM_SCALED">Fixed-point dBm</option>
+                              <option value="MICROWATT">Microwatts</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className={LABEL_CLS}>Divide by</label>
+                            <input className={INPUT_CLS} type="number" value={form.onuPowerScale}
+                              placeholder={presets[form.oltVendor]?.scale ?? '100'}
+                              onChange={(e) => set({ onuPowerScale: e.target.value })} />
+                            <p className="text-xs text-on-surface-variant mt-1">
+                              100 for hundredths of a dBm. Wrong here and a healthy
+                              &minus;24.6 reads as &minus;2456.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className={LABEL_CLS}>CLI username</label>
+                        <input className={INPUT_CLS} value={form.cliUsername}
+                          onChange={(e) => set({ cliUsername: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className={LABEL_CLS}>
+                          CLI password
+                          {device?.cliUsername && (
+                            <span className="normal-case font-normal"> (blank = keep)</span>
+                          )}
+                        </label>
+                        <input className={INPUT_CLS} type="password" value={form.cliPassword}
+                          onChange={(e) => set({ cliPassword: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className={LABEL_CLS}>Telnet port</label>
+                        <input className={INPUT_CLS} type="number" value={form.cliPort}
+                          onChange={(e) => set({ cliPort: e.target.value })} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#b45309] flex items-start gap-2">
+                      <Icon name="warning" className="text-[16px]! mt-0.5" />
+                      This is telnet, so the password crosses your network in the clear. Keep
+                      the OLT on a management VLAN that customers cannot reach.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             <div>
               <label className={LABEL_CLS}>Notes</label>
+
               <textarea className={`${INPUT_CLS} min-h-[60px]`} value={form.notes}
                 onChange={(e) => set({ notes: e.target.value })}
                 placeholder="Anything the next person on call needs to know." />

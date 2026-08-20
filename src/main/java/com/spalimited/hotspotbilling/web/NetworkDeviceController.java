@@ -62,7 +62,10 @@ public class NetworkDeviceController {
             String onuTxPowerOid,
             String onuStatusOid,
             com.spalimited.hotspotbilling.service.snmp.OpticalPower.Unit onuPowerUnit,
-            Double onuPowerScale) {
+            Double onuPowerScale,
+            String cliUsername,
+            String cliPassword,
+            Integer cliPort) {
     }
 
     @GetMapping
@@ -264,6 +267,11 @@ public class NetworkDeviceController {
         device.setOnuStatusOid(blankToNull(request.onuStatusOid()));
         device.setOnuPowerUnit(request.onuPowerUnit());
         device.setOnuPowerScale(request.onuPowerScale());
+        device.setCliUsername(blankToNull(request.cliUsername()));
+        device.setCliPort(request.cliPort());
+        // Blank keeps what is stored, like the SNMP secrets below -- a form that
+        // cannot show a password back must not delete it by being saved.
+        keepIfBlank(request.cliPassword(), device::getCliPassword, device::setCliPassword);
         device.setBranchId(request.branchId());
         device.setEnabled(request.enabled() == null || request.enabled());
         device.setSnmpVersion(request.snmpVersion() == null
@@ -309,7 +317,21 @@ public class NetworkDeviceController {
         row.put("privProtocol", d.getPrivProtocol() == null ? null : d.getPrivProtocol().name());
         row.put("configured", d.isConfigured());
         row.put("credentialInClear", d.isCredentialInClear());
+        // The OLT fields. These have to come back or editing an OLT is
+        // destructive: the form reads them to populate itself, so an absent
+        // vendor shows as blank and saving writes that blank straight back --
+        // taking the light readings and every provisioning command with it.
+        row.put("oltVendor", d.getOltVendor() == null ? null : d.getOltVendor().name());
+        row.put("onuSerialOid", d.getOnuSerialOid());
+        row.put("onuRxPowerOid", d.getOnuRxPowerOid());
+        row.put("onuTxPowerOid", d.getOnuTxPowerOid());
+        row.put("onuStatusOid", d.getOnuStatusOid());
+        row.put("onuPowerUnit", d.getOnuPowerUnit() == null ? null : d.getOnuPowerUnit().name());
+        row.put("onuPowerScale", d.getOnuPowerScale());
+        row.put("cliUsername", d.getCliUsername());
+        row.put("cliPort", d.getCliPort());
         // Enough to show a credential is stored, never enough to use it.
+        row.put("hasCliPassword", d.getCliPassword() != null && !d.getCliPassword().isBlank());
         row.put("hasCommunity", d.getCommunity() != null && !d.getCommunity().isBlank());
         row.put("hasAuthPassphrase", d.getAuthPassphrase() != null && !d.getAuthPassphrase().isBlank());
         row.put("hasPrivPassphrase", d.getPrivPassphrase() != null && !d.getPrivPassphrase().isBlank());
