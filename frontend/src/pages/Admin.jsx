@@ -28,6 +28,7 @@ import CommunicationsPage from './admin/Communications.jsx'
 import FiberPage from './admin/Fiber.jsx'
 import CpePage from './admin/Cpe.jsx'
 import UsagePage from './admin/Usage.jsx'
+import RouterBackupsPage from './admin/RouterBackups.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
@@ -505,6 +506,7 @@ const NAV_GROUPS = [
       { key: 'equipment', label: 'Equipment', icon: 'inventory_2', need: 'NETWORK' },
       { key: 'fiber', label: 'Fiber', icon: 'polyline', need: 'NETWORK' },
       { key: 'cpe', label: 'Customer routers', icon: 'router', need: 'NETWORK' },
+      { key: 'backups', label: 'Router backups', icon: 'backup', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
     ],
   },
@@ -1284,6 +1286,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'fiber' && <FiberPage auth={auth} />}
         {tab === 'cpe' && <CpePage auth={auth} />}
         {tab === 'usage' && <UsagePage auth={auth} />}
+        {tab === 'backups' && <RouterBackupsPage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}

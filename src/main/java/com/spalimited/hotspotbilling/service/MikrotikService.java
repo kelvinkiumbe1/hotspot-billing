@@ -100,6 +100,16 @@ public class MikrotikService {
     }
 
     /** True when we should actually talk to hardware. */
+    /**
+     * Whether this router is one we are allowed to talk to at all -- the global
+     * MikroTik switch and the router's own. Public so a caller can leave a
+     * router out rather than try it and record a failure that is really a
+     * setting.
+     */
+    public boolean manageable(Router router) {
+        return live(router);
+    }
+
     private boolean live(Router router) {
         return settings().isEnabled() && router != null && router.isEnabled()
                 && router.getHost() != null && !router.getHost().isBlank();
@@ -597,6 +607,134 @@ public class MikrotikService {
     }
 
     // --- Monitoring & usage ---
+
+    // --- Configuration backup ---
+
+    /**
+     * What was captured, and how. The how matters: only one of these two can be
+     * pasted back into a router.
+     */
+    public record ConfigExport(String method, String text) {
+    }
+
+    /**
+     * Sections read one at a time when /export cannot be used.
+     *
+     * <p>Only prints. Nothing here changes anything on the router, so a backup
+     * can never be the thing that broke the network.
+     */
+    private static final List<String> SECTIONS = List.of(
+            "/system/identity", "/system/clock", "/system/ntp/client", "/system/scheduler",
+            "/interface", "/interface/vlan", "/interface/bridge", "/interface/bridge/port",
+            "/ip/address", "/ip/pool", "/ip/route", "/ip/dns",
+            "/ip/dhcp-server", "/ip/dhcp-server/network",
+            "/ip/firewall/filter", "/ip/firewall/nat", "/ip/firewall/mangle",
+            "/ip/firewall/address-list",
+            "/ppp/profile", "/ppp/secret",
+            "/ip/hotspot", "/ip/hotspot/profile", "/ip/hotspot/user/profile",
+            "/queue/simple", "/queue/tree", "/queue/type",
+            "/radius", "/snmp", "/tool/netwatch", "/user");
+
+    /**
+     * A copy of the router's configuration.
+     *
+     * <p>Two ways, in order of how useful the result is.
+     *
+     * <p>{@code /export hide-sensitive} is the real thing: RouterOS renders its
+     * whole configuration as commands that can be pasted back into a replacement
+     * box. That is what makes this insurance rather than documentation.
+     *
+     * <p>If that returns nothing usable -- and it might, because what the API
+     * gives back for /export differs between RouterOS versions and this has
+     * never been run against real hardware -- the fallback reads the
+     * configuration section by section with ordinary prints, whose shape is the
+     * same one every other call in this class already relies on. That result is a
+     * complete record of what was configured but is NOT a restore file, and
+     * everything downstream of here says so rather than letting somebody discover
+     * it on the night they need it.
+     *
+     * <p>hide-sensitive is deliberate. Without it the text contains every
+     * customer's PPPoE password and the RADIUS shared secret, which would put
+     * them in the database in the clear. Nothing is lost by redacting them:
+     * Zidi is where those come from in the first place and can write them back.
+     * What Zidi cannot regenerate is the hand-made half -- the firewall rules,
+     * queues, VLANs and routes somebody built by hand -- and that is exactly
+     * what this keeps.
+     */
+    public ConfigExport exportConfig(Router router) {
+        try (ApiConnection connection = login(router)) {
+            String exported = tryExport(connection);
+            if (exported != null) {
+                return new ConfigExport("EXPORT", exported);
+            }
+            return new ConfigExport("SECTIONS", readSections(connection));
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /** The real export, or null if this router did not give us one. */
+    private String tryExport(ApiConnection connection) {
+        try {
+            List<Map<String, String>> rows = connection.execute("/export hide-sensitive");
+            StringBuilder out = new StringBuilder();
+            for (Map<String, String> row : rows) {
+                if (row.size() == 1) {
+                    // The usual shape: one value per line of the export.
+                    out.append(row.values().iterator().next()).append('\n');
+                } else {
+                    // Anything else is rendered rather than dropped. A shape we
+                    // did not expect is still the router's configuration, and
+                    // guessing which keys matter would lose the ones that do.
+                    for (Map.Entry<String, String> e : row.entrySet()) {
+                        out.append(e.getKey()).append('=').append(e.getValue()).append(' ');
+                    }
+                    out.append('\n');
+                }
+            }
+            String text = out.toString().strip();
+            // A handful of characters is an error message or an empty reply, not
+            // a configuration. Falling through to the sections is better than
+            // storing that and calling it a backup.
+            return text.length() > 200 ? text : null;
+        } catch (Exception notSupported) {
+            log.debug("/export unavailable, falling back to section reads: {}", notSupported.getMessage());
+            return null;
+        }
+    }
+
+    /** Section-by-section, using only prints. */
+    private String readSections(ApiConnection connection) {
+        StringBuilder out = new StringBuilder();
+        out.append("# Read section by section because /export was not available.\n");
+        out.append("# This is a record of the configuration, not a file you can paste back.\n");
+        for (String section : SECTIONS) {
+            List<Map<String, String>> rows;
+            try {
+                rows = connection.execute(section + "/print");
+            } catch (Exception missing) {
+                // Not every section exists on every board or licence level.
+                continue;
+            }
+            if (rows.isEmpty()) {
+                continue;
+            }
+            out.append('\n').append(section).append('\n');
+            for (Map<String, String> row : rows) {
+                for (Map.Entry<String, String> e : row.entrySet()) {
+                    String key = e.getKey();
+                    // .id changes when a rule is re-added and would otherwise make
+                    // an untouched configuration look different every night.
+                    if (".id".equals(key) || "password".equals(key) || "secret".equals(key)) {
+                        continue;
+                    }
+                    out.append("    ").append(key).append('=').append(e.getValue()).append('\n');
+                }
+                out.append("    --\n");
+            }
+        }
+        return out.toString();
+    }
 
     /** Router identity, uptime and session counts for the monitor job. */
     public Map<String, Object> probe(Router router) {

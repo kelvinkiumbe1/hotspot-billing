@@ -70,6 +70,21 @@ public class Router {
 
     private String lastError;
 
+    /**
+     * When this router's configuration was last successfully copied off it, and
+     * why the last attempt failed if it did.
+     *
+     * <p>Both live here rather than as a row per attempt because the question is
+     * always "is this router being backed up" and never "what happened on the
+     * night of the 4th". A null timestamp with no error means nobody has tried
+     * yet; an old timestamp with an error is the case this exists to make
+     * visible.
+     */
+    private Instant configBackupAt;
+
+    @Column(length = 500)
+    private String configBackupError;
+
     /** RouterOS uptime string, e.g. "3w2d10:15:00". */
     private String uptime;
 
