@@ -27,7 +27,17 @@ import java.time.Instant;
 @Builder
 public class NetworkDevice {
 
-    public enum Kind { SWITCH, ACCESS_POINT, ONT, UPS, SERVER, ROUTER, OTHER }
+    public enum Kind { SWITCH, ACCESS_POINT, ONT, UPS, SERVER, ROUTER, OLT, OTHER }
+
+    /**
+     * Which vendor's ONU tables to walk on an OLT.
+     *
+     * <p>Only meaningful when the kind is OLT. GPON ONU tables live in enterprise
+     * MIBs with nothing in common between vendors, so this picks a set of columns
+     * rather than describing the hardware -- see OltProfile, and the four
+     * overrides below for when a preset turns out to be wrong.
+     */
+    public enum OltVendor { HUAWEI, ZTE, VSOL, BDCOM, FIBERHOME }
 
     /**
      * v1 exists only because some very old gear answers nothing else. v2c is
@@ -135,6 +145,40 @@ public class NetworkDevice {
 
     /** When it was last seen to have restarted — i.e. uptime went backwards. */
     private Instant lastRebootAt;
+
+    // --- OLT: where to find the ONUs hanging off it ---
+    //
+    // Every one of these is null on anything that is not an OLT, and null on an
+    // OLT means "use the vendor preset". They exist because the presets cannot be
+    // verified without the hardware: an operator with snmpwalk and their own OLT
+    // can find the right column and fix it here, rather than waiting for a
+    // release and a guess that might be wrong again.
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private OltVendor oltVendor;
+
+    /** The column carrying each ONU's serial or MAC. */
+    @Column(length = 120)
+    private String onuSerialOid;
+
+    /** Receive power at the ONU, which is the reading anybody actually wants. */
+    @Column(length = 120)
+    private String onuRxPowerOid;
+
+    @Column(length = 120)
+    private String onuTxPowerOid;
+
+    @Column(length = 120)
+    private String onuStatusOid;
+
+    /** How the vendor encodes the number: fixed-point dBm, or raw microwatts. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private com.spalimited.hotspotbilling.service.snmp.OpticalPower.Unit onuPowerUnit;
+
+    /** The divisor for a fixed-point reading -- 100 for hundredths of a dBm. */
+    private Double onuPowerScale;
 
     @Column(length = 1000)
     private String notes;

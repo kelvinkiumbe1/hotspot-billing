@@ -176,6 +176,104 @@ public class SnmpClient {
         }
     }
 
+    /** One ONU as the OLT reports it, before any of it is judged. */
+    public record Onu(String index, String serial, String description, String status,
+                      Double rxDbm, Double txDbm) {
+    }
+
+    /**
+     * Every ONU an OLT can see, with its optical readings converted to dBm.
+     *
+     * <p>Read-only. Nothing here can authorise, deauthorise or reconfigure an
+     * ONU -- this answers "what is the light doing", which is the question that
+     * gets asked, and leaves provisioning to something that can be tested against
+     * hardware.
+     *
+     * <p>Returns empty rather than throwing when the OLT has no such table. A
+     * wrong OID is indistinguishable from an OLT with no ONUs at the protocol
+     * level, so the caller logs the emptiness and the operator gets the override
+     * fields -- see {@link OltProfile}.
+     */
+    public List<Onu> onus(NetworkDevice device, OltProfile.Columns columns) throws Exception {
+        if (columns == null) {
+            return List.of();
+        }
+        try (Session session = open(device)) {
+            // Serial and receive power are the two that must be present; the rest
+            // are asked for in the same walk and simply absent if the vendor has
+            // no such column, which is why they are filtered out rather than
+            // assumed.
+            List<String> wanted = new ArrayList<>();
+            wanted.add(columns.serial());
+            wanted.add(columns.rxPower());
+            for (String optional : new String[]{columns.txPower(), columns.status(),
+                    columns.description()}) {
+                if (optional != null && !optional.isBlank()) {
+                    wanted.add(optional);
+                }
+            }
+            Map<String, Map<String, Variable>> rows =
+                    session.walkColumnsByIndex(wanted.toArray(new String[0]));
+
+            List<Onu> found = new ArrayList<>();
+            for (Map.Entry<String, Map<String, Variable>> entry : rows.entrySet()) {
+                Map<String, Variable> row = entry.getValue();
+                String serial = serialOf(row.get(columns.serial()));
+                if (serial == null || serial.isBlank()) {
+                    // No serial means nothing durable to store this against, and
+                    // storing it against a table index would attribute it to
+                    // whoever occupies that row next.
+                    continue;
+                }
+                found.add(new Onu(
+                        entry.getKey(),
+                        serial,
+                        text(row.get(columns.description())),
+                        text(row.get(columns.status())),
+                        OpticalPower.dbm(counter(row.get(columns.rxPower())),
+                                columns.unit(), columns.scale()),
+                        columns.txPower() == null ? null
+                                : OpticalPower.dbm(counter(row.get(columns.txPower())),
+                                        columns.unit(), columns.scale())));
+            }
+            return found;
+        }
+    }
+
+    /**
+     * An ONU serial, however the vendor chose to send it.
+     *
+     * <p>Some send printable ASCII; others send eight raw bytes that happen not
+     * to be text, and {@link #text} on those returns mojibake that changes
+     * between polls -- which would make every ONU look new every time. So a
+     * value that is not cleanly printable becomes hex, which is stable and is
+     * also how the vendor's own CLI prints it.
+     */
+    static String serialOf(Variable variable) {
+        if (variable == null) {
+            return null;
+        }
+        if (variable instanceof OctetString octets) {
+            byte[] bytes = octets.getValue();
+            boolean printable = bytes.length > 0;
+            for (byte b : bytes) {
+                if (b < 0x20 || b > 0x7e) {
+                    printable = false;
+                    break;
+                }
+            }
+            if (printable) {
+                return new String(bytes, java.nio.charset.StandardCharsets.US_ASCII).trim();
+            }
+            StringBuilder hex = new StringBuilder();
+            for (byte b : bytes) {
+                hex.append(String.format("%02X", b));
+            }
+            return hex.isEmpty() ? null : hex.toString();
+        }
+        return text(variable);
+    }
+
     // --- Session plumbing ---
 
     /** Raised when the device answered but rejected our credentials. */
@@ -309,6 +407,43 @@ public class SnmpClient {
                 } catch (Exception e) {
                     continue;
                 }
+                Map<String, Variable> row = rows.computeIfAbsent(index, k -> new LinkedHashMap<>());
+                VariableBinding[] bindings = event.getColumns();
+                for (int i = 0; i < columns.length && i < bindings.length; i++) {
+                    if (bindings[i] != null && !bindings[i].isException()) {
+                        row.put(columns[i], bindings[i].getVariable());
+                    }
+                }
+            }
+            return rows;
+        }
+
+        /**
+         * The same, keyed on the whole index rather than its last element.
+         *
+         * <p>{@link #walkColumns} takes {@code index.last()}, which is right for
+         * ifTable where the index is a single number. GPON ONU tables are indexed
+         * on the PON port <em>and</em> the ONU within it, so the last element is
+         * only the ONU number -- and ONU 1 on port 1 and ONU 1 on port 2 would
+         * collapse into one row, with one customer's optical reading overwriting
+         * another's. The full index keeps them apart.
+         */
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Map<String, Map<String, Variable>> walkColumnsByIndex(String... columns) throws IOException {
+            TableUtils tableUtils = new TableUtils(snmp,
+                    new DefaultPDUFactory(device.getSnmpVersion() == NetworkDevice.Version.V3
+                            ? PDU.GETBULK : PDU.GETNEXT));
+            tableUtils.setMaxNumColumnsPerPDU(columns.length);
+            OID[] oids = new OID[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+                oids[i] = new OID(columns[i]);
+            }
+            Map<String, Map<String, Variable>> rows = new LinkedHashMap<>();
+            for (TableEvent event : tableUtils.getTable((Target) target, oids, null, null)) {
+                if (event.isError() || event.getIndex() == null) {
+                    continue;
+                }
+                String index = event.getIndex().toString();
                 Map<String, Variable> row = rows.computeIfAbsent(index, k -> new LinkedHashMap<>());
                 VariableBinding[] bindings = event.getColumns();
                 for (int i = 0; i < columns.length && i < bindings.length; i++) {

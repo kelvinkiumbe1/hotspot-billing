@@ -35,6 +35,7 @@ public class NetworkDeviceController {
     private final DeviceInterfaceRepository interfaces;
     private final DeviceMonitorService monitor;
     private final AuditService audit;
+    private final com.spalimited.hotspotbilling.service.snmp.OntOpticalService optical;
 
     public record DeviceRequest(
             @NotBlank String name,
@@ -51,7 +52,17 @@ public class NetworkDeviceController {
             String authPassphrase,
             NetworkDevice.PrivProtocol privProtocol,
             String privPassphrase,
-            String notes) {
+            String notes,
+            // OLT only, and all optional. Null means "use the vendor preset",
+            // which is why none of these is validated into existence: an operator
+            // adding a switch never sees them.
+            NetworkDevice.OltVendor oltVendor,
+            String onuSerialOid,
+            String onuRxPowerOid,
+            String onuTxPowerOid,
+            String onuStatusOid,
+            com.spalimited.hotspotbilling.service.snmp.OpticalPower.Unit onuPowerUnit,
+            Double onuPowerScale) {
     }
 
     @GetMapping
@@ -143,6 +154,82 @@ public class NetworkDeviceController {
         return out;
     }
 
+    // --- Fibre: the light on every ONU hanging off an OLT ---
+
+    /**
+     * Every ONU on one OLT, worst light first.
+     *
+     * <p>Worst first because that is the order somebody works in. A list sorted
+     * by serial number is a list nobody reads.
+     */
+    @GetMapping("/{id}/onus")
+    public Map<String, Object> onus(@PathVariable Long id) {
+        List<Map<String, Object>> rows = optical.forOlt(id).stream().map(this::describeOnu).toList();
+        return Map.of("onus", rows, "count", rows.size());
+    }
+
+    /** Reads one OLT now, for the operator who has just fixed an OID. */
+    @PostMapping("/{id}/onus/check")
+    public Map<String, Object> checkOnus(@PathVariable Long id) {
+        var result = optical.poll(id);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("polled", result.polled());
+        out.put("onusSeen", result.onusSeen());
+        out.put("alerted", result.alerted());
+        out.put("error", result.error());
+        return out;
+    }
+
+    /** Everything not currently healthy, across every OLT. The fibre worklist. */
+    @GetMapping("/onus/attention")
+    public Map<String, Object> attention() {
+        List<Map<String, Object>> rows =
+                optical.attentionNeeded().stream().map(this::describeOnu).toList();
+        return Map.of("onus", rows, "count", rows.size());
+    }
+
+    /** What a vendor's preset actually is, so the form can show it as a placeholder. */
+    @GetMapping("/olt-presets")
+    public Map<String, Object> presets() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (NetworkDevice.OltVendor vendor : NetworkDevice.OltVendor.values()) {
+            var columns = com.spalimited.hotspotbilling.service.snmp.OltProfile.preset(vendor);
+            if (columns == null) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("serial", columns.serial());
+            row.put("rxPower", columns.rxPower());
+            row.put("txPower", columns.txPower());
+            row.put("status", columns.status());
+            row.put("unit", columns.unit());
+            row.put("scale", columns.scale());
+            out.put(vendor.name(), row);
+        }
+        return Map.of("presets", out);
+    }
+
+    private Map<String, Object> describeOnu(com.spalimited.hotspotbilling.domain.OntReading r) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", r.getId());
+        row.put("oltDeviceId", r.getOltDeviceId());
+        row.put("serial", r.getSerial());
+        row.put("description", r.getDescription());
+        row.put("tableIndex", r.getTableIndex());
+        row.put("status", r.getStatus());
+        row.put("rxDbm", r.getRxDbm());
+        row.put("txDbm", r.getTxDbm());
+        row.put("previousRxDbm", r.getPreviousRxDbm());
+        row.put("health", r.getHealth());
+        // The sentence, not just the band. "past the budget, expect drops" is
+        // what gets a van sent; "BAD" is what gets ignored.
+        row.put("verdict", com.spalimited.hotspotbilling.service.snmp.OntOpticalService
+                .plainly(r.getHealth()));
+        row.put("subscriberId", r.getSubscriberId());
+        row.put("lastSeenAt", r.getLastSeenAt());
+        return row;
+    }
+
     public record PortWatchRequest(boolean monitored) {
     }
 
@@ -167,6 +254,16 @@ public class NetworkDeviceController {
         device.setHost(request.host().trim());
         device.setPort(request.port() == null || request.port() <= 0 ? 161 : request.port());
         device.setLocation(blankToNull(request.location()));
+        // Straight through, including null. Null is a real choice here -- it means
+        // "use the vendor preset" -- so these deliberately do not follow the
+        // keepIfBlank rule the secrets below use.
+        device.setOltVendor(request.oltVendor());
+        device.setOnuSerialOid(blankToNull(request.onuSerialOid()));
+        device.setOnuRxPowerOid(blankToNull(request.onuRxPowerOid()));
+        device.setOnuTxPowerOid(blankToNull(request.onuTxPowerOid()));
+        device.setOnuStatusOid(blankToNull(request.onuStatusOid()));
+        device.setOnuPowerUnit(request.onuPowerUnit());
+        device.setOnuPowerScale(request.onuPowerScale());
         device.setBranchId(request.branchId());
         device.setEnabled(request.enabled() == null || request.enabled());
         device.setSnmpVersion(request.snmpVersion() == null
