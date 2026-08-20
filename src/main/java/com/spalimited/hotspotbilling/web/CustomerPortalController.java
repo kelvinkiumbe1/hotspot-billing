@@ -29,6 +29,7 @@ public class CustomerPortalController {
     private final SubscriptionPaymentRepository payments;
     private final InvoiceService invoiceService;
     private final com.spalimited.hotspotbilling.service.SubscriberUsageService subscriberUsage;
+    private final com.spalimited.hotspotbilling.service.PhoneVerificationService phoneVerification;
 
     public record LoginRequest(@NotBlank String pppoeUsername, @NotBlank String pppoePassword) {
     }
@@ -54,6 +55,9 @@ public class CustomerPortalController {
         account.put("paidUntil", sub.getPaidUntil());
         account.put("dataUsedMb", sub.getDataUsedMbOrZero());
         account.put("lastSeenOnlineAt", sub.getLastSeenOnlineAt());
+        // So the page can ask them to confirm it. A number nobody proved is
+        // how a renewal reminder, a receipt and a voucher all reach a stranger.
+        account.put("phoneVerified", phoneVerification.isVerified(sub.getPhoneNumber()));
         account.put("lastPaymentMethod", sub.getLastPaymentMethod());
         account.put("lastPaymentAt", sub.getLastPaymentAt());
 

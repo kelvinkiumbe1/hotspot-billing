@@ -82,6 +82,7 @@ public class RevenueAuditService {
     private final MikrotikService mikrotik;
     private final MessagingSettingsService messagingSettings;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final AuditService audit;
 
     /** One observation from a check, before it's merged with what's stored. */
@@ -223,11 +224,8 @@ public class RevenueAuditService {
         settingsRepo.save(s);
 
         if (freshHigh > 0 && s.isAlertOperator()) {
-            String phone = messagingSettings.alertPhone();
-            if (phone != null && !phone.isBlank()) {
-                smsService.trySend(phone, "ALERT: the revenue audit found " + freshHigh
-                        + " new serious issue(s). Open Revenue Guard in the admin console to review.");
-            }
+            operatorAlerts.alert("ALERT: the revenue audit found " + freshHigh
+                    + " new serious issue(s). Open Revenue Guard in the admin console to review.");
         }
 
         audit.record(actor, "revenue.audit", "Revenue audit: " + stillOpen + " open issue(s), "

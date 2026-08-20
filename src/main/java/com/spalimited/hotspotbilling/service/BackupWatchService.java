@@ -38,6 +38,7 @@ public class BackupWatchService {
     private final OpsSettingsRepository settingsRepo;
     private final MessagingSettingsService messagingSettings;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final AuditService audit;
 
     /** Whether an alert has already gone out, so a missed night nags once a day. */
@@ -165,10 +166,7 @@ public class BackupWatchService {
     // --- helpers ---
 
     private void alert(String message) {
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
         log.warn(message);
     }
 

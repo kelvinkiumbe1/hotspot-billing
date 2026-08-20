@@ -65,6 +65,7 @@ class DailyBriefServiceTest {
     @Mock private MessagingSettingsService messagingSettings;
     @Mock private EmailSettingsService emailSettings;
     @Mock private SmsService smsService;
+    @Mock private OperatorAlertService operatorAlerts;
     @Mock private EmailService emailService;
     @Mock private PortalSettingsService portalSettings;
     @Mock private MoneyService cash;
@@ -75,7 +76,8 @@ class DailyBriefServiceTest {
     void setUp() {
         service = new DailyBriefService(payments, subscriptionPayments, subscribers, tickets,
                 findings, healthAlerts, incidents, routers, creditAdvances, alertSettings,
-                messagingSettings, emailSettings, smsService, emailService, portalSettings, cash);
+                messagingSettings, emailSettings, smsService, operatorAlerts, emailService,
+                portalSettings, cash);
         when(cash.format(org.mockito.ArgumentMatchers.any())).thenAnswer(
                 i -> "KES " + (i.getArgument(0) == null ? "0"
                         : ((java.math.BigDecimal) i.getArgument(0)).setScale(0,

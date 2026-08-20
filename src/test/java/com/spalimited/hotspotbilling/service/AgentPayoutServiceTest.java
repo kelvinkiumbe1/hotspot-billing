@@ -50,6 +50,7 @@ class AgentPayoutServiceTest {
     @Mock private AgentService agentService;
     @Mock private MpesaService mpesa;
     @Mock private SmsService smsService;
+    @Mock private OperatorAlertService operatorAlerts;
     @Mock private MessagingSettingsService messagingSettings;
     @Mock private PortalSettingsService portalSettings;
 
@@ -65,7 +66,7 @@ class AgentPayoutServiceTest {
     @BeforeEach
     void setUp() {
         service = new AgentPayoutService(settingsRepo, payouts, agents, agentService, mpesa,
-                smsService, messagingSettings, portalSettings, phones);
+                smsService, operatorAlerts, messagingSettings, portalSettings, phones);
         // Kenya's rules, so the payout assertions keep meaning what they meant.
         when(phones.normalise(org.mockito.ArgumentMatchers.any())).thenAnswer(i ->
                 com.spalimited.hotspotbilling.service.i18n.PhoneNumbers.normalise(
@@ -151,8 +152,10 @@ class AgentPayoutServiceTest {
         assertThat(p.getStatus()).isEqualTo(CommissionPayout.Status.FAILED);
         assertThat(p.getError()).contains("initiator information is invalid");
         assertThat(grace.getCommissionPaid()).isEqualByComparingTo("0");
-        verify(smsService).trySend(org.mockito.ArgumentMatchers.eq("254700999888"),
-                org.mockito.ArgumentMatchers.contains("failed"));
+        // Asserted on the alert channel rather than on SMS: operator alerts now
+        // fan out to SMS and Telegram from one place, and pinning this to SMS
+        // would make the test pass or fail on which channels are configured.
+        verify(operatorAlerts).alert(org.mockito.ArgumentMatchers.contains("failed"));
     }
 
     @Test

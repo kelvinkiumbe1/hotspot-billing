@@ -54,6 +54,7 @@ public class FieldOpsService {
     private final TechnicianRepository technicians;
     private final SupportTicketRepository tickets;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final MessagingSettingsService messagingSettings;
     private final PortalSettingsService portalSettings;
 
@@ -351,10 +352,7 @@ public class FieldOpsService {
     }
 
     private void alertOperator(String message) {
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
     }
 
     private String business() {

@@ -17,6 +17,97 @@ function dataSize(mb) {
   return `${(gb / 1024).toFixed(2)} TB`
 }
 
+/**
+ * Confirming the number on the account.
+ *
+ * A number typed wrong once means every renewal reminder, receipt and voucher
+ * goes to a stranger, and the customer's experience of the business is silence.
+ * Shown only when it has not been proved, so a confirmed account never sees it.
+ */
+function ConfirmNumber({ phone, onDone }) {
+  const [stage, setStage] = useState('idle')
+  const [code, setCode] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function ask() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await fetch('/api/verify/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: phone, purpose: 'ACCOUNT' }),
+      }).then((x) => x.json())
+      setMsg({ ok: r.sent, text: r.message })
+      if (r.sent) setStage('code')
+    } catch (e) {
+      setMsg({ ok: false, text: e.message })
+    } finally { setBusy(false) }
+  }
+
+  async function confirm() {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await fetch('/api/verify/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: phone, purpose: 'ACCOUNT', code: code.trim() }),
+      }).then((x) => x.json())
+      setMsg({ ok: r.verified, text: r.message })
+      if (r.verified) { setStage('done'); onDone() }
+    } catch (e) {
+      setMsg({ ok: false, text: e.message })
+    } finally { setBusy(false) }
+  }
+
+  if (stage === 'done') return null
+
+  return (
+    <section className="bg-warning-container rounded-xl p-5">
+      <div className="flex items-start gap-3">
+        <Icon name="sms" className="text-on-warning-container mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-semibold text-on-warning-container">
+            Is {phone} still your number?
+          </h2>
+          <p className="text-sm text-on-warning-container/80 mt-0.5">
+            We send renewal reminders and receipts here. Confirm it so they reach you.
+          </p>
+
+          {stage === 'idle' && (
+            <button type="button" disabled={busy} onClick={ask}
+              className="mt-3 px-4 py-2 rounded-lg bg-on-warning-container text-warning-container text-sm font-semibold cursor-pointer disabled:opacity-60">
+              {busy ? 'Sending…' : 'Text me a code'}
+            </button>
+          )}
+
+          {stage === 'code' && (
+            <div className="mt-3 flex gap-2 items-center flex-wrap">
+              <input value={code} inputMode="numeric" maxLength={6} placeholder="000000"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                className="w-28 h-11 rounded-lg px-3 text-center font-mono text-lg tracking-widest bg-surface border border-outline-variant text-on-surface" />
+              <button type="button" disabled={busy || code.length < 6} onClick={confirm}
+                className="px-4 py-2 rounded-lg bg-on-warning-container text-warning-container text-sm font-semibold cursor-pointer disabled:opacity-60">
+                {busy ? 'Checking…' : 'Confirm'}
+              </button>
+              <button type="button" disabled={busy} onClick={ask}
+                className="text-sm text-on-warning-container underline cursor-pointer">
+                Send it again
+              </button>
+            </div>
+          )}
+
+          {msg && (
+            <p className={`text-sm mt-2 ${msg.ok ? 'text-on-warning-container' : 'text-error'}`}>
+              {msg.text}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function MyAccount() {
   const [creds, setCreds] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('portalCreds')) } catch { return null }
@@ -146,6 +237,12 @@ export default function MyAccount() {
             <Icon name="payments" /> Pay with M-Pesa
           </a>
         </section>
+
+        {a.phoneNumber && a.phoneVerified === false && (
+          <ConfirmNumber phone={a.phoneNumber}
+            onDone={() => api('/portal/account', { method: 'POST', body: creds })
+              .then(setData).catch(() => {})} />
+        )}
 
         {data.usage && (
           <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">

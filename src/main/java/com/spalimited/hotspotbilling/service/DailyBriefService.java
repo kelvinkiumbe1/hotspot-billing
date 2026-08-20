@@ -81,6 +81,7 @@ public class DailyBriefService {
     private final MessagingSettingsService messagingSettings;
     private final EmailSettingsService emailSettings;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final EmailService emailService;
     private final PortalSettingsService portalSettings;
     private final MoneyService cash;
@@ -104,10 +105,7 @@ public class DailyBriefService {
     @Transactional(readOnly = true)
     public String buildAndSend() {
         Brief brief = build();
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, brief.shortForm());
-        }
+        operatorAlerts.alert(brief.shortForm());
         String to = emailSettings.get().getFromAddress();
         if (emailService.isEnabled() && to != null && !to.isBlank()) {
             emailService.trySend(to, brief.subject(), brief.longForm());

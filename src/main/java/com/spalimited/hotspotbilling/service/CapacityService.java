@@ -63,6 +63,7 @@ public class CapacityService {
     private final TrafficUsageRepository traffic;
     private final RouterRepository routers;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final MessagingSettingsService messagingSettings;
 
     // --- Settings ---
@@ -317,10 +318,7 @@ public class CapacityService {
     }
 
     private void alertOperator(String message) {
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
     }
 
     /** Records what a site's link can carry — the one figure nothing can measure. */

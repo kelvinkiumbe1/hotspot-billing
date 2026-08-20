@@ -51,6 +51,7 @@ class FieldBotServiceTest {
     @Mock private TechnicianRepository technicians;
     @Mock private SupportTicketRepository tickets;
     @Mock private SmsService smsService;
+    @Mock private OperatorAlertService operatorAlerts;
     @Mock private MessagingSettingsService messagingSettings;
     @Mock private PortalSettingsService portalSettings;
 
@@ -64,7 +65,7 @@ class FieldBotServiceTest {
     @BeforeEach
     void setUp() {
         fieldOps = new FieldOpsService(settingsRepo, technicians, tickets, smsService,
-                messagingSettings, portalSettings);
+                operatorAlerts, messagingSettings, portalSettings);
         bot = new FieldBotService(fieldOps, tickets);
 
         settings = FieldSettings.builder().id(FieldSettings.SINGLETON_ID).build();
@@ -241,8 +242,10 @@ class FieldBotServiceTest {
 
         assertThat(fieldOps.runSweep()).containsEntry("escalated", 1);
         assertThat(fieldOps.runSweep()).containsEntry("escalated", 0);
-        verify(smsService, times(1)).trySend(eq(ALERT_PHONE),
-                org.mockito.ArgumentMatchers.contains("nobody on it"));
+        // Once, through the operator alert channel -- the escalation is what is
+        // being tested, not the delivery.
+        verify(operatorAlerts, times(1))
+                .alert(org.mockito.ArgumentMatchers.contains("nobody on it"));
     }
 
     @Test

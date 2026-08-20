@@ -862,6 +862,9 @@ function MessagingSection({ auth }) {
         whatsappAccessToken: '',
         whatsappAppSecret: '',
         alertPhone: d.alertPhone || '',
+        telegramEnabled: d.telegramEnabled,
+        telegramBotToken: d.telegramBotToken || '',
+        telegramChatId: d.telegramChatId || '',
       })
     }).catch((e) => setMsg({ ok: false, text: e.message }))
 
@@ -1009,13 +1012,81 @@ function MessagingSection({ auth }) {
         )}
       </section>
 
-      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
-        <h3 className="text-base font-bold">Operator alerts</h3>
-        <p className="text-sm text-on-surface-variant mt-0.5 mb-3">
-          Where to text you when a router goes offline or comes back.
-        </p>
-        <input className={`${INPUT_CLS} max-w-xs`} value={form.alertPhone}
-          onChange={(e) => set({ alertPhone: e.target.value })} placeholder="254712345678" />
+      <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40 space-y-4">
+        <div>
+          <h3 className="text-base font-bold">Operator alerts</h3>
+          <p className="text-sm text-on-surface-variant mt-0.5 mb-3">
+            Where to reach you when a router goes offline, a backup is missed, or the
+            revenue audit finds something. Both channels get every alert.
+          </p>
+          <label className={LABEL_CLS}>Text this number</label>
+          <input className={`${INPUT_CLS} max-w-xs`} value={form.alertPhone}
+            onChange={(e) => set({ alertPhone: e.target.value })} placeholder="254712345678" />
+        </div>
+
+        <div className="border-t border-outline-variant/40 pt-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" className="mt-1" checked={!!form.telegramEnabled}
+              onChange={(e) => set({ telegramEnabled: e.target.checked })} />
+            <span>
+              <span className="text-sm font-semibold block">Also post alerts to Telegram</span>
+              {/* Both, not either. SMS is the one channel that still works when
+                  the internet is the thing that broke -- which is when these
+                  alerts matter most. */}
+              <span className="text-xs text-on-surface-variant">
+                Free, threaded, and readable on a laptop. The text stays as well: it is the
+                one channel that still works when the internet is what broke.
+              </span>
+            </span>
+          </label>
+
+          {form.telegramEnabled && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLS}>Bot token</label>
+                <input className={`${INPUT_CLS} font-mono text-xs`} value={form.telegramBotToken}
+                  placeholder="from @BotFather"
+                  onChange={(e) => set({ telegramBotToken: e.target.value })} />
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Message @BotFather in Telegram and send /newbot. Leave this blank to keep
+                  the stored token.
+                </p>
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Chat id</label>
+                <input className={`${INPUT_CLS} font-mono text-xs`} value={form.telegramChatId}
+                  placeholder="-1001234567890"
+                  onChange={(e) => set({ telegramChatId: e.target.value })} />
+                {/* The mistake everybody makes once. */}
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Add the bot to your group, then read the id from
+                  {' '}<span className="font-mono">/getUpdates</span>. A group id starts with
+                  a minus sign &mdash; that is not a typo.
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <button type="button" disabled={busy}
+                  onClick={async () => {
+                    try {
+                      const r = await api('/admin/settings/messaging/telegram/test',
+                        { method: 'POST', auth })
+                      // The server's own wording: it distinguishes a wrong token
+                      // from a bot that was never added to the group.
+                      setMsg({ ok: r.message.startsWith('Sent'), text: r.message })
+                    } catch (e) {
+                      setMsg({ ok: false, text: e.message })
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg border border-primary text-primary text-sm font-semibold cursor-pointer hover:bg-primary/5 disabled:opacity-50">
+                  Post a test message
+                </button>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Save first &mdash; the test uses what is stored.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       {msg && <p className={`text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}

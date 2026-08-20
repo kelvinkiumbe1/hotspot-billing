@@ -25,6 +25,7 @@ public class MessagingSettingsController {
     private final SmsService smsService;
     private final WhatsappService whatsappService;
     private final AuditService audit;
+    private final com.spalimited.hotspotbilling.service.TelegramService telegramService;
 
     @GetMapping
     public Map<String, Object> get() {
@@ -42,7 +43,13 @@ public class MessagingSettingsController {
             String whatsappAccessToken,
             String whatsappAppSecret,
             @Pattern(regexp = "|254\\d{9}", message = "Use the 2547XXXXXXXX form, or leave it blank")
-            String alertPhone) {
+            String alertPhone,
+            boolean telegramEnabled,
+            String telegramBotToken,
+            /* A group chat id is negative. Deliberately not pattern-matched as a
+               number: a rule rejecting the minus sign would reject exactly the
+               case people get wrong, and they would blame the field. */
+            String telegramChatId) {
     }
 
     @PutMapping
@@ -58,9 +65,26 @@ public class MessagingSettingsController {
                 .whatsappAccessToken(request.whatsappAccessToken())
                 .whatsappAppSecret(request.whatsappAppSecret())
                 .alertPhone(request.alertPhone())
+                .telegramEnabled(request.telegramEnabled())
+                .telegramBotToken(request.telegramBotToken())
+                .telegramChatId(request.telegramChatId())
                 .build(), principal.getName());
         audit.record(principal, "messaging.settings", "Updated messaging gateways");
         return settingsService.describe();
+    }
+
+    /**
+     * Posts a test line to the Telegram chat.
+     *
+     * <p>Worth its own button because every failure here is configuration with a
+     * distinct cause -- a wrong token, a bot never added to the group, a positive
+     * chat id where a negative one was needed -- and the service names which.
+     */
+    @PostMapping("/telegram/test")
+    public Map<String, Object> testTelegram(Principal principal) {
+        String result = telegramService.test();
+        audit.record(principal, "messaging.telegram.test", result);
+        return Map.of("message", result);
     }
 
     public record TestRequest(

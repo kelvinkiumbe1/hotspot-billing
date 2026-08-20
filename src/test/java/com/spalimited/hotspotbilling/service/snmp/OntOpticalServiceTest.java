@@ -8,6 +8,7 @@ import com.spalimited.hotspotbilling.repository.OntReadingRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.MessagingSettingsService;
 import com.spalimited.hotspotbilling.service.OperatorAlertSettingsService;
+import com.spalimited.hotspotbilling.service.OperatorAlertService;
 import com.spalimited.hotspotbilling.service.SmsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,7 @@ class OntOpticalServiceTest {
     @Mock private SnmpClient snmp;
     @Mock private AuditService audit;
     @Mock private SmsService sms;
+    @Mock private OperatorAlertService operatorAlerts;
     @Mock private MessagingSettingsService messaging;
     @Mock private OperatorAlertSettingsService alertSettings;
 
@@ -55,7 +57,7 @@ class OntOpticalServiceTest {
     @BeforeEach
     void setUp() {
         service = new OntOpticalService(devices, readings, snmp, audit, sms,
-                messaging, alertSettings);
+                operatorAlerts, messaging, alertSettings);
         stored = new HashMap<>();
 
         when(alertSettings.get()).thenReturn(
@@ -134,7 +136,10 @@ class OntOpticalServiceTest {
         OntOpticalService.PollResult result = service.poll(olt());
 
         assertThat(result.alerted()).isEqualTo(1);
-        verify(sms).trySend(any(), any());
+        // The operator alert channel, not SMS directly: alerts fan out to SMS and
+        // Telegram from one place now, so asserting on SMS would tie this test to
+        // which channels happen to be configured.
+        verify(operatorAlerts).alert(any());
     }
 
     @Test

@@ -56,6 +56,7 @@ public class AgentPayoutService {
     private final AgentService agentService;
     private final MpesaService mpesa;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final MessagingSettingsService messagingSettings;
     private final PortalSettingsService portalSettings;
     private final com.spalimited.hotspotbilling.service.i18n.PhoneNumbers phones;
@@ -424,10 +425,7 @@ public class AgentPayoutService {
     // --- Plumbing ---
 
     private void alertOperator(String message) {
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
     }
 
     private static BigDecimal positive(BigDecimal value, BigDecimal fallback) {

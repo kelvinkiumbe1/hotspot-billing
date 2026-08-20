@@ -81,6 +81,30 @@ public class MessagingSettings {
     /** Phone that receives router-offline alerts and daily digests. */
     private String alertPhone;
 
+    /**
+     * Operator alerts in a Telegram chat, alongside the SMS rather than instead
+     * of it.
+     *
+     * <p>SMS stays because it is the one channel that still works when the
+     * internet is the thing that broke -- which is exactly when these alerts
+     * matter. Telegram is free, threaded, and reaches the laptop somebody is
+     * sitting at when they act on one.
+     */
+    @Builder.Default
+    @Column(name = "telegram_enabled", nullable = false)
+    private boolean telegramEnabled = false;
+
+    /**
+     * A bot token, not a personal credential: it can post only to chats the bot
+     * has been added to, so a leak is somebody spamming one operations group.
+     */
+    @Column(name = "telegram_bot_token")
+    private String telegramBotToken;
+
+    /** Where to post. A group id is negative -- that is not a typo. */
+    @Column(name = "telegram_chat_id", length = 64)
+    private String telegramChatId;
+
     private String updatedBy;
 
     private Instant updatedAt;

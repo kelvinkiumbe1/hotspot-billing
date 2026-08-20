@@ -129,6 +129,11 @@ public class MessagingSettingsService {
         out.put("whatsappInboundVerified", s.isInboundVerifiable());
 
         out.put("alertPhone", s.getAlertPhone());
+        out.put("telegramEnabled", s.isTelegramEnabled());
+        out.put("telegramBotToken", mask(s.getTelegramBotToken()));
+        out.put("telegramChatId", s.getTelegramChatId());
+        out.put("telegramWorking", s.isTelegramEnabled()
+                && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId()));
         out.put("updatedAt", s.getUpdatedAt());
         out.put("updatedBy", s.getUpdatedBy());
 
@@ -152,6 +157,15 @@ public class MessagingSettingsService {
         // be a trap.
         if (notBlank(incoming.getSmsApiKey()) && !incoming.getSmsApiKey().startsWith("••••")) {
             s.setSmsApiKey(incoming.getSmsApiKey().trim());
+        }
+
+        s.setTelegramEnabled(incoming.isTelegramEnabled());
+        s.setTelegramChatId(trim(incoming.getTelegramChatId()));
+        // Masked on the way out, so a blank or an untouched mask means "keep the
+        // stored token" -- the same bargain the SMS and WhatsApp secrets make.
+        if (notBlank(incoming.getTelegramBotToken())
+                && !incoming.getTelegramBotToken().startsWith("••••")) {
+            s.setTelegramBotToken(incoming.getTelegramBotToken().trim());
         }
 
         s.setWhatsappEnabled(incoming.isWhatsappEnabled());

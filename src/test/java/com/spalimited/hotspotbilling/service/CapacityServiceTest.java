@@ -43,6 +43,7 @@ class CapacityServiceTest {
     @Mock private TrafficUsageRepository traffic;
     @Mock private RouterRepository routers;
     @Mock private SmsService smsService;
+    @Mock private OperatorAlertService operatorAlerts;
     @Mock private MessagingSettingsService messagingSettings;
 
     private CapacityService service;
@@ -51,7 +52,8 @@ class CapacityServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CapacityService(settingsRepo, traffic, routers, smsService, messagingSettings);
+        service = new CapacityService(settingsRepo, traffic, routers, smsService, operatorAlerts,
+                messagingSettings);
 
         settings = CapacitySettings.builder().id(1L).enabled(true).lookbackDays(28).build();
         when(settingsRepo.findById(1L)).thenReturn(Optional.of(settings));
@@ -232,9 +234,10 @@ class CapacityServiceTest {
 
         assertThat(service.maybeNotify()).isEqualTo(1);
         assertThat(service.maybeNotify()).isZero();
-        org.mockito.Mockito.verify(smsService, org.mockito.Mockito.times(1))
-                .trySend(org.mockito.ArgumentMatchers.eq("254700999888"),
-                        org.mockito.ArgumentMatchers.contains("Kilimani"));
+        // Once, through the operator alert channel. The point of the test is the
+        // once-per-week gate, not which channel carried it.
+        org.mockito.Mockito.verify(operatorAlerts, org.mockito.Mockito.times(1))
+                .alert(org.mockito.ArgumentMatchers.contains("Kilimani"));
     }
 
     @Test

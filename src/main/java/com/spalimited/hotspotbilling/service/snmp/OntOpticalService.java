@@ -6,6 +6,7 @@ import com.spalimited.hotspotbilling.repository.NetworkDeviceRepository;
 import com.spalimited.hotspotbilling.repository.OntReadingRepository;
 import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.MessagingSettingsService;
+import com.spalimited.hotspotbilling.service.OperatorAlertService;
 import com.spalimited.hotspotbilling.service.OperatorAlertSettingsService;
 import com.spalimited.hotspotbilling.service.SmsService;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class OntOpticalService {
     private final SnmpClient snmp;
     private final AuditService audit;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final MessagingSettingsService messagingSettings;
     private final OperatorAlertSettingsService alertSettings;
 
@@ -202,10 +204,7 @@ public class OntOpticalService {
         if (!alertSettings.get().isRouterOfflineAlert()) {
             return;
         }
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
     }
 
     /** What to tell somebody who does not read decibels. */

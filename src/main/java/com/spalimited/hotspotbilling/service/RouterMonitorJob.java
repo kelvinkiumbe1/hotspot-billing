@@ -35,6 +35,7 @@ public class RouterMonitorJob {
     private final TrafficUsageRepository trafficUsage;
     private final MikrotikService mikrotikService;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final AuditService audit;
 
     private final MessagingSettingsService messagingSettings;
@@ -92,9 +93,8 @@ public class RouterMonitorJob {
             boolean alertsOn = alertSettings.get().isRouterOfflineAlert();
             if (wasOnline && !online) {
                 audit.system("router.offline", "Router " + router.getName() + " went offline: " + router.getLastError());
-                String alertPhone = messagingSettings.alertPhone();
-                if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
-                    smsService.trySend(alertPhone, "ALERT: SPA WiFi router '" + router.getName() + "' is offline.");
+                if (alertsOn) {
+                    operatorAlerts.alert("ALERT: router '" + router.getName() + "' is offline.");
                 }
                 // Group it with anything else that has just dropped: one cause,
                 // one incident, one message to the customers it touches.
@@ -102,9 +102,9 @@ public class RouterMonitorJob {
                 log.warn("Router {} went offline", router.getName());
             } else if (!wasOnline && online) {
                 audit.system("router.online", "Router " + router.getName() + " is back online");
-                String alertPhone = messagingSettings.alertPhone();
-                if (alertsOn && alertPhone != null && !alertPhone.isBlank()) {
-                    smsService.trySend(alertPhone, "Recovered: SPA WiFi router '" + router.getName() + "' is back online.");
+                if (alertsOn) {
+                    operatorAlerts.alert("Recovered: router '" + router.getName()
+                            + "' is back online.");
                 }
                 // Closes the incident once every router in it is back, which is
                 // where the all-clear and the compensation now happen — scoped
@@ -309,11 +309,8 @@ public class RouterMonitorJob {
             }
             audit.system("voucher.sharing", "Voucher " + entry.getKey() + " active on "
                     + entry.getValue().size() + " devices at once on " + router.getName());
-            String alertPhone = messagingSettings.alertPhone();
-            if (alertPhone != null && !alertPhone.isBlank()) {
-                smsService.trySend(alertPhone, "ALERT: access code " + entry.getKey() + " is being used on "
-                        + entry.getValue().size() + " devices at once (possible sharing).");
-            }
+            operatorAlerts.alert("ALERT: access code " + entry.getKey() + " is being used on "
+                    + entry.getValue().size() + " devices at once (possible sharing).");
             v.setSharingFlaggedAt(Instant.now());
             vouchers.save(v);
             log.info("Flagged voucher {} as shared across {} devices", entry.getKey(), entry.getValue().size());

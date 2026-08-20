@@ -68,6 +68,7 @@ public class HealthMonitorService {
     private final PaymentGatewayService gateways;
     private final MessagingSettingsService messagingSettings;
     private final SmsService smsService;
+    private final OperatorAlertService operatorAlerts;
     private final AuditService audit;
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -311,10 +312,7 @@ public class HealthMonitorService {
     // --- helpers ---
 
     private void notifyOperator(String message) {
-        String phone = messagingSettings.alertPhone();
-        if (phone != null && !phone.isBlank()) {
-            smsService.trySend(phone, message);
-        }
+        operatorAlerts.alert(message);
         log.warn(message);
     }
 
