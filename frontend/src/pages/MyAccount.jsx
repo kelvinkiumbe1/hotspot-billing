@@ -8,6 +8,15 @@ import { Icon, fmtKES, fmtDate, fmtTime, relativeTime } from '../components/ui.j
  * They sign in with the PPPoE username and password already set in their
  * router and see status, usage, invoices and payment history.
  */
+/** MB into something a customer reads at a glance. */
+function dataSize(mb) {
+  if (mb === null || mb === undefined) return '0 MB'
+  if (mb < 1024) return `${Math.round(mb)} MB`
+  const gb = mb / 1024
+  if (gb < 1024) return `${gb.toFixed(gb < 10 ? 1 : 0)} GB`
+  return `${(gb / 1024).toFixed(2)} TB`
+}
+
 export default function MyAccount() {
   const [creds, setCreds] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('portalCreds')) } catch { return null }
@@ -137,6 +146,59 @@ export default function MyAccount() {
             <Icon name="payments" /> Pay with M-Pesa
           </a>
         </section>
+
+        {data.usage && (
+          <section className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className="text-lg font-semibold text-on-surface">Data used this month</h2>
+              <span className="text-xs text-on-surface-variant">since {fmtDate(data.usage.cycleStart)}</span>
+            </div>
+            <p className="font-mono text-4xl font-bold text-on-surface tabular-nums mt-2">
+              {dataSize(data.usage.thisCycleMb)}
+            </p>
+
+            {data.cap ? (
+              <div className="mt-4">
+                <div className="h-2 rounded-full bg-surface-variant overflow-hidden">
+                  <div className={`h-full rounded-full ${data.cap.over ? 'bg-error' : data.cap.percent >= 80 ? 'bg-[#d97706]' : 'bg-secondary'}`}
+                    style={{ width: `${Math.max(2, data.cap.percent)}%` }}></div>
+                </div>
+                <p className="text-sm text-on-surface-variant mt-2">
+                  {data.cap.over
+                    ? `You have used your full ${dataSize(data.cap.capMb)} for this month.`
+                    : `${dataSize(data.cap.remainingMb)} left of your ${dataSize(data.cap.capMb)}.`}
+                </p>
+                {/* The customer is entitled to know their speed was cut and when
+                    it comes back, rather than ringing to ask why it is slow. */}
+                {data.cap.appliedAt && data.cap.action !== 'NOTIFY' && (
+                  <p className="text-sm text-error font-semibold mt-1">
+                    {data.cap.action === 'BLOCK'
+                      ? 'Your connection is paused until your next month starts.'
+                      : 'Your speed has been reduced until your next month starts.'}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-on-surface-variant mt-1">Your plan has no data limit.</p>
+            )}
+
+            {/* Thirty bars, tallest-relative. No axis: the shape is the point --
+                which days were heavy -- and a customer does not read a y-axis. */}
+            <div className="flex items-end gap-[3px] h-16 mt-5">
+              {data.usage.daily.map((d) => {
+                const peak = Math.max(1, ...data.usage.daily.map((x) => x.totalMb))
+                return (
+                  <div key={d.day} title={`${d.day}: ${dataSize(d.totalMb)}`}
+                    className="flex-1 bg-primary/70 rounded-sm min-h-[2px] hover:bg-primary transition-colors"
+                    style={{ height: `${Math.max(2, (d.totalMb / peak) * 100)}%` }}></div>
+                )
+              })}
+            </div>
+            <div className="flex justify-between text-xs text-on-surface-variant mt-1">
+              <span>30 days ago</span><span>today</span>
+            </div>
+          </section>
+        )}
 
         <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] overflow-hidden">
           <h2 className="text-lg font-semibold text-on-surface p-4 border-b border-surface-variant">Invoices</h2>

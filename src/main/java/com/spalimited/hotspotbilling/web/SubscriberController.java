@@ -1,9 +1,12 @@
 package com.spalimited.hotspotbilling.web;
 
+import com.spalimited.hotspotbilling.domain.Plan;
 import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.domain.SubscriptionPayment;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
+import com.spalimited.hotspotbilling.service.FupService;
+import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import com.spalimited.hotspotbilling.service.SubscriptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -19,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +36,8 @@ public class SubscriberController {
     private final SubscriberRepository subscribers;
     private final SubscriptionPaymentRepository payments;
     private final SubscriptionService subscriptionService;
+    private final SubscriberUsageService subscriberUsage;
+    private final FupService fupService;
 
     @GetMapping
     public List<Subscriber> all() {
@@ -115,6 +121,84 @@ public class SubscriberController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         subscriptionService.delete(id);
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* Usage and fair use                                                */
+    /* ---------------------------------------------------------------- */
+
+    /**
+     * One customer's usage: a day-by-day series, this cycle's total, and where
+     * they stand against their cap if they have one.
+     */
+    @GetMapping("/{id}/usage")
+    public Map<String, Object> usage(@PathVariable Long id,
+                                     @RequestParam(defaultValue = "30") @Min(1) @Max(400) int days) {
+        Subscriber sub = subscribers.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("subscriberId", id);
+        out.put("days", days);
+        out.put("series", subscriberUsage.dailySeries(id, days));
+        out.put("thisCycleMb", subscriberUsage.thisCycleBytes(id) / (1024L * 1024L));
+        out.put("cycleStart", subscriberUsage.cycleStart(subscriberUsage.today()).toString());
+        // Null when the customer is uncapped, which the screen reads as "no cap"
+        // rather than as a cap of zero.
+        out.put("cap", subscriberUsage.capStatus(sub));
+        return out;
+    }
+
+    public record FairUseRequest(
+            @Min(1) @Max(10_000_000) Integer dataCapMb,
+            String action,
+            @Pattern(regexp = "|[0-9]+[kKmMgG]?/[0-9]+[kKmMgG]?",
+                    message = "Rate must look like 2M/2M")
+            String fupRate) {
+    }
+
+    /**
+     * Sets or clears a customer's allowance.
+     *
+     * <p>A null cap clears it. Clearing does not itself put a throttled customer
+     * back to full speed -- the sweep does that within ten minutes, and doing it
+     * here as well would mean two code paths racing to talk to the same router.
+     */
+    @PatchMapping("/{id}/fair-use")
+    public Map<String, Object> fairUse(@PathVariable Long id, @Valid @RequestBody FairUseRequest request) {
+        Subscriber sub = subscribers.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        sub.setDataCapMb(request.dataCapMb());
+        sub.setFupAction(request.action() == null || request.action().isBlank()
+                ? null : Plan.FupAction.valueOf(request.action()));
+        sub.setFupRate(request.fupRate() == null || request.fupRate().isBlank()
+                ? null : request.fupRate().trim());
+        subscribers.save(sub);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("cap", subscriberUsage.capStatus(sub));
+        out.put("message", request.dataCapMb() == null
+                ? "Allowance removed. Any throttle in place is lifted within ten minutes."
+                : "Allowance set to " + request.dataCapMb() + "MB a month.");
+        return out;
+    }
+
+    /** Lifts a throttle or block right now, without waiting for the sweep. */
+    @PostMapping("/{id}/fair-use/lift")
+    public Map<String, Object> liftFairUse(@PathVariable Long id) {
+        Subscriber sub = subscribers.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        if (sub.getFupAppliedAt() == null) {
+            return Map.of("ok", true, "message", "Nothing was applied to this customer.");
+        }
+        // Clearing the cycle is what makes the sweep treat it as stale and
+        // restore, so this reuses the one restore path rather than adding a
+        // second one that could drift from it.
+        sub.setFupCycle(null);
+        subscribers.save(sub);
+        boolean done = fupService.reviewSubscriber(sub);
+        return Map.of("ok", done, "message", done
+                ? "Full speed restored. They reconnect within a few seconds."
+                : "Could not reach the router. It will retry within ten minutes.");
     }
 
     /* ---------------------------------------------------------------- */

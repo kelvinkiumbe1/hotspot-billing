@@ -28,6 +28,7 @@ public class CustomerPortalController {
     private final SubscriberRepository subscribers;
     private final SubscriptionPaymentRepository payments;
     private final InvoiceService invoiceService;
+    private final com.spalimited.hotspotbilling.service.SubscriberUsageService subscriberUsage;
 
     public record LoginRequest(@NotBlank String pppoeUsername, @NotBlank String pppoePassword) {
     }
@@ -57,6 +58,17 @@ public class CustomerPortalController {
         account.put("lastPaymentAt", sub.getLastPaymentAt());
 
         Map<String, Object> out = new LinkedHashMap<>();
+        // The question this portal exists to answer without a phone call.
+        // Thirty days rather than the cap period, so the graph is the same
+        // length every day of the month instead of one bar on the 1st.
+        out.put("usage", Map.of(
+                "thisCycleMb", subscriberUsage.thisCycleBytes(sub.getId()) / (1024L * 1024L),
+                "cycleStart", subscriberUsage.cycleStart(subscriberUsage.today()).toString(),
+                "daily", subscriberUsage.dailySeries(sub.getId(), 30)));
+        Map<String, Object> cap = subscriberUsage.capStatus(sub);
+        if (cap != null) {
+            out.put("cap", cap);
+        }
         out.put("account", account);
         out.put("payments", history.stream().map(p -> Map.of(
                 "amount", p.getAmount(),

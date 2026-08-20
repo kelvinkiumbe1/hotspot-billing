@@ -7,6 +7,7 @@ import com.spalimited.hotspotbilling.repository.RadiusSessionRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.TrafficUsageRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
+import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class RadiusAccountingService {
     private final VoucherRepository vouchers;
     private final SubscriberRepository subscribers;
     private final TrafficUsageRepository trafficUsage;
+    private final SubscriberUsageService subscriberUsage;
 
     /** Everything one accounting packet said, already parsed. */
     public record Report(String nasAddress, String acctSessionId, String username,
@@ -157,6 +159,12 @@ public class RadiusAccountingService {
                 subscriber.setLastSeenOnlineAt(Instant.now());
                 subscribers.save(subscriber);
             });
+            // The durable copy. The counter above is zeroed on the 1st of every
+            // month with nothing kept, so on its own it can answer "how much
+            // this month" and nothing else -- not last month, not yesterday, and
+            // not a cap that has to survive a restart.
+            long[] split = splitOctets(session, newOctets);
+            subscriberUsage.record(session.getSubscriberId(), split[0], split[1]);
         }
 
         if (newOctets > 0) {
@@ -176,11 +184,9 @@ public class RadiusAccountingService {
         if (routerId == null) {
             return;
         }
-        // Split in the same proportion the session reports, so the up/down
-        // split stays honest rather than being invented.
-        long total = session.getInOctets() + session.getOutOctets();
-        long up = total == 0 ? 0 : newOctets * session.getInOctets() / total;
-        long down = newOctets - up;
+        long[] split = splitOctets(session, newOctets);
+        long up = split[0];
+        long down = split[1];
 
         Instant bucket = Instant.now().truncatedTo(ChronoUnit.HOURS);
         TrafficUsage row = trafficUsage
@@ -191,6 +197,21 @@ public class RadiusAccountingService {
         row.setBytesUp(row.getBytesUp() + up);
         row.setBytesDown(row.getBytesDown() + down);
         trafficUsage.save(row);
+    }
+
+    /**
+     * Divides new octets into up and down in the same proportion the session
+     * reports, so the split stays honest rather than being invented.
+     *
+     * <p>A session that has reported a total but no breakdown yet puts everything
+     * in "down", which is the safer guess: on almost every consumer line it is
+     * the larger half, so a wrong guess understates upload rather than inventing
+     * it.
+     */
+    private static long[] splitOctets(RadiusSession session, long newOctets) {
+        long total = session.getInOctets() + session.getOutOctets();
+        long up = total == 0 ? 0 : newOctets * session.getInOctets() / total;
+        return new long[] { up, newOctets - up };
     }
 
     /**

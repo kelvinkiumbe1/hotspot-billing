@@ -341,7 +341,15 @@ public class RouterMonitorJob {
         }
     }
 
-    /** Monthly usage reset so counters track the billing cycle. */
+    /**
+     * Monthly usage reset so the counter on the subscriber tracks the billing
+     * cycle.
+     *
+     * <p>This used to destroy the only copy of a customer's usage. It no longer
+     * does: subscriber_usage_daily keeps a row per customer per day for over a
+     * year, so what is zeroed here is a cached this-month figure and not the
+     * record. Anything that needs history reads SubscriberUsageService instead.
+     */
     @Scheduled(cron = "0 5 0 1 * *")
     @Transactional
     public void resetMonthlyUsage() {

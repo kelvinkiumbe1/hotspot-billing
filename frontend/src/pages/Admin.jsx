@@ -27,6 +27,7 @@ import VouchersPage from './admin/Vouchers.jsx'
 import CommunicationsPage from './admin/Communications.jsx'
 import FiberPage from './admin/Fiber.jsx'
 import CpePage from './admin/Cpe.jsx'
+import UsagePage from './admin/Usage.jsx'
 import StaffPage from './admin/Staff.jsx'
 import LedgerPage from './admin/Ledger.jsx'
 import RevenueAuditPage from './admin/RevenueAudit.jsx'
@@ -489,6 +490,7 @@ const NAV_GROUPS = [
       { key: 'subscribers', label: 'Subscribers', icon: 'lan', need: 'CUSTOMERS' },
       { key: 'leads', label: 'Leads', icon: 'person_search', need: 'CUSTOMERS' },
       { key: 'retention', label: 'Keeping customers', icon: 'monitor_heart', need: 'CUSTOMERS' },
+      { key: 'usage', label: 'Data usage', icon: 'data_usage', need: 'CUSTOMERS' },
       { key: 'support', label: 'Tickets', icon: 'support_agent', need: 'CUSTOMERS' },
     ],
   },
@@ -1281,6 +1283,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'outbox' && <CommunicationsPage auth={auth} />}
         {tab === 'fiber' && <FiberPage auth={auth} />}
         {tab === 'cpe' && <CpePage auth={auth} />}
+        {tab === 'usage' && <UsagePage auth={auth} />}
         {tab === 'staff' && <StaffPage auth={auth} me={me} />}
         {tab === 'ledger' && <LedgerPage auth={auth} />}
         {tab === 'plans' && <Plans auth={auth} />}

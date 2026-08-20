@@ -7,6 +7,7 @@ import com.spalimited.hotspotbilling.repository.RadiusSessionRepository;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.TrafficUsageRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
+import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,9 @@ class RadiusAccountingServiceTest {
 
     @Mock
     private TrafficUsageRepository trafficUsage;
+
+    @Mock
+    private SubscriberUsageService subscriberUsage;
 
     @InjectMocks
     private RadiusAccountingService accounting;

@@ -21,4 +21,11 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
 
     /** Lapsed subscribers in a win-back series whose next message is now due. */
     List<Subscriber> findByWinbackCycleIsNotNullAndWinbackNextAtLessThanEqual(java.time.Instant now);
+
+    /**
+     * Everyone the fair-use sweep has to look at: capped customers, plus anyone
+     * still carrying a mark from a cap that has since been removed. Leaving the
+     * second half out would strand those customers throttled forever.
+     */
+    List<Subscriber> findByDataCapMbIsNotNullOrFupAppliedAtIsNotNull();
 }

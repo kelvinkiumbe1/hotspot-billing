@@ -513,6 +513,49 @@ public class MikrotikService {
         log.info("Provisioned PPPoE secret for {} on {}", sub.getPppoeUsername(), router.getName());
     }
 
+    /**
+     * Changes the speed a PPPoE customer gets, by rewriting their own profile.
+     *
+     * <p>Every subscriber already has a profile to themselves -- spa-ppp-{id},
+     * created in {@link #provisionPppoe} -- so this changes one customer without
+     * touching anybody else on the router.
+     *
+     * <p>RouterOS applies a profile when the session starts, not when the profile
+     * changes, so a customer already online keeps their old speed until they
+     * reconnect. Dropping the session is therefore part of doing this, not an
+     * extra: without it a throttle appears to have been applied and silently has
+     * not been. The customer sees a few seconds offline while their router
+     * redials, and the admin says so before anybody presses the button.
+     *
+     * @param rate a RouterOS rate-limit such as "2M/2M", or null to restore the
+     *             subscriber's normal bandwidth
+     */
+    public void setPppoeRate(Subscriber sub, String rate) {
+        Router router = routerFor(sub.getRouterId());
+        if (!live(router)) {
+            log.info("MikroTik disabled -- not changing the rate for {}", sub.getPppoeUsername());
+            return;
+        }
+        String effective = rate != null && !rate.isBlank() ? rate.trim() : sub.getBandwidth();
+        String profile = "spa-ppp-" + sub.getId();
+        try (ApiConnection connection = login(router)) {
+            String rateLimit = effective != null && !effective.isBlank()
+                    ? " rate-limit=" + effective : " !rate-limit";
+            connection.execute(String.format("/ppp/profile/set [find name=%s]%s", profile, rateLimit));
+            try {
+                // Forces the redial that makes the new profile take hold.
+                connection.execute("/ppp/active/remove [find name=" + sub.getPppoeUsername() + "]");
+            } catch (Exception notOnline) {
+                // Offline already: they will pick the new rate up when they dial in.
+                log.debug("No live PPPoE session to bounce for {}", sub.getPppoeUsername());
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+        log.info("PPPoE {} rate set to {}", sub.getPppoeUsername(),
+                effective == null || effective.isBlank() ? "unlimited" : effective);
+    }
+
     public void setPppoeEnabled(Subscriber sub, boolean enabled) {
         Router router = routerFor(sub.getRouterId());
         if (!live(router)) {

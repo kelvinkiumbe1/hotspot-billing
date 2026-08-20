@@ -3,13 +3,16 @@ package com.spalimited.hotspotbilling.service;
 import com.spalimited.hotspotbilling.domain.NotificationTemplate;
 import com.spalimited.hotspotbilling.domain.Plan;
 import com.spalimited.hotspotbilling.domain.Router;
+import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.domain.Voucher;
+import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -20,6 +23,18 @@ import java.util.Map;
  *
  * <p>Router-side actions are attempted through {@link MikrotikService}; if the
  * router is unreachable the pass is left un-marked so the next poll retries.
+ *
+ * <h2>Subscribers</h2>
+ *
+ * <p>Monthly customers work the same way but arrive from the other end. A pass
+ * has a plan and a lifetime measured in hours, so its cap is on the plan and is
+ * applied once and forgotten. A fibre line has no plan at all -- the cap is on
+ * the subscriber -- and it lives for years, so its cap resets every month and
+ * whatever was done at the cap has to be undone again. That undoing is the part
+ * worth being careful about: a customer left throttled into a month they have
+ * paid for is a complaint, and it is invisible from the admin unless somebody
+ * looks. So the sweep restores as well as applies, and decides which by
+ * comparing cap periods rather than by trusting a job to have run at midnight.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +47,8 @@ public class FupService {
     private final NotificationService notificationService;
     private final PortalSettingsService portalSettingsService;
     private final VoucherRepository vouchers;
+    private final SubscriberRepository subscribers;
+    private final SubscriberUsageService subscriberUsage;
 
     /** Applies the plan's FUP action to a pass that has crossed its cap. */
     public void enforce(Router router, Voucher voucher) {
@@ -90,6 +107,107 @@ public class FupService {
         notificationService.send(NotificationTemplate.Key.FUP_NOTICE, voucher.getPhoneNumber(),
                 Map.of("business", safe(portalSettingsService.settings().getBusinessName()),
                         "capMb", String.valueOf(plan.getFupLimitMb())));
+    }
+
+    // --- Monthly subscribers ---
+
+    /**
+     * Applies or lifts one subscriber's fair-use state.
+     *
+     * <p>Returns true if anything changed, so the sweep can log a number that
+     * means something rather than the count of customers it looked at.
+     */
+    public boolean reviewSubscriber(Subscriber sub) {
+        LocalDate cycle = subscriberUsage.cycleStart(subscriberUsage.today());
+
+        // Applied in an earlier month: the allowance has rolled over, so give
+        // them their speed back whether or not they are near the new cap.
+        if (sub.getFupAppliedAt() != null && !cycle.equals(sub.getFupCycle())) {
+            return liftSubscriber(sub, "the new month");
+        }
+        if (sub.getDataCapMb() == null || sub.getDataCapMb() <= 0) {
+            // The cap was removed while they were throttled.
+            return sub.getFupAppliedAt() != null && liftSubscriber(sub, "the cap being removed");
+        }
+        if (sub.getFupAppliedAt() != null) {
+            return false; // already applied, this cycle
+        }
+
+        long capBytes = (long) sub.getDataCapMb() * MB_BYTES;
+        if (subscriberUsage.thisCycleBytes(sub.getId()) < capBytes) {
+            return false;
+        }
+
+        Plan.FupAction action = sub.getFupAction() != null ? sub.getFupAction() : Plan.FupAction.NOTIFY;
+        boolean applied = switch (action) {
+            case THROTTLE -> throttleSubscriber(sub);
+            case BLOCK -> blockSubscriber(sub);
+            case NOTIFY -> true;
+        };
+        if (!applied) {
+            return false; // router unreachable -- retried on the next sweep
+        }
+        notifySubscriber(sub);
+        sub.setFupAppliedAt(Instant.now());
+        sub.setFupCycle(cycle);
+        subscribers.save(sub);
+        log.info("Applied FUP {} to subscriber {} ({}MB cap)", action, sub.getId(), sub.getDataCapMb());
+        return true;
+    }
+
+    /** Puts a subscriber back to their paid-for speed and clears the mark. */
+    private boolean liftSubscriber(Subscriber sub, String why) {
+        Plan.FupAction was = sub.getFupAction() != null ? sub.getFupAction() : Plan.FupAction.NOTIFY;
+        try {
+            switch (was) {
+                // Both restore paths are the subscriber's own stored settings, so
+                // this cannot hand somebody the wrong speed even if the package
+                // changed while they were throttled.
+                case THROTTLE -> mikrotikService.setPppoeRate(sub, null);
+                case BLOCK -> mikrotikService.setPppoeEnabled(sub, true);
+                case NOTIFY -> { }
+            }
+        } catch (Exception e) {
+            log.warn("Could not lift FUP for subscriber {}: {}", sub.getId(), e.getMessage());
+            return false; // leave the mark so the next sweep tries again
+        }
+        sub.setFupAppliedAt(null);
+        sub.setFupCycle(null);
+        subscribers.save(sub);
+        log.info("Lifted FUP on subscriber {} on {}", sub.getId(), why);
+        return true;
+    }
+
+    private boolean throttleSubscriber(Subscriber sub) {
+        if (sub.getFupRate() == null || sub.getFupRate().isBlank()) {
+            return true; // no rate set -- behaves as notify-only
+        }
+        try {
+            mikrotikService.setPppoeRate(sub, sub.getFupRate());
+            return true;
+        } catch (Exception e) {
+            log.warn("FUP throttle failed for subscriber {}: {}", sub.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean blockSubscriber(Subscriber sub) {
+        try {
+            mikrotikService.setPppoeEnabled(sub, false);
+            return true;
+        } catch (Exception e) {
+            log.warn("FUP block failed for subscriber {}: {}", sub.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    private void notifySubscriber(Subscriber sub) {
+        if (sub.getPhoneNumber() == null || sub.getPhoneNumber().isBlank()) {
+            return;
+        }
+        notificationService.send(NotificationTemplate.Key.FUP_NOTICE, sub.getPhoneNumber(),
+                Map.of("business", safe(portalSettingsService.settings().getBusinessName()),
+                        "capMb", String.valueOf(sub.getDataCapMb())));
     }
 
     private static String safe(String s) {

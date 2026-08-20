@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * A monthly PPPoE subscriber (home/office customer). Their router dials
@@ -129,6 +130,35 @@ public class Subscriber {
     private Instant usageResetAt;
 
     private Instant lastSeenOnlineAt;
+
+    /**
+     * Monthly data allowance in MB, or null for uncapped -- which is what every
+     * subscriber that existed before this column did, and what most fibre
+     * customers should stay on. A cap here is checked against the running total
+     * in subscriber_usage_daily, not against dataUsedMb, because that counter is
+     * zeroed monthly and rounds every increment down to whole megabytes.
+     */
+    private Integer dataCapMb;
+
+    /** What to do once the cap is crossed. Null is treated as NOTIFY. */
+    @Enumerated(EnumType.STRING)
+    private Plan.FupAction fupAction;
+
+    /** RouterOS rate-limit to drop to when throttling, e.g. "2M/2M". */
+    private String fupRate;
+
+    private Instant fupAppliedAt;
+
+    /**
+     * First day of the cap period the action was applied in.
+     *
+     * <p>Without this, lifting a throttle at the start of a new month needs a job
+     * that runs at midnight on the 1st and is trusted never to miss. With it,
+     * "is this throttle stale?" is a comparison any code path can make, so the
+     * customer gets their speed back on the next poll after their month turns
+     * over whether or not anything fired on time.
+     */
+    private LocalDate fupCycle;
 
     @Column(nullable = false)
     private Instant createdAt;
