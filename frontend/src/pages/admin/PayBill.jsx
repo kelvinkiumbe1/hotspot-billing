@@ -5,7 +5,7 @@ import { Icon, Skeleton, PageHeader, StatCard, fmtKES, fmtDate, fmtTime, relativ
 const STATUS_STYLES = {
   MATCHED: { label: 'Auto-matched', cls: 'bg-secondary-container text-on-secondary-container' },
   APPLIED_MANUALLY: { label: 'Applied by hand', cls: 'bg-primary-container/30 text-primary' },
-  UNMATCHED: { label: 'Needs attention', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' },
+  UNMATCHED: { label: 'Needs attention', cls: 'bg-warning/10 text-warning border border-warning/20' },
 }
 
 export default function PayBill({ auth }) {
@@ -48,7 +48,7 @@ export default function PayBill({ auth }) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 mb-4">
         <StatCard label="Payments Received" value={rows.length} accent="border-l-primary" />
         <StatCard label="Total Value" value={fmtKES(total)} />
-        <StatCard label="Needs Attention" value={unmatched.length} accent={unmatched.length ? 'border-l-[#f59e0b]' : ''} />
+        <StatCard label="Needs Attention" value={unmatched.length} accent={unmatched.length ? 'border-l-warning' : ''} />
       </div>
 
       <div className="bg-surface-container-lowest rounded-lg p-4 mb-6 border border-outline-variant/30 flex items-start gap-3">

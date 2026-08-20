@@ -180,7 +180,7 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
                 ))}
               </div>
               {!isV3 && (
-                <p className="text-xs text-[#b45309] mt-1.5">
+                <p className="text-xs text-warning mt-1.5">
                   v1 and v2c send the community string in clear text on every poll, every five minutes.
                   Fine on a management VLAN you trust; v3 is the one that doesn't.
                 </p>
@@ -268,7 +268,7 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
                         ONU table addresses (only if the defaults don&rsquo;t work)
                       </summary>
                       <div className="mt-3 space-y-3">
-                        <p className="text-xs text-[#b45309]">
+                        <p className="text-xs text-warning">
                           These defaults have never been checked against a real
                           {' '}{form.oltVendor} OLT &mdash; there is no test OLT anywhere. If the
                           light readings come back empty, run <code>snmpwalk</code> against your
@@ -336,7 +336,7 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
                           onChange={(e) => set({ cliPort: e.target.value })} />
                       </div>
                     </div>
-                    <p className="text-xs text-[#b45309] flex items-start gap-2">
+                    <p className="text-xs text-warning flex items-start gap-2">
                       <Icon name="warning" className="text-[16px]! mt-0.5" />
                       This is telnet, so the password crosses your network in the clear. Keep
                       the OLT on a management VLAN that customers cannot reach.
@@ -357,7 +357,7 @@ function DeviceModal({ auth, device, branches, onClose, onSaved }) {
             <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors w-fit">
               <input type="checkbox" checked={form.enabled}
                 onChange={(e) => set({ enabled: e.target.checked })}
-                className="w-4 h-4 accent-[#fdbf2d]" />
+                className="w-4 h-4 accent-primary" />
               <span className="text-sm text-on-surface">Poll this device</span>
             </label>
 
@@ -418,7 +418,7 @@ function PortsPanel({ auth, device, onClose }) {
                 </p>
               )}
               {data.lastRebootAt && (
-                <p className="px-6 py-2 text-xs text-[#b45309] border-b border-outline-variant/50">
+                <p className="px-6 py-2 text-xs text-warning border-b border-outline-variant/50">
                   Last seen to restart {relativeTime(data.lastRebootAt)}.
                 </p>
               )}

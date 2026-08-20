@@ -1419,7 +1419,7 @@ function KpiCard({ label, icon, iconClass, value, format = (v) => v, accent, wid
 
 const SEVERITY = {
   critical: { dot: 'bg-error', text: 'text-error' },
-  warning: { dot: 'bg-[#FDBF2D]', text: 'text-[#FDBF2D]' },
+  warning: { dot: 'bg-primary', text: 'text-primary' },
   info: { dot: 'bg-on-surface-variant', text: 'text-on-surface-variant' },
 }
 
@@ -2204,7 +2204,7 @@ function Toggle({ checked, onChange }) {
 
 const PLAN_AVAILABILITY_STYLES = {
   LIVE: 'bg-secondary-container text-on-secondary-container',
-  HIDDEN: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20',
+  HIDDEN: 'bg-warning/10 text-warning border border-warning/20',
   OFF: 'bg-surface-container-high text-on-surface-variant',
 }
 
@@ -2318,7 +2318,7 @@ function Plans({ auth }) {
                         {(p.type || 'HOTSPOT') === 'PPPOE' ? 'PPPoE' : 'Hotspot'}
                       </span>
                       {p.fupEnabled && p.fupLimitMb > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#b45309] text-[10px] font-bold uppercase tracking-wider"
+                        <span className="px-2 py-0.5 rounded-full bg-warning/10 text-warning text-[10px] font-bold uppercase tracking-wider"
                           title={`Over ${p.fupLimitMb} MB a month: ${(p.fupAction || '').toLowerCase()}`}>
                           FUP {p.fupLimitMb >= 1024 ? `${(p.fupLimitMb / 1024).toFixed(0)}GB` : `${p.fupLimitMb}MB`}
                         </span>
@@ -2597,7 +2597,7 @@ function StandingOrder({ auth, subscriber, onChanged }) {
             </p>
           )}
           {mandate.lastError && (
-            <p className="text-xs text-[#b45309] mt-2">Last problem: {mandate.lastError}</p>
+            <p className="text-xs text-warning mt-2">Last problem: {mandate.lastError}</p>
           )}
         </div>
       ) : mandate.exists ? (
@@ -2772,7 +2772,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
 
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className={`flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-md border-l-2 ${
-            st.label === 'Active' ? 'border-secondary' : st.label === 'Expiring' ? 'border-[#f59e0b]' : 'border-error'
+            st.label === 'Active' ? 'border-secondary' : st.label === 'Expiring' ? 'border-warning' : 'border-error'
           }`}>
             <span className={`text-xs font-semibold tracking-wider px-2.5 py-1 rounded-full mb-2 ${st.cls}`}>{st.label}</span>
             <span className="text-lg font-bold text-on-surface">{fmtDate(s.paidUntil)}</span>
@@ -2872,7 +2872,7 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
                     change that takes the customer offline until somebody touches
                     their own router. */}
                 {edit.pppoeUsername && edit.pppoeUsername !== s.pppoeUsername && (
-                  <p className="text-xs text-[#b45309] flex items-start gap-1.5">
+                  <p className="text-xs text-warning flex items-start gap-1.5">
                     <Icon name="warning" className="text-[14px]! mt-0.5" />
                     Changing the username takes them offline until the new one is set on
                     the customer&rsquo;s own router.
@@ -2988,7 +2988,7 @@ function subscriberState(s) {
   if (s.status === 'SUSPENDED') return { label: 'Suspended', cls: 'bg-error-container text-on-error-container' }
   const days = (new Date(s.paidUntil) - Date.now()) / 86400000
   if (days < 0) return { label: 'Overdue', cls: 'bg-error-container text-on-error-container' }
-  if (days <= 3) return { label: 'Expiring', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
+  if (days <= 3) return { label: 'Expiring', cls: 'bg-warning/10 text-warning border border-warning/20' }
   return { label: 'Active', cls: 'bg-secondary-container text-on-secondary-container' }
 }
 
@@ -3240,7 +3240,7 @@ function Subscribers({ auth }) {
         {[
           ['Active', active.length, 'border-l-primary'],
           ['Suspended', subs.length - active.length, ''],
-          ['Expiring ≤3 days', expiring, 'border-l-[#f59e0b]'],
+          ['Expiring ≤3 days', expiring, 'border-l-warning'],
           ['Monthly Revenue', fmtKES(mrr), 'border-l-secondary'],
         ].map(([label, value, accent]) => (
           <div key={label} className={`bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant ${accent ? `border-l-2 ${accent}` : ''}`}>
@@ -3290,7 +3290,7 @@ function Subscribers({ auth }) {
                     </td>
                     <td className="">
                       <div className="whitespace-nowrap">{fmtDate(s.paidUntil)}</div>
-                      <div className={`text-xs mt-0.5 ${days < 0 ? 'text-error font-semibold' : days <= 3 ? 'text-[#b45309] font-semibold' : 'text-on-surface-variant'}`}>
+                      <div className={`text-xs mt-0.5 ${days < 0 ? 'text-error font-semibold' : days <= 3 ? 'text-warning font-semibold' : 'text-on-surface-variant'}`}>
                         {days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : `${days} day${days === 1 ? '' : 's'} left`}
                       </div>
                     </td>
@@ -3681,7 +3681,7 @@ function Payments({ auth }) {
               ? `${payments.length} payment${payments.length === 1 ? '' : 's'}`
               : `${filtered.length} of ${payments.length} payments`}
             {totals.pendingCount > 0 && (
-              <span className="text-[#FDBF2D]">
+              <span className="text-primary">
                 {' '}· {totals.pendingCount} still awaiting an M-Pesa callback
               </span>
             )}
@@ -3766,11 +3766,11 @@ function TicketAnalytics({ auth }) {
 
   const peak = Math.max(1, ...data.perDay.map((d) => d.count))
   const statusColours = {
-    OPEN: 'bg-[#f59e0b]',
+    OPEN: 'bg-warning',
     IN_PROGRESS: 'bg-primary',
     RESOLVED: 'bg-secondary',
   }
-  const priorityColours = { HIGH: 'bg-error', MEDIUM: 'bg-[#f59e0b]', LOW: 'bg-secondary' }
+  const priorityColours = { HIGH: 'bg-error', MEDIUM: 'bg-warning', LOW: 'bg-secondary' }
 
   return (
     <div className="space-y-6">
@@ -4237,7 +4237,7 @@ function Support({ auth }) {
                     onChange={(ids) => setAssignees(selected.id, ids)}
                   />
                   {assignError ? (
-                    <p className="text-xs text-[#b91c1c] mt-2 flex items-start gap-1.5">
+                    <p className="text-xs text-error mt-2 flex items-start gap-1.5">
                       <Icon name="error" className="text-[15px]! mt-0.5" />
                       Not saved — {assignError}
                     </p>
@@ -4449,14 +4449,14 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function eventTone(ev) {
   if (ev.status === 'COMPLETED') return 'bg-secondary/10 border-secondary/20 text-secondary'
   const days = (new Date(ev.scheduledStart) - Date.now()) / 86400000
-  if (days >= 0 && days <= 7) return 'bg-[#f59e0b]/10 border-[#f59e0b]/30 text-[#b45309]'
+  if (days >= 0 && days <= 7) return 'bg-warning/10 border-warning/30 text-warning'
   return 'bg-primary/10 border-primary/20 text-primary'
 }
 
 function eventChipLabel(ev) {
   if (ev.status === 'COMPLETED') return { label: 'Completed', cls: 'bg-secondary-container text-on-secondary-container' }
   const days = (new Date(ev.scheduledStart) - Date.now()) / 86400000
-  if (days >= 0 && days <= 7) return { label: 'Upcoming', cls: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20' }
+  if (days >= 0 && days <= 7) return { label: 'Upcoming', cls: 'bg-warning/10 text-warning border border-warning/20' }
   return { label: 'Planned', cls: 'bg-primary-container/20 text-primary' }
 }
 
@@ -4465,7 +4465,7 @@ function eventChipLabel(ev) {
 function eventDot(ev) {
   if (ev.status === 'COMPLETED') return 'bg-secondary'
   const days = (new Date(ev.scheduledStart) - Date.now()) / 86400000
-  if (days >= 0 && days <= 7) return 'bg-[#f59e0b]'
+  if (days >= 0 && days <= 7) return 'bg-warning'
   return 'bg-primary'
 }
 
@@ -4631,7 +4631,7 @@ function Maintenance({ auth }) {
               </button>
             </div>
             <div className="hidden sm:flex items-center gap-3">
-              {[['bg-primary', 'Planned'], ['bg-[#f59e0b]', 'Upcoming'], ['bg-secondary', 'Completed']].map(([dot, label]) => (
+              {[['bg-primary', 'Planned'], ['bg-warning', 'Upcoming'], ['bg-secondary', 'Completed']].map(([dot, label]) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${dot}`}></span>
                   <span className="text-[11px] font-medium text-on-surface-variant">{label}</span>
@@ -4980,11 +4980,11 @@ function TechnicianModal({ auth, onClose, onSaved }) {
               <label className={labelCls}>Permissions</label>
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
-                  <input type="checkbox" checked={form.canVouchers} onChange={(e) => setForm({ ...form, canVouchers: e.target.checked })} className="w-4 h-4 accent-[#fdbf2d]" />
+                  <input type="checkbox" checked={form.canVouchers} onChange={(e) => setForm({ ...form, canVouchers: e.target.checked })} className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-on-surface"><strong>Issue vouchers</strong> — generate and print WiFi passes in the field</span>
                 </label>
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
-                  <input type="checkbox" checked={form.canPppoe} onChange={(e) => setForm({ ...form, canPppoe: e.target.checked })} className="w-4 h-4 accent-[#fdbf2d]" />
+                  <input type="checkbox" checked={form.canPppoe} onChange={(e) => setForm({ ...form, canPppoe: e.target.checked })} className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-on-surface"><strong>Manage PPPoE subscribers</strong> — sign up monthly home customers and take payments</span>
                 </label>
               </div>
@@ -5233,9 +5233,9 @@ function PromotionCard({ auth }) {
   const labelCls = 'block text-xs font-semibold tracking-wider uppercase text-outline mb-2'
 
   return (
-    <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-[#f59e0b]">
+    <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant border-l-2 border-l-warning">
       <div className="flex items-center gap-3 mb-4">
-        <Icon name="celebration" className="text-[#b45309] bg-[#f59e0b]/10 p-2 rounded-lg text-[40px]!" />
+        <Icon name="celebration" className="text-warning bg-warning/10 p-2 rounded-lg text-[40px]!" />
         <div>
           <h3 className="text-lg font-semibold text-on-surface">Limited-Time Offer</h3>
           <p className="text-sm text-on-surface-variant">
@@ -5245,7 +5245,7 @@ function PromotionCard({ auth }) {
       </div>
 
       {current ? (
-        <div className="rounded-xl bg-gradient-to-r from-[#b45309] to-[#f59e0b] text-white p-4 flex items-center gap-3 flex-wrap">
+        <div className="rounded-xl bg-gradient-to-r from-warning to-warning text-white p-4 flex items-center gap-3 flex-wrap">
           <Icon name="celebration" filled className="text-[28px]!" />
           <div className="flex-1 min-w-0">
             <p className="font-bold">{current.title}</p>
@@ -5331,7 +5331,7 @@ function SmsCard({ auth }) {
       </div>
 
       {!info.enabled && (
-        <div className="flex items-start gap-2 bg-[#f59e0b]/10 border border-[#f59e0b]/30 text-[#b45309] rounded-lg p-3 mb-4 text-sm">
+        <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 text-warning rounded-lg p-3 mb-4 text-sm">
           <Icon name="info" className="text-[18px]! mt-0.5" />
           <span>
             SMS is not configured yet. Create a free <strong>Africa's Talking</strong> account, then set the

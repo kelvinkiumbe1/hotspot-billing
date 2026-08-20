@@ -542,7 +542,7 @@ function FiberMap({ auth }) {
       {msg && <p className={`mb-3 text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
 
       {tilesBlocked && (
-        <p className="mb-3 text-sm text-[#b45309]">
+        <p className="mb-3 text-sm text-warning">
           Map tiles could not load — this machine may be offline or behind a proxy. Nodes and routes are
           still drawn, just without the street background.
         </p>

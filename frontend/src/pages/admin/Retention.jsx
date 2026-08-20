@@ -7,7 +7,7 @@ import {
 
 const BAND_STYLE = {
   CRITICAL: 'bg-error text-on-error',
-  AT_RISK: 'bg-[#f59e0b] text-black',
+  AT_RISK: 'bg-warning text-black',
   WATCH: 'bg-surface-container-high text-on-surface',
   STEADY: 'bg-surface-container-high text-on-surface-variant',
 }
@@ -189,8 +189,8 @@ export default function Retention({ auth }) {
         speed === null ? <Skeleton className="h-32" /> : (
           <div>
             {!speed.measured && (
-              <div className="mb-4 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
-                <p className="text-sm text-[#b45309]">
+              <div className="mb-4 p-4 rounded-lg bg-warning/10 border border-warning/30">
+                <p className="text-sm text-warning">
                   Nothing has been measured yet. Delivered speed is worked out from RADIUS
                   accounting, so this stays empty until RADIUS is switched on and routers have
                   been reporting for a day or two. An empty list here does not mean everyone is

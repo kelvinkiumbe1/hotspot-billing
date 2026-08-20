@@ -362,7 +362,7 @@ function DeveloperSection({ auth }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {events.map((ev) => (
                 <label key={ev} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" className="accent-[#fdbf2d]"
+                  <input type="checkbox" className="accent-primary"
                     checked={wform.events.includes(ev)} onChange={() => toggleEvent(ev)} />
                   <span className="font-mono text-xs">{ev}</span>
                 </label>
@@ -904,7 +904,7 @@ function MessagingSection({ auth }) {
   return (
     <form onSubmit={save} className="space-y-6 max-w-3xl">
       {saved?.usingEnvironmentFallback && (
-        <p className="p-3 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30 text-sm text-[#b45309]">
+        <p className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-sm text-warning">
           Messaging currently works because credentials were set when this system was installed. Fill them in
           here to manage them yourself — until you do, the fields below look empty even though sending works.
         </p>
@@ -997,7 +997,7 @@ function MessagingSection({ auth }) {
                   Incoming messages are checked against Meta's signature.
                 </p>
               ) : (
-                <p className="text-xs text-[#b91c1c] mt-1 flex items-start gap-1.5">
+                <p className="text-xs text-error mt-1 flex items-start gap-1.5">
                   <Icon name="gpp_maybe" className="text-[15px]! mt-0.5" />
                   Without this, an incoming message's sender is only a claim. Anyone who knows your
                   webhook URL could pose as a customer and read their access code, or pose as a
@@ -1115,7 +1115,7 @@ function LoyaltySection({ auth }) {
         </>
       )}
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
     </form>
   )
@@ -1240,7 +1240,7 @@ function AiSection({ auth }) {
             </p>
           </section>
         )}
-        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
       </form>
 
@@ -1419,7 +1419,7 @@ function AlertsSection({ auth }) {
         )}
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
       <div className="flex flex-wrap items-center gap-3">
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
@@ -1566,7 +1566,7 @@ function CreditSection({ auth }) {
         </section>
       )}
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
     </form>
   )
@@ -1737,7 +1737,7 @@ function FieldSection({ auth }) {
         )}
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <div className="flex items-center gap-3">
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
         <button type="button" onClick={sweepNow} disabled={busy}
@@ -1750,8 +1750,8 @@ function FieldSection({ auth }) {
 }
 
 const VERDICT_TONE = {
-  CRITICAL: 'bg-[#b91c1c]/10 text-[#b91c1c]',
-  WARNING: 'bg-[#f59e0b]/10 text-[#b45309]',
+  CRITICAL: 'bg-error/10 text-error',
+  WARNING: 'bg-warning/10 text-warning',
   OK: 'bg-secondary-container text-on-secondary-container',
   UNDERUSED: 'bg-primary-container/40 text-primary',
   UNKNOWN: 'bg-surface-container-high text-on-surface-variant',
@@ -1822,7 +1822,7 @@ function CapacitySection({ auth }) {
           Advisory only. Nothing here reconfigures a router or changes anyone's package — buying
           backhaul is not a decision to hand to a scheduler.
         </p>
-        {data?.note && <p className="text-xs text-[#b45309]">{data.note}</p>}
+        {data?.note && <p className="text-xs text-warning">{data.note}</p>}
       </section>
 
       <section className="bg-surface-container-lowest rounded-lg p-4 border border-outline-variant/40">
@@ -1851,8 +1851,8 @@ function CapacitySection({ auth }) {
                 {s.usedPercent != null && (
                   <div className="h-2 rounded-full bg-surface-container-high overflow-hidden mb-2">
                     <div
-                      className={`h-full ${s.usedPercent >= form.criticalPercent ? 'bg-[#b91c1c]'
-                        : s.usedPercent >= form.warnPercent ? 'bg-[#f59e0b]' : 'bg-primary'}`}
+                      className={`h-full ${s.usedPercent >= form.criticalPercent ? 'bg-error'
+                        : s.usedPercent >= form.warnPercent ? 'bg-warning' : 'bg-primary'}`}
                       style={{ width: `${Math.min(100, s.usedPercent)}%` }}
                     />
                   </div>
@@ -1960,7 +1960,7 @@ function CapacitySection({ auth }) {
         )}
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
     </form>
   )
@@ -2045,7 +2045,7 @@ function OffPeakSection({ auth }) {
           <span className="text-xs text-on-surface-variant">{data?.daysOfData || 0} day(s) of traffic</span>
         </div>
         {data?.note
-          ? <p className="text-xs text-[#b45309] mb-3">{data.note}</p>
+          ? <p className="text-xs text-warning mb-3">{data.note}</p>
           : (
             <p className="text-xs text-on-surface-variant mb-3">
               Shaded hours are the window in force. Bars are traffic. A faint dashed column is an hour
@@ -2147,7 +2147,7 @@ function OffPeakSection({ auth }) {
         )}
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
         <button type="button" onClick={syncNow} disabled={busy}
@@ -2163,8 +2163,8 @@ const PAYOUT_STATUS_TONE = {
   PAID: 'bg-secondary-container text-on-secondary-container',
   MANUAL: 'bg-surface-container-high text-on-surface-variant',
   SENT: 'bg-primary-container/40 text-primary',
-  PENDING: 'bg-[#f59e0b]/10 text-[#b45309]',
-  FAILED: 'bg-[#b91c1c]/10 text-[#b91c1c]',
+  PENDING: 'bg-warning/10 text-warning',
+  FAILED: 'bg-error/10 text-error',
 }
 
 /**
@@ -2236,7 +2236,7 @@ function AgentPayoutSection({ auth }) {
           <Toggle checked={form.autoSend} onChange={(e) => set({ autoSend: e.target.checked })} />
         </div>
         {!data?.canSendMoney && (
-          <p className="text-xs text-[#b45309] flex items-start gap-2">
+          <p className="text-xs text-warning flex items-start gap-2">
             <Icon name="warning" className="text-[16px]! mt-0.5" />
             M-Pesa cannot send money yet. Add the initiator name and security credential under
             Settings → Payment gateways, and make sure your callback URL is publicly reachable.
@@ -2317,7 +2317,7 @@ function AgentPayoutSection({ auth }) {
                     <td>{d.agentName} <span className="text-xs text-on-surface-variant">{d.code}</span></td>
                     <td className="font-mono text-xs">{d.phoneNumber || '—'}</td>
                     <td className="text-right tabular-nums">{money(d.owed)}</td>
-                    <td className="text-xs text-[#b45309]">{d.blockedBecause}</td>
+                    <td className="text-xs text-warning">{d.blockedBecause}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2369,7 +2369,7 @@ function AgentPayoutSection({ auth }) {
         </section>
       )}
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
         <button type="button" disabled={busy}
@@ -2466,7 +2466,7 @@ function PaybillSection({ auth }) {
         </div>
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <PrimaryButton disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</PrimaryButton>
     </form>
   )
@@ -2594,7 +2594,7 @@ function EmailSection({ auth }) {
       </section>
 
       {msg && (
-        <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>
+        <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -2656,7 +2656,7 @@ function ProfileSection({ auth, me }) {
   return (
     <div className="space-y-6 max-w-2xl">
       {me?.breakGlass && (
-        <p className="p-3 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30 text-sm text-[#b45309]">
+        <p className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-sm text-warning">
           You are signed in with the fallback account from the config file. It has no profile or password to
           change here — create a named login under Organisation → Staff Logins and use that.
         </p>

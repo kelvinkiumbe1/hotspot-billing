@@ -7,7 +7,7 @@ import {
 
 const SEVERITY_STYLES = {
   CRITICAL: 'bg-error-container text-on-error-container',
-  WARNING: 'bg-[#f59e0b]/15 text-[#b45309]',
+  WARNING: 'bg-warning/15 text-warning',
 }
 
 const DOT_STYLES = {

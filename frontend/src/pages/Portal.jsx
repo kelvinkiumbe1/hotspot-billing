@@ -650,7 +650,7 @@ function PlanCard({ plan, popular, onBuy, index = 0, promo }) {
       </div>
       <button
         onClick={() => onBuy(discounted != null && discounted < plan.price ? { ...plan, price: discounted } : plan)}
-        className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
+        className="w-full h-12 bg-gradient-to-r from-primary to-primary-fixed-dim text-on-secondary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 cursor-pointer"
       >
         <Icon name="payments" /> {t('card.buy')}
       </button>
@@ -1608,7 +1608,7 @@ function CreditPanel({ plan, phone }) {
       >
         <Icon name="schedule" /> {busy ? 'Just a moment…' : 'Get online now, pay on your next purchase'}
       </button>
-      {error && <p className="mt-2 text-xs text-[#b91c1c]">{error}</p>}
+      {error && <p className="mt-2 text-xs text-error">{error}</p>}
       <p className="mt-2 text-xs text-on-surface-variant text-center">
         You've bought from us before, so we trust you for this one.
       </p>

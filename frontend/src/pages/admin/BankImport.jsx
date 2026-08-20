@@ -75,14 +75,13 @@ function parseAmount(raw) {
   if (!s) return null
   const bracketed = /^\((.*)\)$/.exec(s)
   if (bracketed) s = `-${bracketed[1]}`
-  s = s.replace(/[^0-9.\-]/g, '')
+  s = s.replace(/[^0-9.-]/g, '')
   if (!s || s === '-' || s === '.') return null
   const n = Number(s)
   return Number.isFinite(n) ? n : null
 }
 
 function UploadPanel({ auth, onDone }) {
-  const [raw, setRaw] = useState(null)
   const [filename, setFilename] = useState('')
   const [bankName, setBankName] = useState('')
   const [table, setTable] = useState(null)
@@ -97,7 +96,6 @@ function UploadPanel({ auth, onDone }) {
     const reader = new FileReader()
     reader.onload = () => {
       const text = String(reader.result)
-      setRaw(text)
       const recs = parseDelimited(text, sniffDelimiter(text))
         .filter((r) => r.some((c) => c && c.trim()))
       if (recs.length < 2) {
@@ -238,7 +236,7 @@ function UploadPanel({ auth, onDone }) {
               </div>
 
               {noDate > 0 && (
-                <p className="text-xs text-[#b45309] flex items-start gap-2">
+                <p className="text-xs text-warning flex items-start gap-2">
                   <Icon name="warning" className="text-[16px]! mt-0.5" />
                   {noDate} row(s) have no date I could read. The date is part of how a
                   repeated statement is recognised, so importing without it makes a
@@ -284,7 +282,7 @@ function UploadPanel({ auth, onDone }) {
         </>
       )}
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
       {result && (
         <div className="rounded-lg border border-secondary/40 bg-secondary-container/20 p-3 text-sm space-y-1">
@@ -371,14 +369,14 @@ function QueueRow({ auth, txn, customers, onDone }) {
       </div>
 
       {choice && chosen && months === 0 && (
-        <p className="text-xs text-[#b45309] flex items-start gap-2">
+        <p className="text-xs text-warning flex items-start gap-2">
           <Icon name="warning" className="text-[16px]! mt-0.5" />
           {fmtKES(txn.amount)} is less than {chosen.fullName}&rsquo;s {fmtKES(chosen.monthlyFee)}
           {' '}monthly fee, so this buys no whole month. Crediting it will record the payment
           and extend nothing.
         </p>
       )}
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
     </li>
   )
 }

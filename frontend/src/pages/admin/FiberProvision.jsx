@@ -125,8 +125,8 @@ export default function FiberProvision({ auth }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-[#d97706]/40 bg-[#fffbeb] p-3">
-        <p className="text-sm text-[#78350f] flex items-start gap-2">
+      <div className="rounded-lg border border-warning/40 bg-warning-container p-3">
+        <p className="text-sm text-on-warning-container flex items-start gap-2">
           <Icon name="warning" className="text-[18px]! mt-0.5" />
           <span>
             These commands go straight to the OLT. A wrong one can take a whole PON port
@@ -149,7 +149,7 @@ export default function FiberProvision({ auth }) {
         </PrimaryButton>
       </div>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-on-surface-variant' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-on-surface-variant' : 'text-error'}`}>{msg.text}</p>}
 
       {found && found.length > 0 && (
         <div className="space-y-3">
@@ -171,7 +171,7 @@ export default function FiberProvision({ auth }) {
           {pending.plan.possible ? (
             <>
               <CommandList commands={pending.plan.commands} />
-              <p className="text-xs text-[#b45309]">{pending.plan.warning}</p>
+              <p className="text-xs text-warning">{pending.plan.warning}</p>
               <div className="flex gap-2">
                 <PrimaryButton disabled={applying} onClick={apply}>
                   {applying ? 'Sending…' : 'Send these commands'}
@@ -183,7 +183,7 @@ export default function FiberProvision({ auth }) {
               </div>
             </>
           ) : (
-            <p className="text-sm text-[#b91c1c]">{pending.plan.reason}</p>
+            <p className="text-sm text-error">{pending.plan.reason}</p>
           )}
         </div>
       )}

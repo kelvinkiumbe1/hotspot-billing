@@ -13,7 +13,7 @@ const ADJUSTMENTS = [
 ]
 
 const TYPE_STYLES = {
-  INVOICE: 'bg-[#f59e0b]/10 text-[#b45309]',
+  INVOICE: 'bg-warning/10 text-warning',
   PAYMENT: 'bg-secondary-container text-on-secondary-container',
   CREDIT_NOTE: 'bg-primary-container/25 text-primary',
   DISCOUNT: 'bg-primary-container/25 text-primary',

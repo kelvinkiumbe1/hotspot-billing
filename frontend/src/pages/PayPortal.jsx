@@ -175,7 +175,7 @@ export default function PayPortal() {
                 </div>
               </div>
               {error && <p className="text-sm text-error">{error}</p>}
-              <button onClick={pay} disabled={busy || !selected} className="w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-primary rounded-lg text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer">
+              <button onClick={pay} disabled={busy || !selected} className="w-full h-12 bg-gradient-to-r from-primary to-primary-fixed-dim text-on-primary rounded-lg text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer">
                 <Icon name="send_money" /> Pay with M-Pesa
               </button>
               <button onClick={() => { setStep('phone'); setError(null) }} className="text-sm text-primary hover:underline cursor-pointer">

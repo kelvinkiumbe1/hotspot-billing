@@ -664,7 +664,7 @@ export default function AnalyticsPage({ auth }) {
             <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Number(vouchers.sellThroughPercent))}%` }} />
           </div>
           {Number(vouchers.issued) > 0 && Number(vouchers.sellThroughPercent) < 40 && (
-            <p className="mt-3 text-xs text-[#b45309]">
+            <p className="mt-3 text-xs text-warning">
               {(100 - Number(vouchers.sellThroughPercent)).toFixed(1)}% of what you printed this
               period is still unused — worth slowing down the next batch.
             </p>

@@ -224,8 +224,8 @@ function Composer({ auth, options, onCancel, onSent }) {
       </div>
 
       {!options.whatsappEnabled && !options.smsEnabled && (
-        <div className="p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
-          <p className="text-sm text-[#b45309]">
+        <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-sm text-warning">
             No gateway is configured, so nothing can actually be delivered yet. You can still preview the
             audience and wording — add WhatsApp or SMS credentials under Settings to send for real.
           </p>

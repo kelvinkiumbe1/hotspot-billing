@@ -146,7 +146,7 @@ export default function TaxSettingsPage({ auth }) {
                     </div>
                   </dl>
                   {!form.pricesIncludeVat && (
-                    <p className="mt-2 text-xs text-[#b45309]">
+                    <p className="mt-2 text-xs text-warning">
                       Note this bills them {fmtKES(example.gross - 3500)} more than the package price.
                     </p>
                   )}

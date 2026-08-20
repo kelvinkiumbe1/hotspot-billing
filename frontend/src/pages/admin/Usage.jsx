@@ -43,7 +43,7 @@ function CapBar({ usedMb, capMb }) {
   return (
     <div className="min-w-[7rem]">
       <div className="h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-        <div className={`h-full rounded-full ${over ? 'bg-error' : pct >= 80 ? 'bg-[#d97706]' : 'bg-secondary'}`}
+        <div className={`h-full rounded-full ${over ? 'bg-error' : pct >= 80 ? 'bg-warning' : 'bg-secondary'}`}
           style={{ width: `${Math.max(2, pct)}%` }}></div>
       </div>
       <p className="text-xs text-on-surface-variant mt-1">{pct}% of {size(capMb)}</p>
@@ -105,7 +105,10 @@ function CustomerUsage({ auth, row, onClose, onChanged }) {
   }
 
   const series = data?.series || []
-  const peak = useMemo(() => series.reduce((m, d) => Math.max(m, d.totalMb), 0), [series])
+  // Keyed on data, not on `series`: that array is rebuilt every render, so a memo
+  // over it recomputed every time and cost more than the sum it was avoiding.
+  const peak = useMemo(
+    () => (data?.series || []).reduce((m, d) => Math.max(m, d.totalMb), 0), [data])
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-start justify-center p-4 z-50 overflow-y-auto">
@@ -130,10 +133,10 @@ function CustomerUsage({ auth, row, onClose, onChanged }) {
             </div>
 
             {data.cap?.appliedAt && (
-              <div className="rounded-lg border border-[#d97706]/40 bg-[#fffbeb] p-3 flex items-start gap-2">
-                <Icon name="warning" className="text-[18px]! text-[#b45309] mt-0.5" />
+              <div className="rounded-lg border border-warning/40 bg-warning-container p-3 flex items-start gap-2">
+                <Icon name="warning" className="text-[18px]! text-warning mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[#78350f]">
+                  <p className="text-sm text-on-warning-container">
                     Their allowance ran out and <strong>
                       {data.cap.action === 'BLOCK' ? 'the line was cut off'
                         : data.cap.action === 'THROTTLE' ? 'they were slowed down'
@@ -142,7 +145,7 @@ function CustomerUsage({ auth, row, onClose, onChanged }) {
                   </p>
                   {data.cap.action !== 'NOTIFY' && (
                     <button type="button" disabled={busy} onClick={lift}
-                      className="mt-2 px-3 py-1.5 rounded-lg border border-[#b45309] text-[#78350f] text-sm cursor-pointer hover:bg-[#fef3c7]">
+                      className="mt-2 px-3 py-1.5 rounded-lg border border-warning text-on-warning-container text-sm cursor-pointer hover:bg-warning-container">
                       Give them full speed back now
                     </button>
                   )}
@@ -191,7 +194,7 @@ function CustomerUsage({ auth, row, onClose, onChanged }) {
                     onChange={(e) => setForm({ ...form, fupRate: e.target.value })} />
                   {/* Not a detail. Somebody will press this on a customer who is
                       on a call and needs to know that is what happens. */}
-                  <p className="text-xs text-[#b45309] mt-1 flex items-start gap-1.5">
+                  <p className="text-xs text-warning mt-1 flex items-start gap-1.5">
                     <Icon name="info" className="text-[14px]! mt-0.5" />
                     Changing speed drops their connection for a few seconds — a router
                     only applies a new speed when the line redials.
@@ -203,7 +206,7 @@ function CustomerUsage({ auth, row, onClose, onChanged }) {
               </PrimaryButton>
             </div>
 
-            {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+            {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
           </>
         )}
       </div>

@@ -1171,7 +1171,7 @@ function Profile({ auth, onLogout }) {
         </div>
         <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.05)] p-4 flex flex-col gap-3 justify-between">
           <div className="flex items-center gap-2 text-on-surface-variant">
-            <Icon name="pending_actions" className="text-[#f59e0b]" />
+            <Icon name="pending_actions" className="text-warning" />
             <span className="text-xs font-semibold tracking-wider uppercase">Open Tasks</span>
           </div>
           <span className="font-mono text-4xl font-bold tracking-tight text-on-surface">{tasks.length - completed}</span>

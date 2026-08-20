@@ -144,7 +144,7 @@ function DeviceDetail({ auth, id, onClose }) {
           </button>
         </div>
 
-        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
         {device.tasks && device.tasks.length > 0 && (
           <details>

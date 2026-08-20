@@ -51,7 +51,7 @@ const KINDS = {
 
 const SEVERITY_STYLES = {
   HIGH: 'bg-error-container text-on-error-container',
-  MEDIUM: 'bg-[#f59e0b]/15 text-[#b45309]',
+  MEDIUM: 'bg-warning/15 text-warning',
   LOW: 'bg-surface-container-high text-on-surface-variant',
 }
 

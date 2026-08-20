@@ -43,7 +43,7 @@ const PERMISSION_LABELS = {
 const ROLE_STYLES = {
   OWNER: 'bg-primary-container text-on-primary-container',
   MANAGER: 'bg-secondary-container text-on-secondary-container',
-  ACCOUNTANT: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20',
+  ACCOUNTANT: 'bg-warning/10 text-warning border border-warning/20',
   SUPPORT: 'bg-surface-container-high text-on-surface-variant',
 }
 
@@ -238,8 +238,8 @@ export default function StaffPage({ auth, me }) {
       </PageHeader>
 
       {me?.breakGlass && (
-        <div className="mb-6 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
-          <p className="text-sm text-[#b45309]">
+        <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-sm text-warning">
             <strong>You are signed in with the fallback account from the config file.</strong> It works, but
             everything you do is recorded as "{me.username}" rather than a person. Create a named Owner login
             below and use that from now on — the fallback stays available in case you ever get locked out.
@@ -334,7 +334,7 @@ export default function StaffPage({ auth, me }) {
                           aria-label={`Branch for ${r.fullName}`}
                           className={`mt-1 block px-2 py-1 rounded-full text-[10px] font-semibold cursor-pointer ${
                             r.branchId
-                              ? 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20'
+                              ? 'bg-warning/10 text-warning border border-warning/20'
                               : 'bg-surface-container-high text-on-surface-variant'}`}
                         >
                           <option value="">All branches</option>

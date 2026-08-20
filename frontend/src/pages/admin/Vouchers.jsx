@@ -583,7 +583,7 @@ export default function VouchersPage({ auth }) {
                     </td>
                     <td className="text-xs">
                       {v.status === 'ACTIVE' ? (
-                        <span className={v.remainingSeconds <= 300 ? 'font-semibold text-[#f59e0b]' : 'text-on-surface'}>
+                        <span className={v.remainingSeconds <= 300 ? 'font-semibold text-warning' : 'text-on-surface'}>
                           {fmtLeft(v.remainingSeconds)} left
                         </span>
                       ) : v.status === 'UNUSED' ? (

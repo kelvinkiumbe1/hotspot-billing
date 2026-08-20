@@ -18,7 +18,7 @@ const KIND_ICONS = {
 const STATUS_STYLES = {
   IN_STOCK: 'bg-secondary-container text-on-secondary-container',
   WITH_TECHNICIAN: 'bg-primary-container/25 text-primary',
-  DEPLOYED: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20',
+  DEPLOYED: 'bg-warning/10 text-warning border border-warning/20',
   FAULTY: 'bg-error-container text-on-error-container',
   RETIRED: 'bg-surface-container-high text-on-surface-variant',
 }
@@ -205,7 +205,7 @@ export default function EquipmentPage({ auth }) {
           hint={summary?.warrantyExpiringSoon > 0
             ? `${summary.warrantyExpiringSoon} warranty expiring within 60 days`
             : 'Excludes retired items'}
-          accent={summary?.warrantyExpiringSoon > 0 ? 'border-l-[#f59e0b]' : ''}
+          accent={summary?.warrantyExpiringSoon > 0 ? 'border-l-warning' : ''}
         />
       </div>
 

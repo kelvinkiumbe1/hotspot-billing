@@ -133,7 +133,7 @@ function NewQuote({ auth, customers, onDone, onClose }) {
       <PrimaryButton disabled={busy || !form.subscriberId} onClick={save}>
         {busy ? 'Issuing…' : 'Issue quote'}
       </PrimaryButton>
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
     </div>
   )
 }
@@ -219,7 +219,7 @@ function NewCreditNote({ auth, customers, onDone, onClose }) {
           <input className={INPUT_CLS} type="number" value={form.amount}
             onChange={(e) => set({ amount: e.target.value })} />
           {overLimit && (
-            <p className="text-xs text-[#b91c1c] mt-1">
+            <p className="text-xs text-error mt-1">
               Only {fmtKES(invoice.creditable)} of {invoice.number} can still be credited.
             </p>
           )}
@@ -236,7 +236,7 @@ function NewCreditNote({ auth, customers, onDone, onClose }) {
         onClick={save}>
         {busy ? 'Issuing…' : 'Issue credit note'}
       </PrimaryButton>
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
     </div>
   )
 }
@@ -306,7 +306,7 @@ export default function BillingDocumentsPage({ auth }) {
           ))}
         </div>
 
-        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
         {creating && tab === 'quotes' && (
           <NewQuote auth={auth} customers={customers}

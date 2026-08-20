@@ -8,7 +8,7 @@ const PIPELINE = ['NEW', 'CONTACTED', 'QUOTED', 'CONVERTED', 'LOST']
 const STATUS_STYLES = {
   NEW: 'bg-primary-container/25 text-primary',
   CONTACTED: 'bg-surface-container-high text-on-surface-variant',
-  QUOTED: 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20',
+  QUOTED: 'bg-warning/10 text-warning border border-warning/20',
   CONVERTED: 'bg-secondary-container text-on-secondary-container',
   LOST: 'bg-error-container text-on-error-container',
 }

@@ -142,7 +142,7 @@ export default function Agents({ auth }) {
         <StatCard label="Active Agents" value={agents.filter((a) => a.active).length} hint={agents.length + ' on the books'} accent="border-l-primary" />
         <StatCard label="Vouchers With Agents" value={totalStock} hint="Unused stock in the field" />
         <StatCard label="Sold By Agents" value={totalSold} hint={fmtKES(totalFace) + ' face value'} />
-        <StatCard label="Commission Owed" value={fmtKES(totalOwed)} hint="Not yet paid out" accent={totalOwed > 0 ? 'border-l-[#f59e0b]' : ''} />
+        <StatCard label="Commission Owed" value={fmtKES(totalOwed)} hint="Not yet paid out" accent={totalOwed > 0 ? 'border-l-warning' : ''} />
       </div>
 
       <nav className="flex gap-2 mb-6 flex-wrap">
@@ -219,7 +219,7 @@ export default function Agents({ auth }) {
                       <td className="tabular-nums whitespace-nowrap">{fmtKES(a.faceValue)}</td>
                       <td className="whitespace-nowrap">
                         <div className="font-semibold tabular-nums">{fmtKES(a.commissionEarned)} earned</div>
-                        <div className={`text-xs tabular-nums ${Number(a.commissionOwed) > 0 ? 'text-[#b45309] font-semibold' : 'text-on-surface-variant'}`}>
+                        <div className={`text-xs tabular-nums ${Number(a.commissionOwed) > 0 ? 'text-warning font-semibold' : 'text-on-surface-variant'}`}>
                           {fmtKES(a.commissionOwed)} owed
                         </div>
                       </td>

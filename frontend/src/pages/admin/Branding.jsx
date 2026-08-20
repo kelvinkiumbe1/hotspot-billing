@@ -209,7 +209,7 @@ export default function Branding({ auth }) {
                   <div className="mt-2 text-xs text-on-surface-variant">
                     <p>Customers there typically pay with <strong>{c.networks.join(', ')}</strong>.</p>
                     {c.needsManualCollection ? (
-                      <p className="mt-1 text-[#b45309]">
+                      <p className="mt-1 text-warning">
                         None of the built-in gateways reach {c.name} — {c.networks[0]} is domestic
                         only. You can still take payments, but they have to be matched to customers
                         by hand under Payments → manual.
@@ -275,7 +275,7 @@ export default function Branding({ auth }) {
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors w-full">
                   <input type="checkbox" checked={form.currencySuffix}
                     onChange={(e) => set('currencySuffix', e.target.checked)}
-                    className="w-4 h-4 accent-[#fdbf2d]" />
+                    className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-on-surface">Unit goes after the number (2,500 FCFA)</span>
                 </label>
               </div>
@@ -304,7 +304,7 @@ export default function Branding({ auth }) {
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors">
                   <input type="checkbox" checked={form.followCustomerLanguage}
                     onChange={(e) => set('followCustomerLanguage', e.target.checked)}
-                    className="w-4 h-4 accent-[#fdbf2d]" />
+                    className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-on-surface">
                     Let the portal follow each customer&rsquo;s own phone
                   </span>

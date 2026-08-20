@@ -109,7 +109,7 @@ function ClientModal({ auth, client, onClose, onSaved }) {
               <input className={INPUT_CLS} type="password" value={form.sharedSecret}
                 onChange={(e) => set({ sharedSecret: e.target.value })}
                 placeholder={client?.hasSecret ? '••••••••' : 'the same string you type on the router'} />
-              <p className="text-xs text-[#b45309] mt-1">
+              <p className="text-xs text-warning mt-1">
                 Must match the router exactly. There is no way for either side to tell a mistyped
                 secret from a wrong password, so it shows up as every login failing.
               </p>
@@ -126,7 +126,7 @@ function ClientModal({ auth, client, onClose, onSaved }) {
                 <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors w-full">
                   <input type="checkbox" checked={form.enabled}
                     onChange={(e) => set({ enabled: e.target.checked })}
-                    className="w-4 h-4 accent-[#fdbf2d]" />
+                    className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-on-surface">Allowed to ask</span>
                 </label>
               </div>
@@ -256,8 +256,8 @@ export default function Radius({ auth }) {
       {msg && <p className={`mb-4 text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
 
       {data.note && (
-        <div className="mb-6 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
-          <p className="text-sm text-[#b45309]">{data.note}</p>
+        <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-sm text-warning">{data.note}</p>
         </div>
       )}
 
@@ -274,7 +274,7 @@ export default function Radius({ auth }) {
           <label className="flex items-center gap-3 shrink-0 cursor-pointer">
             <input type="checkbox" checked={form.enabled} disabled={saving}
               onChange={(e) => saveSettings({ enabled: e.target.checked })}
-              className="w-5 h-5 accent-[#fdbf2d]" />
+              className="w-5 h-5 accent-primary" />
             <span className="text-sm font-semibold">{form.enabled ? 'On' : 'Off'}</span>
           </label>
         </div>
@@ -310,7 +310,7 @@ export default function Radius({ auth }) {
               <label className="flex items-center gap-3 p-3 border border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low transition-colors w-full">
                 <input type="checkbox" checked={form.disconnectEnabled}
                   onChange={(e) => saveSettings({ disconnectEnabled: e.target.checked })}
-                  className="w-4 h-4 accent-[#fdbf2d]" />
+                  className="w-4 h-4 accent-primary" />
                 <span className="text-sm text-on-surface">Allow cutting sessions off</span>
               </label>
             </div>

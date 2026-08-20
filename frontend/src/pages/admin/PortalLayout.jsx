@@ -208,7 +208,7 @@ function LayoutTab({ auth }) {
         </div>
       </section>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <div className="flex gap-2">
         <PrimaryButton disabled={busy} onClick={save}>
           {busy ? 'Saving…' : 'Save layout'}
@@ -350,7 +350,7 @@ function WordingTab({ auth }) {
         <p className="text-sm text-on-surface-variant">Nothing matches “{filter}”.</p>
       )}
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       <div className="flex flex-wrap gap-2">
         <PrimaryButton disabled={busy || Object.keys(edits).length === 0} onClick={save}>
           {busy ? 'Saving…' : `Save ${Object.keys(edits).length || ''} change(s)`.trim()}

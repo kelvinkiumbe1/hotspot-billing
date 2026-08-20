@@ -48,8 +48,8 @@ function Freshness({ row }) {
   const stale = Date.now() - new Date(row.lastBackupAt).getTime() > 2 * 86400000
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-      stale ? 'bg-[#fef3c7] text-[#78350f]' : 'bg-secondary-container text-on-secondary-container'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${stale ? 'bg-[#d97706]' : 'bg-secondary'}`}></span>
+      stale ? 'bg-warning-container text-on-warning-container' : 'bg-secondary-container text-on-secondary-container'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${stale ? 'bg-warning' : 'bg-secondary'}`}></span>
       {relativeTime(row.lastBackupAt)}
     </span>
   )
@@ -155,7 +155,7 @@ function RouterHistory({ auth, router, onClose, onChanged }) {
         <PrimaryButton disabled={busy} onClick={runNow}>
           {busy ? 'Reading the router…' : 'Back it up now'}
         </PrimaryButton>
-        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
         {versions === null ? <Skeleton className="h-32" /> : versions.length === 0 ? (
           <p className="text-sm text-on-surface-variant">
@@ -287,7 +287,7 @@ export default function RouterBackupsPage({ auth }) {
             <StatCard label="Never backed up" value={never} />
           </div>
 
-          {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+          {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
           <div className="overflow-x-auto rounded-lg border border-outline-variant">
             <table className="w-full text-sm">

@@ -582,7 +582,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               ))}
             </div>
             {form.environment === 'SANDBOX' && (
-              <p className="text-xs text-[#b45309] mt-1.5">
+              <p className="text-xs text-warning mt-1.5">
                 Sandbox behaves exactly like success and collects nothing. Switch to Production before
                 telling customers they can pay.
               </p>
@@ -679,13 +679,13 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
             {webhookBase
               ? <CopyUrl url={webhookBase + gateway.webhook} />
               : (
-                <p className="text-xs text-[#b45309]">
+                <p className="text-xs text-warning">
                   No public address is configured, so the URL can&rsquo;t be shown.
                 </p>
               )}
           </div>
 
-          <p className="text-xs text-[#b45309]">
+          <p className="text-xs text-warning">
             No charge has gone through a live Paynow account yet. The hashing is tested; the
             conversation with Paynow is not.
           </p>
@@ -712,7 +712,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               ))}
             </div>
             {form.environment === 'SANDBOX' && SANDBOX_NOTE[gateway.kind] && (
-              <p className="text-xs text-[#b45309] mt-1.5">{SANDBOX_NOTE[gateway.kind]}</p>
+              <p className="text-xs text-warning mt-1.5">{SANDBOX_NOTE[gateway.kind]}</p>
             )}
           </div>
           ) : (
@@ -762,7 +762,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               {webhookBase
                 ? <CopyUrl url={webhookBase + gateway.webhook} />
                 : (
-                  <p className="text-xs text-[#b45309]">
+                  <p className="text-xs text-warning">
                     No public address is configured, so the URL can&rsquo;t be shown. Payments still
                     settle — the sweep asks every minute.
                   </p>
@@ -787,7 +787,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               Secrets are never shown again once saved. Leave a field blank to keep what is stored.
             </p>
           )}
-          <p className="text-xs text-[#b45309]">
+          <p className="text-xs text-warning">
             No charge has gone through a live {gateway.name} account yet. Take one small real payment
             and confirm the customer gets online before pointing customers at it.
           </p>
@@ -828,7 +828,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
             {webhookBase
               ? <CopyUrl url={webhookBase + gateway.webhook} />
               : (
-                <p className="text-xs text-[#b45309]">
+                <p className="text-xs text-warning">
                   This server has no public address configured yet, so the URL can't be shown.
                   Set MPESA_CALLBACK_URL to your public domain and it will appear here.
                 </p>
@@ -845,7 +845,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
               Keys are never shown again once saved. Leave a field blank to keep what is stored.
             </p>
           )}
-          <p className="text-xs text-[#b45309]">
+          <p className="text-xs text-warning">
             Charges through this gateway haven't been tried against a live account yet. Take one small
             real payment and confirm the customer gets online before pointing customers at it.
           </p>
@@ -930,7 +930,7 @@ function ConfigureForm({ auth, gateway, saved, webhookBase, banks, onCancel, onS
                 </>
               )}
             </div>
-            <p className="text-xs text-[#b45309] mt-2">
+            <p className="text-xs text-warning mt-2">
               Nobody checks this against the bank. A wrong digit sends your customers&rsquo; money to a
               stranger and nothing here would notice — read it back before saving.
             </p>
@@ -1092,8 +1092,8 @@ export default function PaymentGatewaysPage({ auth }) {
       {msg && <p className={`mb-4 text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
 
       {offered.length === 0 && (
-        <div className="mb-6 p-4 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30">
-          <p className="text-sm text-[#b45309]">
+        <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-sm text-warning">
             Nothing is switched on, so nobody can pay you yet. Set one up below and switch it on —
             you can have several running at once.
           </p>

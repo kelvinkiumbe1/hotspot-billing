@@ -19,8 +19,8 @@ import {
 const HEALTH = {
   DOWN: { label: 'No light', cls: 'bg-error-container text-on-error-container', dot: 'bg-error' },
   BAD: { label: 'Past the budget', cls: 'bg-error-container/60 text-on-error-container', dot: 'bg-error' },
-  TOO_HOT: { label: 'Too strong', cls: 'bg-[#fde68a] text-[#78350f]', dot: 'bg-[#d97706]' },
-  MARGINAL: { label: 'Getting marginal', cls: 'bg-[#fef3c7] text-[#78350f]', dot: 'bg-[#d97706]' },
+  TOO_HOT: { label: 'Too strong', cls: 'bg-warning-container text-on-warning-container', dot: 'bg-warning' },
+  MARGINAL: { label: 'Getting marginal', cls: 'bg-warning-container text-on-warning-container', dot: 'bg-warning' },
   GOOD: { label: 'Fine', cls: 'bg-secondary-container text-on-secondary-container', dot: 'bg-secondary' },
   UNKNOWN: { label: 'No reading', cls: 'bg-surface-container-high text-on-surface-variant', dot: 'bg-outline' },
 }
@@ -139,7 +139,7 @@ export default function FiberLight({ auth }) {
         )}
       </div>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
       {rows && rows.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

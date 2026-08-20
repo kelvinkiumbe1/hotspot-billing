@@ -142,7 +142,7 @@ export default function MyAccount() {
               <p className="text-lg font-bold text-on-surface">{a.lastSeenOnlineAt ? relativeTime(a.lastSeenOnlineAt) : '—'}</p>
             </div>
           </div>
-          <a href="/pay" className="mt-6 w-full h-12 bg-gradient-to-r from-primary to-[#e0aa22] text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 transition-all">
+          <a href="/pay" className="mt-6 w-full h-12 bg-gradient-to-r from-primary to-primary-fixed-dim text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 transition-all">
             <Icon name="payments" /> Pay with M-Pesa
           </a>
         </section>
@@ -160,7 +160,7 @@ export default function MyAccount() {
             {data.cap ? (
               <div className="mt-4">
                 <div className="h-2 rounded-full bg-surface-variant overflow-hidden">
-                  <div className={`h-full rounded-full ${data.cap.over ? 'bg-error' : data.cap.percent >= 80 ? 'bg-[#d97706]' : 'bg-secondary'}`}
+                  <div className={`h-full rounded-full ${data.cap.over ? 'bg-error' : data.cap.percent >= 80 ? 'bg-warning' : 'bg-secondary'}`}
                     style={{ width: `${Math.max(2, data.cap.percent)}%` }}></div>
                 </div>
                 <p className="text-sm text-on-surface-variant mt-2">
@@ -211,7 +211,7 @@ export default function MyAccount() {
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-base font-semibold tabular-nums">{fmtKES(i.amount)}</p>
-                  <span className={`text-xs font-semibold ${i.status === 'PAID' ? 'text-secondary' : i.status === 'CANCELLED' ? 'text-on-surface-variant' : 'text-[#f59e0b]'}`}>
+                  <span className={`text-xs font-semibold ${i.status === 'PAID' ? 'text-secondary' : i.status === 'CANCELLED' ? 'text-on-surface-variant' : 'text-warning'}`}>
                     {i.status === 'PAID' ? 'Paid' : i.status === 'CANCELLED' ? 'Cancelled' : 'Unpaid'}
                   </span>
                 </div>

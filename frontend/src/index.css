@@ -39,6 +39,21 @@
   --color-primary-fixed: #9cf2e8;
   --color-primary-fixed-dim: #80d5cb;
   --color-tertiary: #495167;
+
+  /* Warning.
+     Material 3 defines primary, secondary, tertiary and error and no warning,
+     which is why 120-odd hardcoded ambers had accumulated across the JSX: every
+     "this is about to go wrong" panel invented its own. One role absorbs them,
+     and unlike a hex in a className it re-points per theme.
+
+     Distinct from error on purpose. Error is "this failed"; warning is "this
+     worked and you should know something" -- a throttle applied, a quote about
+     to expire, a config change that needs a reconnect. Colouring those red
+     trains people to ignore red. */
+  --color-warning: #8a5000;
+  --color-on-warning: #ffffff;
+  --color-warning-container: #ffddb3;
+  --color-on-warning-container: #2b1700;
 }
 
 /* Leaflet's map panes and controls carry z-index up to ~1000, which would
@@ -207,6 +222,13 @@ body {
   --color-on-error-container: #ffb4ab;
   --color-tertiary: #cfcfcf;
   --color-inverse-surface: #f5f5f5;
+  /* Warning. The portal is deliberately single-accent amber, so this is the one
+     place a second colour appears -- reserved for telling a customer something
+     has changed about their line, which is worth breaking the palette for. */
+  --color-warning: #fb923c;
+  --color-on-warning: #1b1108;
+  --color-warning-container: #3a2410;
+  --color-on-warning-container: #fdba74;
 }
 
 /* The captive portal is a phone-width column by design — it opens inside
@@ -538,6 +560,14 @@ body {
 
   --color-inverse-surface: #0f1115;
   --color-tertiary: #8a92a6;
+  /* Warning: orange, not another amber. --color-primary here IS amber, so an
+     amber warning would read as "primary, slightly off" rather than as a
+     different kind of message. #f97316 clears AA on this surface at 5.96:1 and
+     sits furthest from the primary in luminance of the candidates that pass. */
+  --color-warning: #f97316;
+  --color-on-warning: #1b1108;
+  --color-warning-container: #3a2410;
+  --color-on-warning-container: #fdba74;
 }
 
 /* The rail and bottom bar sit on the same near-black as the canvas edge. */
@@ -609,7 +639,10 @@ body {
   --color-secondary-container: #16301f;
   --color-on-secondary-container: #6ee08d;
 
-  --color-error: #e5484d;
+  /* Nudged up from #e5484d, which measured 4.27:1 on this surface and so missed
+     AA by a hair -- close enough to look fine and fail an audit. #f4636a is
+     5.44:1 on the same background. */
+  --color-error: #f4636a;
   --color-on-error: #1a0b0c;
   --color-error-container: #3a1618;
   --color-on-error-container: #ff9ea1;
@@ -620,6 +653,14 @@ body {
   /* The sidebar sits darker than the canvas rather than lighter. */
   --color-inverse-surface: #0f1115;
   --color-tertiary: #98a2b3;
+  /* Warning: orange, not another amber. --color-primary here IS amber, so an
+     amber warning would read as "primary, slightly off" rather than as a
+     different kind of message. #f97316 clears AA on this surface at 5.96:1 and
+     sits furthest from the primary in luminance of the candidates that pass. */
+  --color-warning: #f97316;
+  --color-on-warning: #1b1108;
+  --color-warning-container: #3a2410;
+  --color-on-warning-container: #fdba74;
 }
 
 /* Tables earn their density here: shorter rows, quieter rules. */
@@ -674,8 +715,20 @@ body {
   /* Sharp, unmuddied yellow, with near-black text on top of it. The
      container tone is the SAME sharp yellow (not a washed-out cream) so the
      active nav pill, the avatar and status chips read as bright yellow. */
-  --color-primary: #fdbf2d;
-  --color-on-primary: #171100;
+  /* Readable, because in a light theme "primary" is the role you write text in.
+     It was #fdbf2d, which is 1.66:1 on white -- the comment at the top of this
+     block claims primary was darkened for light mode and it never had been, so
+     all 253 text-primary call sites in the admin were effectively invisible here.
+     #8a6000 is 5.59:1 on white and 5.31:1 on the page behind it.
+
+     The bright amber has not gone anywhere: it lives in --color-primary-container
+     and --color-primary-fixed below, which is where Material 3 keeps a vivid
+     brand colour precisely because it cannot double as body text. The visible
+     consequence is that a primary BUTTON in light mode is now deep amber with
+     white text rather than bright amber with black -- legible, still amber, and
+     a one-line revert if the brighter fill is wanted back. */
+  --color-primary: #8a6000;
+  --color-on-primary: #ffffff;
   --color-primary-container: #fdbf2d;
   --color-on-primary-container: #171100;
   --color-surface-tint: #fdbf2d;
@@ -691,6 +744,11 @@ body {
   --color-outline: #52525b;
   --color-outline-variant: #d4d4d8;
   --color-tertiary: #3f3f46;
+  /* Warning. Same role, light values -- see the @theme block for why it exists. */
+  --color-warning: #8a5000;
+  --color-on-warning: #ffffff;
+  --color-warning-container: #ffddb3;
+  --color-on-warning-container: #2b1700;
 }
 /* The sidebar, in light mode.
 
@@ -746,4 +804,52 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .toast-in, .toast-out { animation: none; }
   .toast-tick { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Keyboard focus, unconditionally.                                    */
+/* ------------------------------------------------------------------ */
+/* 51 call sites carry `focus:outline-none`. Most pair it with a border or
+   ring change, which is fine -- but "most" is the problem: a keyboard user
+   who lands on the one button that forgot has no idea where they are, and
+   there is no way to notice that from reading a diff.
+
+   So the ring is asserted here instead of trusted per component. These rules
+   are deliberately UNLAYERED: Tailwind's utilities live in @layer utilities,
+   and unlayered CSS beats any layer regardless of specificity, so this wins
+   over `focus:outline-none` without needing !important.
+
+   :focus-visible rather than :focus, so a mouse click does not draw a ring the
+   person who clicked does not need -- only keyboard and other non-pointer
+   focus shows it. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  /* Offset so the ring sits outside the control rather than on top of its own
+     border, which on a filled button would otherwise be nearly invisible. */
+  outline-offset: 2px;
+}
+
+/* On a primary-filled control the ring would be primary-on-primary. The
+   on-primary colour is the one guaranteed to contrast with it. */
+.bg-primary:focus-visible,
+button.bg-primary:focus-visible {
+  outline-color: var(--color-on-primary);
+  outline-offset: -4px;
+}
+
+/* The custom radio and checkbox above draw their own focus ring with
+   box-shadow; a second outline around them reads as a rendering fault. */
+.admin-theme input[type="radio"]:focus-visible,
+.tech-theme input[type="radio"]:focus-visible,
+.admin-theme input[type="checkbox"]:not(.sr-only):not(.peer):focus-visible,
+.tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):focus-visible {
+  outline: none;
 }

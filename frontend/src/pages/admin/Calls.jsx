@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api.js'
 import {
-  Icon, Skeleton, PageHeader, PrimaryButton, StatCard, Toggle, relativeTime, fmtKES,
+  Icon, Skeleton, PageHeader, PrimaryButton, StatCard, Toggle, relativeTime,
   INPUT_CLS, LABEL_CLS,
 } from '../../components/ui.jsx'
 
@@ -33,7 +33,7 @@ const CALL_STATUS = {
   ANSWERED: ['on the call', 'bg-secondary-container text-on-secondary-container', 'bg-secondary animate-pulse'],
   COMPLETED: ['done', 'bg-surface-container-high text-on-surface-variant', 'bg-outline'],
   MISSED: ['missed', 'bg-error-container text-on-error-container', 'bg-error'],
-  FAILED: ['failed', 'bg-[#fef3c7] text-[#78350f]', 'bg-[#d97706]'],
+  FAILED: ['failed', 'bg-warning-container text-on-warning-container', 'bg-warning'],
 }
 
 function StatusPill({ status }) {
@@ -144,7 +144,7 @@ function Settings({ auth, onSaved }) {
         </div>
 
         {cfg.whyNotUsable && (
-          <p className="text-sm text-[#b45309] flex items-start gap-2">
+          <p className="text-sm text-warning flex items-start gap-2">
             <Icon name="warning" className="text-[18px]! mt-0.5" />
             {cfg.whyNotUsable}
           </p>
@@ -202,7 +202,7 @@ function Settings({ auth, onSaved }) {
         <PrimaryButton disabled={busy} onClick={save}>
           {busy ? 'Saving…' : 'Save'}
         </PrimaryButton>
-        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
       </div>
 
       <div className="rounded-lg border border-outline-variant p-4 space-y-2">
@@ -282,7 +282,7 @@ function Rota({ auth, onChanged }) {
         </PrimaryButton>
       </div>
 
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
 
       {editing && (
         <div className="rounded-lg border border-primary p-3 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
@@ -420,7 +420,7 @@ function DialPanel({ auth, agents, customers, onDialled }) {
           Everybody on the rota is either off duty or already on a call.
         </p>
       )}
-      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-[#b91c1c]'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? 'text-secondary' : 'text-error'}`}>{msg.text}</p>}
     </div>
   )
 }
@@ -566,8 +566,8 @@ export default function CallsPage({ auth }) {
         )}
 
         {!data.usable && (
-          <div className="rounded-lg border border-[#d97706]/40 bg-[#fffbeb] p-3">
-            <p className="text-sm text-[#78350f] flex items-start gap-2">
+          <div className="rounded-lg border border-warning/40 bg-warning-container p-3">
+            <p className="text-sm text-on-warning-container flex items-start gap-2">
               <Icon name="info" className="text-[18px]! mt-0.5" />
               <span>
                 <strong>The line is not live yet.</strong> {data.whyNotUsable}{' '}

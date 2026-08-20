@@ -156,7 +156,7 @@ export default function Finance({ auth }) {
 
             <div className="bg-surface-container-lowest rounded-lg p-4 ">
               <h3 className="text-lg font-semibold text-on-surface mb-1">Open Receivables</h3>
-              <p className="text-3xl font-bold text-[#b45309] tabular-nums mb-4">{fmtKES(summary.openReceivables)}</p>
+              <p className="text-3xl font-bold text-warning tabular-nums mb-4">{fmtKES(summary.openReceivables)}</p>
               <h4 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2">Expenses by Category</h4>
               <ul className="space-y-2">
                 {Object.entries(summary.expensesByCategory || {}).map(([cat, amount]) => (
@@ -209,7 +209,7 @@ export default function Finance({ auth }) {
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
                             i.status === 'PAID' ? 'bg-secondary-container text-on-secondary-container'
                               : i.status === 'CANCELLED' ? 'bg-surface-variant text-on-surface-variant'
-                              : 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20'
+                              : 'bg-warning/10 text-warning border border-warning/20'
                           }`}>
                             {i.status === 'PAID' ? 'Paid' : i.status === 'CANCELLED' ? 'Cancelled' : 'Unpaid'}
                           </span>
