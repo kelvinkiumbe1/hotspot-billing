@@ -30,6 +30,7 @@ import java.util.*;
 public class OverviewController {
 
     private final PaymentRepository payments;
+    private final com.spalimited.hotspotbilling.service.MoneyService moneyService;
     private final SubscriptionPaymentRepository subscriptionPayments;
     private final VoucherRepository vouchers;
     private final SubscriberRepository subscribers;
@@ -167,7 +168,7 @@ public class OverviewController {
                         .map(r -> (BigDecimal) r.get("balance"))
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 items.add(item("warning", owing.size() + " subscriber" + plural(owing.size()) + " unpaid",
-                        "KES " + total.setScale(0, java.math.RoundingMode.HALF_UP) + " overdue", "ledger"));
+                        moneyService.format(total.setScale(0, java.math.RoundingMode.HALF_UP)) + " overdue", "ledger"));
             }
         }
 

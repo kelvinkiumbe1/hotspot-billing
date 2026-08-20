@@ -21,6 +21,7 @@ import java.util.Map;
 public class RevenueAuditController {
 
     private final RevenueAuditService revenueAudit;
+    private final com.spalimited.hotspotbilling.service.FirstLookReport firstLook;
 
     @GetMapping
     public Map<String, Object> overview() {
@@ -28,6 +29,18 @@ public class RevenueAuditController {
     }
 
     /** Runs the sweep on demand rather than waiting for tonight. */
+    /**
+     * Run the checks now and say what they mean, in money.
+     *
+     * <p>Separate from {@code /run} because that returns counts for the nightly
+     * job and this is the answer to "what is this costing me" — the question an
+     * ISP evaluating Zidi actually has, and the one no competitor answers.
+     */
+    @PostMapping("/first-look")
+    public java.util.Map<String, Object> firstLook(java.security.Principal principal) {
+        return firstLook.run(principal != null ? principal.getName() : "system");
+    }
+
     @PostMapping("/run")
     public Map<String, Object> run(Principal principal) {
         return revenueAudit.sweep(principal != null ? principal.getName() : "system");

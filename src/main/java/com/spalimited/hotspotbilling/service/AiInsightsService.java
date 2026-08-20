@@ -30,6 +30,7 @@ import java.util.Map;
 public class AiInsightsService {
 
     private final SubscriberRepository subscribers;
+    private final MoneyService moneyService;
     private final PaymentRepository payments;
     private final NotificationService notifications;
     private final PortalSettingsService portalSettings;
@@ -88,7 +89,7 @@ public class AiInsightsService {
 
         long active = all.stream().filter(s -> s.getStatus() == Subscriber.Status.ACTIVE).count();
         out.add(new Insight("revenue", "info", "payments",
-                "KES " + todayRevenue.stripTrailingZeros().toPlainString() + " collected today",
+                moneyService.format(todayRevenue) + " collected today",
                 active + " active fixed-line customer" + (active == 1 ? "" : "s") + " on the books.",
                 "Open analytics", null, "analytics"));
 

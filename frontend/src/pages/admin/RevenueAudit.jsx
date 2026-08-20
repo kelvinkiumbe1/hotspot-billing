@@ -215,6 +215,109 @@ function FindingRow({ finding, onClose, showWhy }) {
  * Revenue Guard — money in, service out, and what the router is actually
  * letting online, reconciled against each other every night.
  */
+
+/**
+ * The answer to "what is this costing me", on one screen.
+ *
+ * <p>The findings list below is a diagnostic. This is the number an operator
+ * evaluating Zidi actually wants, and it is the thing no competitor produces at
+ * all: they bill, they do not tell you what is leaking.
+ */
+function FirstLook({ auth }) {
+  const [report, setReport] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+
+  async function run() {
+    setBusy(true); setErr(null)
+    try {
+      setReport(await api('/admin/revenue-audit/first-look', { method: 'POST', auth }))
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="bg-surface-container rounded-xl p-4 space-y-4 print:bg-transparent">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">What is leaking</h3>
+          <p className="text-sm text-on-surface-variant">
+            Runs every check now and adds up what it finds, in money.
+          </p>
+        </div>
+        <div className="flex gap-2 print:hidden">
+          <PrimaryButton onClick={run} disabled={busy}>
+            {busy ? 'Checking…' : report ? 'Check again' : 'Check my books'}
+          </PrimaryButton>
+          {report && (
+            <button onClick={() => window.print()}
+              className="h-10 px-4 rounded-lg border border-outline-variant text-sm cursor-pointer">
+              Print
+            </button>
+          )}
+        </div>
+      </div>
+
+      {err && <p className="text-sm text-error">{err}</p>}
+
+      {report && (
+        <div className="space-y-4">
+          <p className="text-lg font-semibold">{report.headline}</p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="bg-surface rounded-lg p-3">
+              <p className="text-xs text-on-surface-variant">Still collectable</p>
+              <p className="text-2xl font-semibold text-secondary">{report.recoverableText}</p>
+            </div>
+            <div className="bg-surface rounded-lg p-3">
+              {/* Kept apart on purpose: adding them together overstates the case. */}
+              <p className="text-xs text-on-surface-variant">Already gone</p>
+              <p className="text-2xl font-semibold">{report.alreadyGoneText}</p>
+            </div>
+          </div>
+
+          {report.lines?.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="text-sm min-w-full">
+                <thead className="text-on-surface-variant text-xs">
+                  <tr>
+                    <th className="text-left py-1.5">What</th>
+                    <th className="text-right py-1.5">How many</th>
+                    <th className="text-right py-1.5">Worth</th>
+                    <th className="text-left py-1.5 pl-3">What to do</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.lines.map((l) => (
+                    <tr key={l.kind} className="border-t border-outline-variant/40 align-top">
+                      <td className="py-2">
+                        <p className="font-medium">{l.label}</p>
+                        <p className="text-xs text-on-surface-variant">{l.meaning}</p>
+                      </td>
+                      <td className="py-2 text-right">{l.count}</td>
+                      <td className="py-2 text-right font-medium">{l.amountText}</td>
+                      <td className="py-2 pl-3 text-on-surface-variant">{l.action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Said out loud. A clean report from a sweep that saw half the system
+              is the worst thing this screen could produce. */}
+          <p className="text-xs text-on-surface-variant border-t border-outline-variant/40 pt-3">
+            {report.coverage} Checked {report.ranAt ? new Date(report.ranAt).toLocaleString() : ''}.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function RevenueAuditPage({ auth }) {
   const [data, setData] = useState(null)
   const [running, setRunning] = useState(false)
@@ -281,6 +384,10 @@ export default function RevenueAuditPage({ auth }) {
       </div>
 
       {msg && <p className={`mb-4 text-sm ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
+
+      <div className="mb-4">
+        <FirstLook auth={auth} />
+      </div>
 
       {showSettings && data.settings && (
         <SettingsPanel auth={auth} settings={data.settings}

@@ -71,6 +71,7 @@ public class RevenueAuditService {
             DateTimeFormatter.ofPattern("d MMM").withZone(ZoneId.systemDefault());
 
     private final RevenueFindingRepository findings;
+    private final MoneyService moneyService;
     private final RevenueAuditSettingsRepository settingsRepo;
     private final PaymentRepository payments;
     private final VoucherRepository vouchers;
@@ -557,8 +558,14 @@ public class RevenueAuditService {
         return out;
     }
 
-    private static String money(BigDecimal amount) {
-        return amount == null ? "KES 0" : String.format("KES %,.0f", amount);
+    /**
+     * Money in whatever currency this operator actually charges in.
+     *
+     * <p>Was hard-coded to KES, which put shillings in front of an ISP in Lagos
+     * on the one screen that is supposed to be about their money.
+     */
+    private String money(BigDecimal amount) {
+        return moneyService.format(amount == null ? BigDecimal.ZERO : amount);
     }
 
     private static String trim(String value, int max) {
