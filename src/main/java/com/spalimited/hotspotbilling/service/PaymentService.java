@@ -37,7 +37,7 @@ public class PaymentService {
     private final PlanRepository planRepository;
     private final MpesaService mpesaService;
     private final VoucherService voucherService;
-    private final EtimsService etimsService;
+    private final com.spalimited.hotspotbilling.service.tax.FiscalService fiscalService;
     private final ReferralService referralService;
     private final CustomPlanService customPlanService;
     private final PromotionService promotionService;
@@ -362,10 +362,10 @@ public class PaymentService {
 
         // Fiscalise the sale for KRA (no-op until eTIMS is configured).
         try {
-            etimsService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.HOTSPOT,
+            fiscalService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.HOTSPOT,
                     payment.getPhoneNumber(), "Hotspot: " + planName, payment.getAmount());
         } catch (Exception e) {
-            log.warn("eTIMS record failed for payment {}: {}", payment.getId(), e.getMessage());
+            log.warn("Fiscal record failed for payment {}: {}", payment.getId(), e.getMessage());
         }
         // Settle a pending referral if this is the referred customer's first buy.
         try {

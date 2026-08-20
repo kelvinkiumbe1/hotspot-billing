@@ -25,23 +25,33 @@ public class TaxService {
 
     @Transactional
     public TaxSettings save(boolean vatEnabled, BigDecimal vatRate, boolean pricesIncludeVat,
-                            String kraPin, String legalName, String addressLine, String invoicePrefix) {
+                            String taxId, String legalName, String addressLine, String invoicePrefix,
+                             String regime) {
         if (vatRate == null || vatRate.signum() < 0 || vatRate.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new IllegalArgumentException("The VAT rate must be between 0 and 100");
         }
-        if (vatEnabled && (kraPin == null || kraPin.isBlank())) {
-            throw new IllegalArgumentException(
-                    "A tax invoice has to show your KRA PIN — add it before switching VAT on");
+        com.spalimited.hotspotbilling.service.tax.FiscalRegime chosen =
+                com.spalimited.hotspotbilling.service.tax.FiscalRegimes.byCode(regime);
+        if (regime != null && !regime.isBlank()
+                && !com.spalimited.hotspotbilling.service.tax.FiscalRegimes.known(regime)) {
+            throw new IllegalArgumentException("That is not a tax authority Zidi can file with");
+        }
+        if (vatEnabled && (taxId == null || taxId.isBlank())) {
+            // Named for wherever they actually are. Asking a Lagos operator for
+            // their "KRA PIN" tells them the product was not built for them.
+            throw new IllegalArgumentException("A tax invoice has to show your "
+                    + chosen.taxIdLabel() + " — add it before switching VAT on");
         }
         TaxSettings settings = settings();
         settings.setVatEnabled(vatEnabled);
         settings.setVatRate(vatRate);
         settings.setPricesIncludeVat(pricesIncludeVat);
-        settings.setKraPin(blankToNull(kraPin));
+        settings.setTaxId(blankToNull(taxId));
         settings.setLegalName(blankToNull(legalName));
         settings.setAddressLine(blankToNull(addressLine));
         settings.setInvoicePrefix(invoicePrefix == null || invoicePrefix.isBlank()
                 ? "INV" : invoicePrefix.trim().toUpperCase());
+        settings.setRegime(chosen.code());
         return repository.save(settings);
     }
 

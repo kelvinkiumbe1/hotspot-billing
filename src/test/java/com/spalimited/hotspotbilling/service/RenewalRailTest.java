@@ -52,7 +52,7 @@ class RenewalRailTest {
     @Mock private NotificationService notificationService;
     @Mock private PortalSettingsService portalSettingsService;
     @Mock private InvoiceService invoiceService;
-    @Mock private EtimsService etimsService;
+    @Mock private com.spalimited.hotspotbilling.service.tax.FiscalService fiscalService;
     @Mock private ReferralService referralService;
     @Mock private PaymentProviders providers;
     @Mock private MoneyService money;

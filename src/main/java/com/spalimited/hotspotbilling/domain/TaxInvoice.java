@@ -48,7 +48,28 @@ public class TaxInvoice {
     private Status status = Status.PENDING;
 
     /** KRA's invoice number returned on signing. */
-    private String kraInvoiceNumber;
+    @Column(name = "fiscal_number", length = 64)
+    private String fiscalNumber;
+
+    /** Which authority signed it, so a reprint years later still makes sense. */
+    @Column(length = 16)
+    private String regime;
+
+    /**
+     * The rate and amount as at issue, not as at printing.
+     *
+     * <p>Read from settings at display time a reprinted receipt would show
+     * today's rate and stop matching the copy in the customer's hand.
+     */
+    @Column(name = "vat_rate", precision = 5, scale = 2)
+    private java.math.BigDecimal vatRate;
+
+    @Column(name = "vat_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal vatAmount;
+
+    /** Where a customer or an auditor checks this receipt is real. */
+    @Column(name = "verify_url", length = 512)
+    private String verifyUrl;
 
     /** The signing control unit (SCU/CU) identifier. */
     private String controlUnitNumber;

@@ -41,7 +41,18 @@ public class TaxController {
         out.put("vatEnabled", t.isVatEnabled());
         out.put("vatRate", t.getVatRate());
         out.put("pricesIncludeVat", t.isPricesIncludeVat());
-        out.put("kraPin", t.getKraPin());
+        out.put("taxId", t.getTaxId());
+        out.put("regime", t.getRegime());
+        // The label, not just the code: the form has to ask a Lagos operator for
+        // a TIN and a Nairobi one for a KRA PIN, from the same screen.
+        out.put("taxIdLabel", com.spalimited.hotspotbilling.service.tax.FiscalRegimes
+                .byCode(t.getRegime()).taxIdLabel());
+        out.put("regimes", com.spalimited.hotspotbilling.service.tax.FiscalRegimes.all().stream()
+                .map(r -> Map.of("code", r.code(), "label", r.label(),
+                        "taxIdLabel", r.taxIdLabel(),
+                        "defaultVatRate", r.defaultVatRate(),
+                        "canFileLive", r.canFileLive()))
+                .toList());
         out.put("legalName", t.getLegalName());
         out.put("addressLine", t.getAddressLine());
         out.put("invoicePrefix", t.getInvoicePrefix());
@@ -61,10 +72,11 @@ public class TaxController {
             boolean vatEnabled,
             @NotNull @DecimalMin("0") @DecimalMax("100") BigDecimal vatRate,
             boolean pricesIncludeVat,
-            String kraPin,
+            String taxId,
             String legalName,
             String addressLine,
-            String invoicePrefix) {
+            String invoicePrefix,
+            String regime) {
     }
 
     /** Changing tax treatment is an owner-level decision, not day-to-day finance. */
@@ -72,8 +84,8 @@ public class TaxController {
     @PreAuthorize("hasAuthority('SETTINGS')")
     public Map<String, Object> save(@Valid @RequestBody TaxRequest request, Principal principal) {
         TaxSettings saved = taxService.save(request.vatEnabled(), request.vatRate(),
-                request.pricesIncludeVat(), request.kraPin(), request.legalName(),
-                request.addressLine(), request.invoicePrefix());
+                request.pricesIncludeVat(), request.taxId(), request.legalName(),
+                request.addressLine(), request.invoicePrefix(), request.regime());
         audit.record(principal, "tax.settings", "VAT " + (saved.isVatEnabled()
                 ? "on at " + saved.getVatRate() + "% ("
                         + (saved.isPricesIncludeVat() ? "prices include VAT" : "VAT added on top") + ")"
@@ -104,7 +116,9 @@ public class TaxController {
         Map<String, Object> seller = new LinkedHashMap<>();
         seller.put("name", tax.getLegalName() != null
                 ? tax.getLegalName() : portalSettingsService.settings().getBusinessName());
-        seller.put("kraPin", tax.getKraPin());
+        seller.put("taxId", tax.getTaxId());
+        seller.put("taxIdLabel", com.spalimited.hotspotbilling.service.tax.FiscalRegimes
+                .byCode(tax.getRegime()).taxIdLabel());
         seller.put("address", tax.getAddressLine());
 
         Map<String, Object> customer = new LinkedHashMap<>();

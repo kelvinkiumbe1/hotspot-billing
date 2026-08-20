@@ -39,7 +39,7 @@ public class SubscriptionService {
     private final NotificationService notificationService;
     private final PortalSettingsService portalSettingsService;
     private final InvoiceService invoiceService;
-    private final EtimsService etimsService;
+    private final com.spalimited.hotspotbilling.service.tax.FiscalService fiscalService;
     private final ReferralService referralService;
     private final com.spalimited.hotspotbilling.service.payments.PaymentProviders providers;
     private final MoneyService money;
@@ -128,10 +128,10 @@ public class SubscriptionService {
             // Fiscalise this first sale too (the MPESA path fiscalises via the
             // callback → extend; this cash credit doesn't go through extend).
             try {
-                etimsService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.SUBSCRIPTION,
+                fiscalService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.SUBSCRIPTION,
                         phoneNumber, "Internet subscription — " + initialMonths + " month(s)", paid);
             } catch (Exception e) {
-                log.warn("eTIMS record failed for new subscriber {}: {}", pppoeUsername, e.getMessage());
+                log.warn("Fiscal record failed for new subscriber {}: {}", pppoeUsername, e.getMessage());
             }
         } else if (!cash && initialMonths > 0) {
             initiateStk(sub.getId(), initialMonths);
@@ -377,11 +377,11 @@ public class SubscriptionService {
                 java.util.Map.of("date", sub.getPaidUntil().toString().substring(0, 10)));
         // Fiscalise for KRA (no-op until eTIMS is configured).
         try {
-            etimsService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.SUBSCRIPTION,
+            fiscalService.recordSale(com.spalimited.hotspotbilling.domain.TaxInvoice.Source.SUBSCRIPTION,
                     sub.getPhoneNumber(), "Internet subscription — " + months + " month(s)",
                     sub.getMonthlyFee().multiply(BigDecimal.valueOf(months)));
         } catch (Exception e) {
-            log.warn("eTIMS record failed for subscriber {}: {}", sub.getPppoeUsername(), e.getMessage());
+            log.warn("Fiscal record failed for subscriber {}: {}", sub.getPppoeUsername(), e.getMessage());
         }
         // Settle a pending referral if this is the referred customer's first buy.
         try {

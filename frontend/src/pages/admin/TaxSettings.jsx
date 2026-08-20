@@ -8,6 +8,7 @@ import { money } from '../../money.js'
 export default function TaxSettingsPage({ auth }) {
   const [form, setForm] = useState(null)
   const [saved, setSaved] = useState(null)
+  const [regimes, setRegimes] = useState([])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
 
@@ -18,17 +19,40 @@ export default function TaxSettingsPage({ auth }) {
           vatEnabled: d.vatEnabled,
           vatRate: d.vatRate ?? 16,
           pricesIncludeVat: d.pricesIncludeVat,
-          kraPin: d.kraPin || '',
+          taxId: d.taxId || '',
+          regime: d.regime || 'KRA',
           legalName: d.legalName || '',
           addressLine: d.addressLine || '',
           invoicePrefix: d.invoicePrefix || 'INV',
         })
         setSaved(d)
+        setRegimes(d.regimes || [])
       })
       .catch((e) => setMsg({ ok: false, text: e.message }))
   }, [auth])
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
+
+  // The authority this operator files with decides what the identifier is
+  // called and what the rate normally is. Falls back to an empty object so the
+  // form still renders before the settings have loaded.
+  const chosen = regimes.find((r) => r.code === form?.regime) || {}
+
+  /**
+   * Switching country moves the rate to that country's own, unless the operator
+   * has already typed something that is not the old country's default. Assuming
+   * Kenya's 16% in Lagos misstates every return by more than half the VAT; so
+   * does silently overwriting a rate somebody chose on purpose.
+   */
+  function chooseRegime(code) {
+    const next = regimes.find((r) => r.code === code)
+    const previous = regimes.find((r) => r.code === form.regime)
+    const untouched = !previous || String(form.vatRate) === String(previous.defaultVatRate)
+    set({
+      regime: code,
+      ...(next && untouched ? { vatRate: next.defaultVatRate } : {}),
+    })
+  }
 
   // Worked locally so the effect of the inclusive switch is visible before
   // saving, rather than only after.
@@ -86,18 +110,37 @@ export default function TaxSettingsPage({ auth }) {
 
           {form.vatEnabled && (
             <div className="mt-5 space-y-5">
+              <div>
+                <label className={LABEL_CLS}>Where you file</label>
+                <select className={INPUT_CLS} value={form.regime}
+                  onChange={(e) => chooseRegime(e.target.value)}>
+                  {regimes.map((r) => (
+                    <option key={r.code} value={r.code}>{r.label}</option>
+                  ))}
+                </select>
+                {chosen.canFileLive === false && (
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Receipts are numbered, signed and given a verification link, but
+                    filing them with {chosen.label ? chosen.label.split('—')[1]?.trim() : 'the authority'}
+                    {' '}needs a registered device and credentials — that part is not connected yet.
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={LABEL_CLS}>Rate (%)</label>
                   <input className={INPUT_CLS} type="number" min="0" max="100" step="0.01"
                     value={form.vatRate} onChange={(e) => set({ vatRate: e.target.value })} />
-                  <p className="text-xs text-on-surface-variant mt-1">Kenya is 16% at present.</p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    {chosen.label ? `${chosen.label.split('—')[0].trim()} is ${chosen.defaultVatRate}% at present.`
+                      : 'Check your own country’s rate.'}
+                  </p>
                 </div>
                 <div>
-                  <label className={LABEL_CLS}>KRA PIN *</label>
-                  <input className={INPUT_CLS} required value={form.kraPin}
-                    onChange={(e) => set({ kraPin: e.target.value.toUpperCase() })}
-                    placeholder="P051234567X" />
+                  <label className={LABEL_CLS}>{chosen.taxIdLabel || 'Tax ID'} *</label>
+                  <input className={INPUT_CLS} required value={form.taxId}
+                    onChange={(e) => set({ taxId: e.target.value.toUpperCase() })}
+                    placeholder={form.regime === 'KRA' ? 'P051234567X' : '12345678-0001'} />
                   <p className="text-xs text-on-surface-variant mt-1">Required on every tax invoice.</p>
                 </div>
               </div>

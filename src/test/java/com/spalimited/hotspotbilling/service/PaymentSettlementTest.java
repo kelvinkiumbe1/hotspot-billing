@@ -43,7 +43,7 @@ class PaymentSettlementTest {
     @Mock private com.spalimited.hotspotbilling.repository.PlanRepository planRepository;
     @Mock private MpesaService mpesaService;
     @Mock private VoucherService voucherService;
-    @Mock private EtimsService etimsService;
+    @Mock private com.spalimited.hotspotbilling.service.tax.FiscalService fiscalService;
     @Mock private ReferralService referralService;
     @Mock private CustomPlanService customPlanService;
     @Mock private PromotionService promotionService;

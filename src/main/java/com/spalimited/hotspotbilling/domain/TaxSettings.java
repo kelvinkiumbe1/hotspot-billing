@@ -43,8 +43,18 @@ public class TaxSettings {
     @Column(nullable = false)
     private boolean pricesIncludeVat = true;
 
-    /** Printed on the tax invoice; KRA requires the seller's PIN on it. */
-    private String kraPin;
+    /**
+     * The operator's tax identifier: a KRA PIN in Kenya, a TIN in Nigeria or
+     * Tanzania. One column, because two columns for one fact is how one of them
+     * ends up stale.
+     */
+    @Column(name = "tax_id")
+    private String taxId;
+
+    /** Which authority this operator files with. See FiscalRegimes. */
+    @Builder.Default
+    @Column(nullable = false, length = 16)
+    private String regime = "KRA";
 
     private String legalName;
 
