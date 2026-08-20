@@ -726,14 +726,21 @@ body {
      brand colour precisely because it cannot double as body text. The visible
      consequence is that a primary BUTTON in light mode is now deep amber with
      white text rather than bright amber with black -- legible, still amber, and
-     a one-line revert if the brighter fill is wanted back. */
-  --color-primary: #8a6000;
+     a one-line revert if the brighter fill is wanted back.
+
+     #7a5500 rather than #8a6000 because the warning below has to sit clear of
+     it: at #8a6000 the two were sixteen channel units apart, which is to say
+     the same colour. */
+  --color-primary: #7a5500;
   --color-on-primary: #ffffff;
   --color-primary-container: #fdbf2d;
   --color-on-primary-container: #171100;
   --color-surface-tint: #fdbf2d;
   --color-primary-fixed-dim: #fdbf2d;
-  --color-secondary: #12833a;
+  /* Deepened from #12833a. Against the amber primary in this theme the old green
+     collapsed to 77 channel units for a protanope -- across hue families, so it
+     was fixable, unlike the warm warning/error pair. This is 168 apart. */
+  --color-secondary: #166534;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #b6f0c4;
   --color-on-secondary-container: #05371a;
@@ -745,7 +752,10 @@ body {
   --color-outline-variant: #d4d4d8;
   --color-tertiary: #3f3f46;
   /* Warning. Same role, light values -- see the @theme block for why it exists. */
-  --color-warning: #8a5000;
+  /* Orange-red, not amber. In this theme the brand IS amber, so an amber
+     warning was indistinguishable from primary -- 16 channel units apart. This
+     is 104 apart and still clear of the error red. */
+  --color-warning: #c2410c;
   --color-on-warning: #ffffff;
   --color-warning-container: #ffddb3;
   --color-on-warning-container: #2b1700;

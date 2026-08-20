@@ -90,6 +90,104 @@ def tokens(body):
             for m in re.finditer(r"--color-([a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;", body)}
 
 
+
+# --------------------------------------------------------------------------
+# Colour blindness.
+#
+# Roughly one man in twelve is red-green colour blind, and dichromats keep
+# luminance while losing hue -- so two colours that differ only in hue become
+# the same colour. This section reports the semantic pairs, because one of them
+# cannot be fixed by choosing better hexes and it is worth knowing which.
+#
+# WARNING vs ERROR is that pair. Orange and red are neighbours; every
+# combination that keeps both readable on a dark surface collapses to under 1.5
+# luminance separation for a deuteranope. The answer is not a different orange,
+# it is WCAG 1.4.1: colour must not be the only signal. Every warning and error
+# in this app carries an icon or a word as well -- "missed", "failed", "Past the
+# budget" -- and that is what has to stay true, so this prints a reminder rather
+# than a pass mark it cannot honestly give.
+# --------------------------------------------------------------------------
+
+DEUTAN = [[0.625, 0.375, 0.0], [0.70, 0.30, 0.0], [0.0, 0.30, 0.70]]
+PROTAN = [[0.567, 0.433, 0.0], [0.558, 0.442, 0.0], [0.0, 0.242, 0.758]]
+
+SEMANTIC_PAIRS = [
+    ("primary", "secondary"),
+    ("primary", "warning"),
+    ("primary", "error"),
+    ("secondary", "warning"),
+    ("secondary", "error"),
+    ("warning", "error"),
+]
+
+# Roles that live in the same (warm) hue family. Amber, orange and red are
+# neighbours; a dichromat sees one colour there whichever hexes are chosen, so
+# these pairs can only ever be told apart by an icon or a word. Reported, not
+# failed -- failing them would be a gate nobody could ever satisfy.
+WARM = {"primary", "warning", "error"}
+
+
+def needs_cue(a, b, theme):
+    # The customer portal is single-accent amber on purpose: primary and
+    # secondary are the same colour by design, not by accident.
+    if theme == ".portal-theme":
+        return True
+    return a in WARM and b in WARM
+
+
+def _s2l(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _l2s(c):
+    c = max(0.0, min(1.0, c))
+    return 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
+
+
+def simulate(h, m):
+    if m is None:
+        return h
+    h = h.lstrip("#")
+    v = [_s2l(int(h[i:i + 2], 16) / 255) for i in (0, 2, 4)]
+    out = [sum(m[r][c] * v[c] for c in range(3)) for r in range(3)]
+    return "#%02x%02x%02x" % tuple(round(_l2s(c) * 255) for c in out)
+
+
+def spread(a, b):
+    ca = [int(a.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    return sum(abs(x - y) for x, y in zip(ca, cb))
+
+
+def colour_blind_report(resolved):
+    print("\n--- colour blindness: can these be told apart? ---")
+    reminders = 0
+    for theme, vals in resolved.items():
+        notes = []
+        for a, b in SEMANTIC_PAIRS:
+            if a not in vals or b not in vals:
+                continue
+            worst = min(
+                ((ratio(simulate(vals[a], m), simulate(vals[b], m)),
+                  spread(simulate(vals[a], m), simulate(vals[b], m)), name)
+                 for name, m in (("normal", None), ("deuteranopia", DEUTAN),
+                                 ("protanopia", PROTAN))),
+                key=lambda t: (t[0], t[1]))
+            close = worst[0] < 1.35 and worst[1] < 90
+            if close:
+                cue = needs_cue(a, b, theme)
+                tag = ("same hue family - needs an icon or a label"
+                       if cue else "TOO CLOSE - pick different values")
+                notes.append("    %-22s %-13s lum %.2f spread %3d  %s"
+                             % (a + " vs " + b, worst[2], worst[0], worst[1], tag))
+                if not cue:
+                    reminders += 1
+        print("  %s  %s" % (theme, "all pairs separable" if not notes else ""))
+        for n in notes:
+            print(n)
+    return reminders
+
+
 def main():
     text = io.open(CSS, encoding="utf-8", newline="").read().replace("\r\n", "\n")
     found = blocks(text)
@@ -139,8 +237,10 @@ def main():
         print("%s  %s" % (theme, "OK" if not lines else "%d problem(s)" % len(lines)))
         for l in lines:
             print(l)
-    print("\n%d failing pair(s)" % failures)
-    return 1 if failures else 0
+    unfixable = colour_blind_report(resolved)
+    print("\n%d failing pair(s), %d colour pair(s) needing different values"
+          % (failures, unfixable))
+    return 1 if failures or unfixable else 0
 
 
 if __name__ == "__main__":
