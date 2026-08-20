@@ -9,6 +9,7 @@ import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.MikrotikSettingsRepository;
 import com.spalimited.hotspotbilling.repository.RouterRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
+import com.spalimited.hotspotbilling.service.ipam.Cidr;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.legrange.mikrotik.ApiConnection;
@@ -117,10 +118,53 @@ public class MikrotikService {
 
     // --- Connection plumbing ---
 
+    /**
+     * Opens the API, over the tunnel if there is one.
+     *
+     * <p>A router behind carrier NAT has no reachable public address, so its
+     * tunnel address is the only way in -- see V77__vpn_reach.sql. That address
+     * is tried FIRST and fallen back from rather than trusted: a tunnel that is
+     * down for its own reasons must not take a router with it that is perfectly
+     * reachable the ordinary way.
+     *
+     * <p>The order matters the other way round too. Trying the public host first
+     * and the tunnel second would mean a router whose NAT happens to be
+     * momentarily permissive answers on its public address, and the operator
+     * never finds out their tunnel is broken until the day it is the only route.
+     */
     private ApiConnection open(Router router) throws Exception {
         SocketFactory factory = router.isUseSsl() ? SSLSocketFactory.getDefault() : SocketFactory.getDefault();
         int port = router.getPort() > 0 ? router.getPort() : (router.isUseSsl() ? 8729 : 8728);
-        return ApiConnection.connect(factory, router.getHost(), port, ApiConnection.DEFAULT_CONNECTION_TIMEOUT);
+
+        List<String> addresses = new java.util.ArrayList<>();
+        if (router.getVpnAddress() != null && !router.getVpnAddress().isBlank()) {
+            addresses.add(router.getVpnAddress().trim());
+        }
+        if (router.getHost() != null && !router.getHost().isBlank()) {
+            addresses.add(router.getHost().trim());
+        }
+        if (addresses.isEmpty()) {
+            throw new IllegalStateException("No address to reach " + router.getName() + " on");
+        }
+
+        Exception last = null;
+        for (int i = 0; i < addresses.size(); i++) {
+            String address = addresses.get(i);
+            try {
+                ApiConnection connection = ApiConnection.connect(
+                        factory, address, port, ApiConnection.DEFAULT_CONNECTION_TIMEOUT);
+                if (i > 0) {
+                    // Reached, but not the way we meant to. Worth a line: it is
+                    // the only warning that a tunnel has stopped working.
+                    log.info("Reached {} on {} after {} did not answer",
+                            router.getName(), address, addresses.get(0));
+                }
+                return connection;
+            } catch (Exception e) {
+                last = e;
+            }
+        }
+        throw last;
     }
 
     private ApiConnection login(Router router) throws Exception {
@@ -607,6 +651,164 @@ public class MikrotikService {
     }
 
     // --- Monitoring & usage ---
+
+    // --- WireGuard, so a router behind NAT can be reached ---
+
+    /**
+     * The commands that put a WireGuard tunnel on a router.
+     *
+     * <p>Static and returned as text, so the same sequence can be sent over the
+     * API or handed to somebody to paste at a console. The router that most needs
+     * a tunnel is the one already unreachable, and that one cannot be configured
+     * over the API by definition.
+     *
+     * <p>No private key appears here. RouterOS generates its own when the
+     * interface is added and we only ever read the public half back.
+     *
+     * <p>AllowedIPs on the router side is the whole tunnel subnet, which is the
+     * opposite of the server side, where each peer is pinned to a single /32. The
+     * asymmetry is deliberate: the router should be able to reach anything on the
+     * tunnel it is given a route to, while the server must not let one router
+     * claim to be another.
+     */
+    public static List<String> wireguardCommands(String interfaceName, String address,
+                                                 int prefix, String serverPublicKey,
+                                                 String endpoint, String serverAddress,
+                                                 int keepalive) {
+        String host = endpoint;
+        String port = "13231";
+        int colon = endpoint.lastIndexOf(':');
+        if (colon > 0) {
+            host = endpoint.substring(0, colon);
+            port = endpoint.substring(colon + 1);
+        }
+        // The subnet the tunnel covers, derived from our own address so the
+        // caller does not have to pass it twice.
+        String subnet = Cidr.toAddress(Cidr.parse(serverAddress + "/" + prefix).networkAddress())
+                + "/" + prefix;
+
+        return List.of(
+                // add-or-set, so running this twice does not leave two interfaces.
+                "/interface/wireguard/add name=" + interfaceName
+                        + " listen-port=0 comment=\"Zidi management tunnel\"",
+                "/ip/address/add address=" + address + "/" + prefix
+                        + " interface=" + interfaceName,
+                "/interface/wireguard/peers/add interface=" + interfaceName
+                        + " public-key=\"" + serverPublicKey + "\""
+                        + " endpoint-address=" + host
+                        + " endpoint-port=" + port
+                        + " allowed-address=" + subnet
+                        // Both ends need this. The tunnel exists because of a NAT
+                        // mapping the router's own outbound packet created, and
+                        // that mapping expires in silence -- after which the
+                        // tunnel still looks up from the router and is dead from
+                        // our side, which is the worst of the failure modes.
+                        + " persistent-keepalive=" + keepalive + "s");
+    }
+
+    /**
+     * Sets the tunnel up on a router and returns its public key.
+     *
+     * <p>Idempotent by intent rather than by hope: the interface is looked for
+     * before being added, and the peer is replaced rather than appended, so
+     * running this twice on the same router leaves one of each. RouterOS would
+     * otherwise happily accumulate duplicates and the second peer would quietly
+     * shadow the first.
+     */
+    public String setupWireguard(Router router, String interfaceName, String address,
+                                 int prefix, String serverPublicKey, String endpoint,
+                                 String serverAddress, int keepalive) {
+        if (!live(router)) {
+            throw new IllegalStateException(
+                    "MikroTik management is switched off, so the tunnel cannot be set up");
+        }
+        String host = endpoint;
+        String port = "13231";
+        int colon = endpoint.lastIndexOf(':');
+        if (colon > 0) {
+            host = endpoint.substring(0, colon);
+            port = endpoint.substring(colon + 1);
+        }
+        String subnet = Cidr.toAddress(Cidr.parse(serverAddress + "/" + prefix).networkAddress())
+                + "/" + prefix;
+
+        try (ApiConnection connection = login(router)) {
+            List<Map<String, String>> existing = connection.execute(
+                    "/interface/wireguard/print where name=" + interfaceName);
+            if (existing.isEmpty()) {
+                connection.execute("/interface/wireguard/add name=" + interfaceName
+                        + " listen-port=0 comment=\"Zidi management tunnel\"");
+            }
+
+            // The address, replaced rather than added: a second /24 on the same
+            // interface is a routing problem that only shows up under load.
+            try {
+                connection.execute("/ip/address/remove [find interface=" + interfaceName + "]");
+            } catch (Exception none) {
+                log.debug("No existing tunnel address on {}", router.getName());
+            }
+            connection.execute("/ip/address/add address=" + address + "/" + prefix
+                    + " interface=" + interfaceName);
+
+            try {
+                connection.execute("/interface/wireguard/peers/remove [find interface="
+                        + interfaceName + "]");
+            } catch (Exception none) {
+                log.debug("No existing tunnel peer on {}", router.getName());
+            }
+            connection.execute("/interface/wireguard/peers/add interface=" + interfaceName
+                    + " public-key=\"" + serverPublicKey + "\""
+                    + " endpoint-address=" + host
+                    + " endpoint-port=" + port
+                    + " allowed-address=" + subnet
+                    + " persistent-keepalive=" + keepalive + "s");
+
+            // Read the public half back. This is the only thing we take from the
+            // router, and the only thing the server needs.
+            for (Map<String, String> row : connection.execute(
+                    "/interface/wireguard/print where name=" + interfaceName)) {
+                String key = row.get("public-key");
+                if (key != null && !key.isBlank()) {
+                    return key.trim();
+                }
+            }
+            throw new IllegalStateException(
+                    "The interface was created but did not report a public key. "
+                            + "RouterOS 7 or newer is needed for WireGuard.");
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("MikroTik API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Whether the router answers on one specific address.
+     *
+     * <p>Used to test the tunnel on its own. The ordinary path falls back to the
+     * public host, so "can we reach this router" is a different and easier
+     * question than "is the tunnel working", and only the second one is worth
+     * asking before somebody relies on it.
+     */
+    public boolean reachableAt(Router router, String address) {
+        if (!live(router)) {
+            return false;
+        }
+        SocketFactory factory = router.isUseSsl() ? SSLSocketFactory.getDefault() : SocketFactory.getDefault();
+        int port = router.getPort() > 0 ? router.getPort() : (router.isUseSsl() ? 8729 : 8728);
+        try (ApiConnection connection = ApiConnection.connect(
+                factory, address, port, ApiConnection.DEFAULT_CONNECTION_TIMEOUT)) {
+            connection.login(router.getUsername(), router.getPassword());
+            // Logged in, not merely connected: a TCP accept proves a listener,
+            // and something else listening on 8728 would otherwise read as the
+            // tunnel working.
+            connection.execute("/system/identity/print");
+            return true;
+        } catch (Exception e) {
+            log.debug("No answer from {} at {}: {}", router.getName(), address, e.getMessage());
+            return false;
+        }
+    }
 
     // --- Configuration backup ---
 

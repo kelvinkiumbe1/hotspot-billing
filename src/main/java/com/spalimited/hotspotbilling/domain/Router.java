@@ -85,6 +85,43 @@ public class Router {
     @Column(length = 500)
     private String configBackupError;
 
+    /**
+     * The address this router answers on inside the WireGuard tunnel, or null if
+     * it has never been set up for one.
+     *
+     * <p>Preferred over {@link #host} when opening a connection, because a router
+     * behind carrier NAT has no reachable public address at all -- see
+     * V77__vpn_reach.sql. Tried first and fallen back from, rather than trusted:
+     * a tunnel that is down must not take the router with it.
+     */
+    @Column(name = "vpn_address", length = 64)
+    private String vpnAddress;
+
+    /**
+     * The router's WireGuard public key, read back off the box after its
+     * interface exists. The private half never leaves the router.
+     *
+     * <p>Until this is in the server's peer list the tunnel cannot come up, so a
+     * router with a key and no successful connection is usually one whose peer
+     * stanza has not been pasted in yet.
+     */
+    @Column(name = "vpn_public_key", length = 64)
+    private String vpnPublicKey;
+
+    @Column(name = "vpn_configured_at")
+    private Instant vpnConfiguredAt;
+
+    /**
+     * Last time a connection over the tunnel actually worked -- our own
+     * observation, not a handshake time read from WireGuard, which would require
+     * the tunnel to be up in order to ask.
+     */
+    @Column(name = "vpn_last_ok_at")
+    private Instant vpnLastOkAt;
+
+    @Column(name = "vpn_last_error", length = 500)
+    private String vpnLastError;
+
     /** RouterOS uptime string, e.g. "3w2d10:15:00". */
     private String uptime;
 

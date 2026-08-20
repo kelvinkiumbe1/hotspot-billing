@@ -29,6 +29,7 @@ import FiberPage from './admin/Fiber.jsx'
 import CpePage from './admin/Cpe.jsx'
 import UsagePage from './admin/Usage.jsx'
 import RouterBackupsPage from './admin/RouterBackups.jsx'
+import RemoteAccessPage from './admin/RemoteAccess.jsx'
 import BankImportPage from './admin/BankImport.jsx'
 import BillingDocumentsPage from './admin/BillingDocuments.jsx'
 import CallsPage from './admin/Calls.jsx'
@@ -512,6 +513,7 @@ const NAV_GROUPS = [
       { key: 'fiber', label: 'Fiber', icon: 'polyline', need: 'NETWORK' },
       { key: 'cpe', label: 'Customer routers', icon: 'router', need: 'NETWORK' },
       { key: 'backups', label: 'Router backups', icon: 'backup', need: 'NETWORK' },
+      { key: 'remote', label: 'Remote access', icon: 'vpn_key', need: 'NETWORK' },
       { key: 'maintenance', label: 'Maintenance', icon: 'calendar_month', need: 'NETWORK' },
     ],
   },
@@ -1314,6 +1316,7 @@ function Shell({ auth, onLogout }) {
         {tab === 'cpe' && <CpePage auth={auth} />}
         {tab === 'usage' && <UsagePage auth={auth} />}
         {tab === 'backups' && <RouterBackupsPage auth={auth} />}
+        {tab === 'remote' && <RemoteAccessPage auth={auth} />}
         {tab === 'bank' && <BankImportPage auth={auth} />}
         {tab === 'documents' && <BillingDocumentsPage auth={auth} />}
         {tab === 'calls' && <CallsPage auth={auth} />}
