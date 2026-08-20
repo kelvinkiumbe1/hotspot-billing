@@ -58,6 +58,13 @@ public class BearerTokenFilter extends OncePerRequestFilter {
         if (user.isDemo()) {
             authorities.add(new SimpleGrantedAuthority("DEMO"));
         }
+        // Marks a login limited to one branch; BranchScopeFilter keeps it there
+        // and BranchScope narrows what it reads. Carried as an authority so the
+        // restriction travels with the request rather than being looked up again
+        // by anything that wants to honour it.
+        if (user.getBranchId() != null) {
+            authorities.add(new SimpleGrantedAuthority("BRANCH_" + user.getBranchId()));
+        }
 
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);

@@ -5,6 +5,7 @@ import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.domain.SubscriptionPayment;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
 import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
+import com.spalimited.hotspotbilling.service.BranchScope;
 import com.spalimited.hotspotbilling.service.FupService;
 import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import com.spalimited.hotspotbilling.service.SubscriptionService;
@@ -38,10 +39,32 @@ public class SubscriberController {
     private final SubscriptionService subscriptionService;
     private final SubscriberUsageService subscriberUsage;
     private final FupService fupService;
+    private final BranchScope branchScope;
 
+    /**
+     * Every customer, or every customer of the caller's branch.
+     *
+     * <p>Head office gets the lot. A branch login gets its own, and a customer
+     * with no branch set stays with head office rather than appearing to
+     * everybody -- see BranchScope.
+     */
     @GetMapping
     public List<Subscriber> all() {
-        return subscribers.findAllByOrderByCreatedAtAsc();
+        return branchScope.filter(subscribers.findAllByOrderByCreatedAtAsc());
+    }
+
+    /**
+     * One customer, by id, with the branch check.
+     *
+     * <p>Every by-id path below goes through this rather than findById. Filtering
+     * only the list would leave a branch login able to walk ids one at a time,
+     * which is the same leak with more steps.
+     */
+    private Subscriber reachable(Long id) {
+        Subscriber sub = subscribers.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        branchScope.require(sub);
+        return sub;
     }
 
     public record CreateRequest(
@@ -60,7 +83,7 @@ public class SubscriberController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Subscriber create(@Valid @RequestBody CreateRequest request, java.security.Principal principal) {
-        return subscriptionService.create(
+        Subscriber created = subscriptionService.create(
                 request.fullName(),
                 request.phoneNumber(),
                 request.pppoeUsername(),
@@ -71,6 +94,15 @@ public class SubscriberController {
                 "MPESA".equalsIgnoreCase(request.initialMethod())
                         ? SubscriptionPayment.Method.MPESA : SubscriptionPayment.Method.CASH,
                 principal.getName());
+        // A branch login files its new customer into its own branch. Without
+        // this the customer lands at head office and the person who just created
+        // them cannot see them, which reads as the save having failed.
+        Long branch = branchScope.current();
+        if (branch != null) {
+            created.setBranchId(branch);
+            created = subscribers.save(created);
+        }
+        return created;
     }
 
     public record ExtendRequest(@Min(1) @Max(1000) int amount,
@@ -80,6 +112,7 @@ public class SubscriberController {
     /** Goodwill extension without payment — hours, days or months. */
     @PostMapping("/{id}/extend")
     public Subscriber extend(@PathVariable Long id, @Valid @RequestBody ExtendRequest request) {
+        reachable(id);
         return subscriptionService.extendManually(id, request.amount(), request.unit());
     }
 
@@ -89,12 +122,14 @@ public class SubscriberController {
     /** Records a cash/off-system payment and extends the subscription. */
     @PostMapping("/{id}/payments")
     public SubscriptionPayment recordPayment(@PathVariable Long id, @Valid @RequestBody MonthsRequest request) {
+        reachable(id);
         return subscriptionService.recordCashPayment(id, request.months());
     }
 
     /** Sends an M-Pesa STK prompt to the subscriber's phone. */
     @PostMapping("/{id}/stk")
     public Map<String, Object> stk(@PathVariable Long id, @Valid @RequestBody MonthsRequest request) {
+        reachable(id);
         SubscriptionPayment payment = subscriptionService.initiateStk(id, request.months());
         return Map.of(
                 "paymentId", payment.getId(),
@@ -104,22 +139,84 @@ public class SubscriberController {
 
     @GetMapping("/{id}/payments")
     public List<SubscriptionPayment> paymentHistory(@PathVariable Long id) {
+        reachable(id);
         return payments.findBySubscriberIdOrderByCreatedAtDesc(id);
+    }
+
+    /**
+     * Everything an operator can change about a customer.
+     *
+     * <p>Every field is optional and null means "leave it alone", so a screen
+     * that only edits the name sends only the name. Bandwidth and the static
+     * address accept a blank string as a real value, because taking a speed limit
+     * or a fixed address off again has to be possible.
+     */
+    public record UpdateRequest(
+            String fullName,
+            String phoneNumber,
+            @Pattern(regexp = "|[a-zA-Z0-9._@-]{3,40}",
+                    message = "PPPoE username must be 3-40 letters, digits, dots, dashes, @ or underscores")
+            String pppoeUsername,
+            @Size(min = 6, message = "A PPPoE password needs at least 6 characters")
+            String pppoePassword,
+            String bandwidth,
+            @Min(1) BigDecimal monthlyFee,
+            Long routerId,
+            Long branchId,
+            String staticIp) {
+    }
+
+    /**
+     * Edits a customer.
+     *
+     * <p>The reply carries the server's own sentence about what happened rather
+     * than a bare 200, because two of these changes interrupt the customer -- a
+     * renamed username leaves them offline until their own router is updated, and
+     * a speed change only lands when the line reconnects -- and whoever pressed
+     * Save is the person who has to tell them.
+     */
+    @PutMapping("/{id}")
+    public Map<String, Object> update(@PathVariable Long id,
+                                      @Valid @RequestBody UpdateRequest request,
+                                      java.security.Principal principal) {
+        reachable(id);
+        SubscriptionService.Edited edited = subscriptionService.update(
+                id,
+                request.fullName(),
+                request.phoneNumber(),
+                request.pppoeUsername(),
+                request.pppoePassword(),
+                request.bandwidth(),
+                request.monthlyFee(),
+                request.routerId(),
+                request.branchId(),
+                request.staticIp(),
+                principal == null ? "admin" : principal.getName());
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("subscriber", edited.subscriber());
+        out.put("changed", edited.changes());
+        out.put("reconnectNeeded", edited.reconnectNeeded());
+        out.put("message", edited.note());
+        return out;
     }
 
     @PatchMapping("/{id}/suspend")
     public Subscriber suspend(@PathVariable Long id) {
+        reachable(id);
         return subscriptionService.suspend(id);
     }
 
     @PatchMapping("/{id}/activate")
     public Subscriber activate(@PathVariable Long id) {
+        reachable(id);
         return subscriptionService.activate(id);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
+        reachable(id);
         subscriptionService.delete(id);
     }
 
@@ -134,8 +231,7 @@ public class SubscriberController {
     @GetMapping("/{id}/usage")
     public Map<String, Object> usage(@PathVariable Long id,
                                      @RequestParam(defaultValue = "30") @Min(1) @Max(400) int days) {
-        Subscriber sub = subscribers.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        Subscriber sub = reachable(id);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("subscriberId", id);
         out.put("days", days);
@@ -165,8 +261,7 @@ public class SubscriberController {
      */
     @PatchMapping("/{id}/fair-use")
     public Map<String, Object> fairUse(@PathVariable Long id, @Valid @RequestBody FairUseRequest request) {
-        Subscriber sub = subscribers.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        Subscriber sub = reachable(id);
         sub.setDataCapMb(request.dataCapMb());
         sub.setFupAction(request.action() == null || request.action().isBlank()
                 ? null : Plan.FupAction.valueOf(request.action()));
@@ -185,8 +280,7 @@ public class SubscriberController {
     /** Lifts a throttle or block right now, without waiting for the sweep. */
     @PostMapping("/{id}/fair-use/lift")
     public Map<String, Object> liftFairUse(@PathVariable Long id) {
-        Subscriber sub = subscribers.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No such subscriber"));
+        Subscriber sub = reachable(id);
         if (sub.getFupAppliedAt() == null) {
             return Map.of("ok", true, "message", "Nothing was applied to this customer.");
         }
@@ -254,6 +348,9 @@ public class SubscriberController {
                         .status(Subscriber.Status.ACTIVE)
                         .paidUntil(parseExpiry(r.expiry()))
                         .createdBy(principal.getName())
+                        // Same reason as create(): a branch that imports into
+                        // head office cannot see what it just imported.
+                        .branchId(branchScope.current())
                         .build());
                 created++;
                 if (gen) generated++;

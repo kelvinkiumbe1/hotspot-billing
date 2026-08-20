@@ -42,6 +42,7 @@ public class SubscriptionService {
     private final ReferralService referralService;
     private final com.spalimited.hotspotbilling.service.payments.PaymentProviders providers;
     private final MoneyService money;
+    private final AuditService audit;
 
     @org.springframework.beans.factory.annotation.Value("${app.portal-url}")
     private String portalUrl;
@@ -434,6 +435,165 @@ public class SubscriptionService {
                 .build());
         extend(sub, months, "BANK");
         return payment;
+    }
+
+    /** What an edit changed, and what it meant on the router. */
+    public record Edited(Subscriber subscriber, java.util.List<String> changes,
+                         boolean reconnectNeeded, String note) {
+    }
+
+    /**
+     * Changes a customer's details.
+     *
+     * <p>There was no way to do this at all: subscribers could be created and
+     * deleted and nothing in between, so correcting a misspelled name or moving
+     * somebody onto a faster package meant deleting them and starting again --
+     * which loses their payment history and their invoices.
+     *
+     * <h2>Order matters on the router</h2>
+     *
+     * <p>Renaming a PPPoE username is two operations on the router: create the
+     * new secret and remove the old one. Done in that order on purpose. The
+     * reverse -- remove then create -- leaves the customer with no secret at all
+     * if the second call fails, which is a customer offline while the database
+     * says they are fine. This way a failure leaves a harmless duplicate instead,
+     * and the worst case is a stale secret nobody is using.
+     *
+     * <p>The provisioning call runs inside the transaction, so a router that
+     * refuses the change also fails the edit rather than leaving the database
+     * describing a router that disagrees with it. That is the same bargain
+     * {@link #create} already makes.
+     *
+     * <p>Null means "leave alone" for every field. A blank string is a real value
+     * only where blanking means something -- bandwidth and the static address.
+     */
+    @Transactional
+    public Edited update(Long id, String fullName, String phoneNumber, String pppoeUsername,
+                         String pppoePassword, String bandwidth, BigDecimal monthlyFee,
+                         Long routerId, Long branchId, String staticIp, String who) {
+        Subscriber sub = get(id);
+        java.util.List<String> changes = new java.util.ArrayList<>();
+
+        String oldUsername = sub.getPppoeUsername();
+        Long oldRouterId = sub.getRouterId();
+        String oldBandwidth = sub.getBandwidth();
+
+        if (fullName != null && !fullName.isBlank() && !fullName.strip().equals(sub.getFullName())) {
+            changes.add("name");
+            sub.setFullName(fullName.strip());
+        }
+        if (phoneNumber != null && !phoneNumber.isBlank()
+                && !phoneNumber.strip().equals(sub.getPhoneNumber())) {
+            changes.add("phone number");
+            sub.setPhoneNumber(phoneNumber.strip());
+        }
+        if (pppoeUsername != null && !pppoeUsername.isBlank()
+                && !pppoeUsername.strip().equals(sub.getPppoeUsername())) {
+            String wanted = pppoeUsername.strip();
+            subscribers.findByPppoeUsername(wanted).ifPresent(other -> {
+                if (!other.getId().equals(id)) {
+                    throw new IllegalArgumentException("PPPoE username already taken: " + wanted);
+                }
+            });
+            changes.add("PPPoE username");
+            sub.setPppoeUsername(wanted);
+        }
+        if (pppoePassword != null && !pppoePassword.isBlank()) {
+            changes.add("PPPoE password");
+            sub.setPppoePassword(pppoePassword.strip());
+        }
+        // Blank is a real value here: it means uncapped, and an operator has to
+        // be able to take a limit off again.
+        if (bandwidth != null && !bandwidth.strip().equals(nullToEmpty(sub.getBandwidth()))) {
+            changes.add("speed");
+            sub.setBandwidth(bandwidth.isBlank() ? null : bandwidth.strip());
+        }
+        if (monthlyFee != null && monthlyFee.signum() > 0
+                && monthlyFee.compareTo(sub.getMonthlyFee()) != 0) {
+            changes.add("monthly fee");
+            sub.setMonthlyFee(monthlyFee);
+        }
+        if (routerId != null && !routerId.equals(sub.getRouterId())) {
+            changes.add("router");
+            sub.setRouterId(routerId);
+        }
+        if (branchId != null && !branchId.equals(sub.getBranchId())) {
+            changes.add("branch");
+            sub.setBranchId(branchId);
+        }
+        if (staticIp != null && !staticIp.strip().equals(nullToEmpty(sub.getStaticIp()))) {
+            changes.add("static address");
+            sub.setStaticIp(staticIp.isBlank() ? null : staticIp.strip());
+        }
+
+        if (changes.isEmpty()) {
+            return new Edited(sub, changes, false, "Nothing was different.");
+        }
+
+        boolean renamed = changes.contains("PPPoE username");
+        boolean moved = changes.contains("router");
+        boolean touchesRouter = renamed || moved || changes.contains("PPPoE password")
+                || changes.contains("speed") || changes.contains("static address");
+
+        subscribers.save(sub);
+
+        if (touchesRouter) {
+            // The new secret first, so a failure cannot leave the customer with
+            // nothing at all. See the note above.
+            mikrotikService.provisionPppoe(sub);
+
+            if (renamed || moved) {
+                // Clean up what they used to be. Best-effort: a stale secret is
+                // untidy, whereas failing the whole edit over it would undo a
+                // change that has already succeeded on the router.
+                Subscriber before = Subscriber.builder()
+                        .id(sub.getId())
+                        .pppoeUsername(oldUsername)
+                        .pppoePassword(sub.getPppoePassword())
+                        .routerId(oldRouterId)
+                        .build();
+                try {
+                    mikrotikService.removePppoe(before);
+                } catch (Exception e) {
+                    log.warn("Left a stale PPPoE secret for {} on router {}: {}",
+                            oldUsername, oldRouterId, e.getMessage());
+                }
+            }
+        }
+
+        // RouterOS applies a profile when the line dials in, not when the profile
+        // changes, so an existing session keeps the old speed until it
+        // reconnects. Saying so is the difference between "their speed is
+        // changed" and "their speed will change when they reconnect".
+        boolean reconnectNeeded = changes.contains("speed")
+                && oldBandwidth != null && !oldBandwidth.isBlank();
+
+        audit.record(who == null ? "admin" : who, "subscriber.update",
+                sub.getPppoeUsername() + ": changed " + String.join(", ", changes));
+        log.info("Subscriber {} updated by {} ({})", sub.getId(), who, String.join(", ", changes));
+
+        return new Edited(sub, changes, reconnectNeeded, note(changes, renamed, reconnectNeeded));
+    }
+
+    /**
+     * The sentence the admin shows. Deliberately blunt about the two changes that
+     * interrupt the customer, because both produce a support call otherwise.
+     */
+    private static String note(java.util.List<String> changes, boolean renamed,
+                               boolean reconnectNeeded) {
+        StringBuilder out = new StringBuilder("Changed " + String.join(", ", changes) + ".");
+        if (renamed) {
+            out.append(" Their own router still has the old username in it, so they stay "
+                    + "offline until somebody sets the new one on the customer's device.");
+        } else if (reconnectNeeded) {
+            out.append(" The new speed applies when their line next reconnects - reboot it, "
+                    + "or drop the session, to make that happen now.");
+        }
+        return out.toString();
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     /**

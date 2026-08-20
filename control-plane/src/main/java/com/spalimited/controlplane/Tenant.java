@@ -20,6 +20,12 @@ import java.time.Instant;
 public class Tenant {
 
     public enum Status {
+        /**
+         * Signed up but the email address is unproven, so nothing has been
+         * stood up yet. Deliberately before PROVISIONING: a container and a
+         * database per junk signup is the abuse this status prevents.
+         */
+        AWAITING_EMAIL,
         /** Signed up; the stack is being stood up. */
         PROVISIONING,
         /** Stack is up and the owner can log in. */
@@ -69,6 +75,16 @@ public class Tenant {
      * instead of the production https://subdomain. Null for dry-run/SCRIPT.
      */
     private Integer localPort;
+
+    /**
+     * The secret in the verification link. Cleared once used, so a link works
+     * exactly once and a forwarded email cannot re-verify anything.
+     */
+    private String verificationToken;
+
+    private Instant verificationSentAt;
+
+    private Instant verifiedAt;
 
     @PrePersist
     void onCreate() {

@@ -2,6 +2,7 @@ package com.spalimited.hotspotbilling.web;
 
 import com.spalimited.hotspotbilling.domain.Subscriber;
 import com.spalimited.hotspotbilling.repository.SubscriberRepository;
+import com.spalimited.hotspotbilling.service.BranchScope;
 import com.spalimited.hotspotbilling.service.SubscriberUsageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -35,6 +36,7 @@ public class UsageReportController {
 
     private final SubscriberUsageService usage;
     private final SubscriberRepository subscribers;
+    private final BranchScope branchScope;
 
     /** Daily totals across every subscriber. */
     @GetMapping("/network")
@@ -67,10 +69,15 @@ public class UsageReportController {
         LocalDate end = to != null ? to : usage.today();
         LocalDate start = from != null ? from : usage.cycleStart(end);
 
+        // Only the customers this login may see. A branch login is allowed
+        // onto this endpoint, so the map it looks names up in has to be the
+        // narrow one -- otherwise the rows it cannot name would still be
+        // counted, and the totals would describe somebody else's network.
         Map<Long, Subscriber> byId = new LinkedHashMap<>();
-        for (Subscriber s : subscribers.findAll()) {
+        for (Subscriber s : branchScope.filter(subscribers.findAll())) {
             byId.put(s.getId(), s);
         }
+        boolean restricted = branchScope.isRestricted();
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (long[] t : usage.totalsBySubscriber(start, end)) {
@@ -78,6 +85,12 @@ public class UsageReportController {
                 break;
             }
             Subscriber s = byId.get(t[0]);
+            if (restricted && s == null) {
+                // Not ours. Skipped rather than shown as "Deleted customer",
+                // which for a branch login would be a count of somebody else's
+                // traffic dressed up as a gap in their own.
+                continue;
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("subscriberId", t[0]);
             // A customer deleted since the traffic was recorded still has rows.

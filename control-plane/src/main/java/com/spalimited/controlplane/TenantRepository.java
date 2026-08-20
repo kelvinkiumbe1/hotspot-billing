@@ -9,6 +9,9 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     Optional<Tenant> findBySlug(String slug);
 
+    /** For completing a signup from the link in the owner's email. */
+    Optional<Tenant> findByVerificationToken(String verificationToken);
+
     boolean existsBySlug(String slug);
 
     boolean existsBySubdomain(String subdomain);

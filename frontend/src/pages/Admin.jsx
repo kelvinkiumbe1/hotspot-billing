@@ -553,15 +553,30 @@ const NAV_GROUPS = [
 const NAV = NAV_GROUPS.flatMap((g) => g.items)
 
 /** Unread/open counts for the destinations inside a collapsed group. */
+/**
+ * Screens a login limited to one branch can actually use.
+ *
+ * Must stay in step with ALLOWED in BranchScopeFilter.java — that list is the
+ * one that matters, and this one only exists so a partner is not shown four
+ * menu items that all answer 403. If they disagree, the server wins and the
+ * symptom is a dead menu entry, not a leak.
+ */
+const BRANCH_NAV = ['subscribers', 'usage', 'plans']
+
 /** Destinations this role can actually use; untagged ones are open to all. */
-function allowedGroups(permissions) {
+function allowedGroups(permissions, branchScoped) {
   if (!permissions) return NAV_GROUPS
   return NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.need || permissions.includes(i.need)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => (!i.need || permissions.includes(i.need))
+        && (!branchScoped || BRANCH_NAV.includes(i.key))),
+    }))
     .filter((g) => g.items.length > 0)
 }
 
 function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, collapsible = false }) {
+  const branchScoped = !!me?.branchScoped
   // The rail is taller than a laptop screen. A fade on the bottom edge shows
   // there is more below, but it must clear once you reach the end, otherwise
   // the last item looks disabled.
@@ -605,7 +620,7 @@ function SidebarContent({ tab, onNav, onLogout, badges = {}, permissions, me, co
         onScroll={measure}
         className="flex flex-col gap-3 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {allowedGroups(permissions).map((group, gi) => (
+        {allowedGroups(permissions, branchScoped).map((group, gi) => (
           <div key={group.label || `g${gi}`}>
             {group.label && (
               <p className={`px-4 mb-1 text-[10px] font-bold tracking-[0.12em] uppercase text-surface-variant/50 whitespace-nowrap ${railBlock}`}>
@@ -1193,12 +1208,17 @@ function Shell({ auth, onLogout }) {
       })
   }, [auth])
 
-  // If the current tab is not open to this role, fall back to the overview.
+  // If the current tab is not open to this role, fall back to somewhere it is.
   useEffect(() => {
     if (!me) return
     const item = NAV.find((i) => i.key === tab)
-    if (item?.need && !me.permissions.includes(item.need)) {
-      navigate(base, { replace: true })
+    const barredByRole = item?.need && !me.permissions.includes(item.need)
+    // A branch login has no overview to fall back to -- the dashboard reads the
+    // whole network -- so it falls back to its own customers instead. Sending it
+    // to a screen that 403s would look like a broken sign-in.
+    const barredByBranch = me.branchScoped && !BRANCH_NAV.includes(tab)
+    if (barredByRole || barredByBranch) {
+      navigate(me.branchScoped ? `${base}/subscribers` : base, { replace: true })
     }
   }, [me, tab, base])
 
@@ -2639,6 +2659,11 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
   const [extendUnit, setExtendUnit] = useState('DAYS')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [editing, setEditing] = useState(false)
+  // Seeded from the customer so the form shows what they are now, and only what
+  // actually differs is sent -- the backend treats null as "leave alone".
+  const [edit, setEdit] = useState({})
+  const [editLists, setEditLists] = useState({ routers: [], branches: [] })
 
   const s = subscriber
   const st = subscriberState(s)
@@ -2647,6 +2672,67 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
   useEffect(() => {
     api(`/admin/subscribers/${s.id}/payments`, { auth }).then(setHistory).catch(() => setHistory([]))
   }, [s.id, auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setEdit({
+      fullName: s.fullName || '',
+      phoneNumber: s.phoneNumber || '',
+      pppoeUsername: s.pppoeUsername || '',
+      bandwidth: s.bandwidth || '',
+      monthlyFee: s.monthlyFee ?? '',
+      staticIp: s.staticIp || '',
+      pppoePassword: '',
+      routerId: '',
+      branchId: '',
+    })
+    setEditing(false)
+  }, [s.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only when the panel is opened. Two extra requests on every drawer open, for
+  // a form most opens never touch, is two requests wasted.
+  useEffect(() => {
+    if (!editing || editLists.routers.length > 0) return
+    Promise.all([
+      api('/admin/routers', { auth }).catch(() => []),
+      api('/admin/branches', { auth }).catch(() => []),
+    ]).then(([routers, branches]) => setEditLists({
+      routers: Array.isArray(routers) ? routers : (routers?.routers || []),
+      branches: Array.isArray(branches) ? branches : (branches?.branches || []),
+    }))
+  }, [editing, auth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveEdit() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      // Send only what differs. Sending everything would make an untouched
+      // password field look like a request to blank the password.
+      const body = {}
+      const same = (a, b) => String(a ?? '') === String(b ?? '')
+      if (!same(edit.fullName, s.fullName)) body.fullName = edit.fullName
+      if (!same(edit.phoneNumber, s.phoneNumber)) body.phoneNumber = edit.phoneNumber
+      if (!same(edit.pppoeUsername, s.pppoeUsername)) body.pppoeUsername = edit.pppoeUsername
+      if (!same(edit.bandwidth, s.bandwidth)) body.bandwidth = edit.bandwidth
+      if (!same(edit.monthlyFee, s.monthlyFee)) body.monthlyFee = Number(edit.monthlyFee)
+      if (!same(edit.staticIp, s.staticIp)) body.staticIp = edit.staticIp
+      if (edit.pppoePassword) body.pppoePassword = edit.pppoePassword
+      if (edit.routerId) body.routerId = Number(edit.routerId)
+      if (edit.branchId) body.branchId = Number(edit.branchId)
+
+      if (Object.keys(body).length === 0) {
+        setMsg({ ok: true, text: 'Nothing was different.' })
+        return
+      }
+      const r = await api(`/admin/subscribers/${s.id}`, { method: 'PUT', auth, body })
+      // The server's wording: it knows whether the customer is now offline.
+      setMsg({ ok: true, text: r.message })
+      onChanged()
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function run(path, body, okText) {
     setBusy(true)
@@ -2712,6 +2798,100 @@ function SubscriberDetail({ auth, subscriber, onClose, onChanged }) {
                 ? `${payLabel(s.lastPaymentMethod)}${s.lastPaymentAt ? ` · ${fmtDate(s.lastPaymentAt)}` : ''}`
                 : <span className="text-on-surface-variant">No payment yet</span>}
             </Row>
+          </div>
+
+          {/* Edit details.
+              Collapsed by default: this drawer is opened to take a payment far
+              more often than to change a package, and an always-open form of
+              nine fields buries the thing people actually came for.
+
+              The reply's own sentence is shown verbatim rather than "Saved",
+              because two of these changes interrupt the customer and the server
+              is what knows which happened. */}
+          <div>
+            <button type="button" onClick={() => setEditing((v) => !v)}
+              className="w-full flex items-center justify-between text-xs font-semibold tracking-wider text-on-surface-variant uppercase mb-2 cursor-pointer hover:text-on-surface">
+              <span>Edit details</span>
+              <Icon name={editing ? 'expand_less' : 'expand_more'} className="text-[18px]!" />
+            </button>
+
+            {editing && (
+              <div className="space-y-3 bg-surface-container-low rounded-md p-3">
+                {[
+                  ['fullName', 'Full name', 'text'],
+                  ['phoneNumber', 'Phone', 'text'],
+                  ['pppoeUsername', 'PPPoE username', 'text'],
+                  ['bandwidth', 'Speed (blank = uncapped)', 'text'],
+                  ['monthlyFee', 'Monthly fee', 'number'],
+                  ['staticIp', 'Static address (blank = from the pool)', 'text'],
+                ].map(([field, label, type]) => (
+                  <div key={field}>
+                    <label className="block text-xs text-on-surface-variant mb-1">{label}</label>
+                    <input type={type} value={edit[field] ?? ''}
+                      onChange={(e) => setEdit({ ...edit, [field]: e.target.value })}
+                      className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm focus:outline-none focus:border-primary" />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">
+                    New PPPoE password (blank = keep)
+                  </label>
+                  <input type="text" value={edit.pppoePassword ?? ''}
+                    onChange={(e) => setEdit({ ...edit, pppoePassword: e.target.value })}
+                    className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm focus:outline-none focus:border-primary" />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-on-surface-variant mb-1">Router / site</label>
+                  <select value={edit.routerId ?? ''}
+                    onChange={(e) => setEdit({ ...edit, routerId: e.target.value })}
+                    className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm focus:outline-none focus:border-primary">
+                    <option value="">Leave where they are</option>
+                    {editLists.routers.map((r) => (
+                      <option key={r.id} value={String(r.id)}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {editLists.branches.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-on-surface-variant mb-1">Branch</label>
+                    <select value={edit.branchId ?? ''}
+                      onChange={(e) => setEdit({ ...edit, branchId: e.target.value })}
+                      className="w-full h-10 bg-surface border border-outline-variant rounded-lg px-3 text-sm focus:outline-none focus:border-primary">
+                      <option value="">Leave as it is</option>
+                      {editLists.branches.map((b) => (
+                        <option key={b.id} value={String(b.id)}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Said before Save, not after. Renaming the username is the one
+                    change that takes the customer offline until somebody touches
+                    their own router. */}
+                {edit.pppoeUsername && edit.pppoeUsername !== s.pppoeUsername && (
+                  <p className="text-xs text-[#b45309] flex items-start gap-1.5">
+                    <Icon name="warning" className="text-[14px]! mt-0.5" />
+                    Changing the username takes them offline until the new one is set on
+                    the customer&rsquo;s own router.
+                  </p>
+                )}
+                {edit.bandwidth !== undefined && edit.bandwidth !== (s.bandwidth || '')
+                  && (s.bandwidth || '') !== '' && (
+                  <p className="text-xs text-on-surface-variant flex items-start gap-1.5">
+                    <Icon name="info" className="text-[14px]! mt-0.5" />
+                    A new speed applies when their line next reconnects.
+                  </p>
+                )}
+
+                <button disabled={busy} onClick={saveEdit}
+                  className="w-full h-10 rounded-lg bg-primary text-on-primary text-sm font-semibold disabled:opacity-60 cursor-pointer">
+                  {busy ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Take payment */}

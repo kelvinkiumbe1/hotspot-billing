@@ -49,6 +49,18 @@ public class StaffUser {
     @Column(nullable = false)
     private Role role;
 
+    /**
+     * Which branch this login is limited to, or null for head office.
+     *
+     * <p>Only ever a restriction: a branch id narrows what somebody can reach
+     * and never widens it. See BranchScopeFilter for how it is enforced -- the
+     * short version is that a branch session may reach an explicit allowlist of
+     * endpoints and is refused everywhere else, because a partial filter is how
+     * one partner ends up reading another's customer list.
+     */
+    @Column(name = "branch_id")
+    private Long branchId;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;

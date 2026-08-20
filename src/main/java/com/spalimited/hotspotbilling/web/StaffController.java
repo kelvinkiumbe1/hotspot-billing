@@ -50,6 +50,11 @@ public class StaffController {
         out.put("fullName", member != null ? member.getFullName() : authentication.getName());
         out.put("email", member != null ? member.getEmail() : null);
         out.put("role", member != null ? member.getRole().name() : roleFrom(authorities));
+        // A login limited to one branch. The UI reads this to hide the screens
+        // BranchScopeFilter would refuse anyway; showing them and letting every
+        // one 403 would look like the product is broken rather than restricted.
+        out.put("branchId", member != null ? member.getBranchId() : null);
+        out.put("branchScoped", member != null && member.getBranchId() != null);
         // Match against the permissions we define rather than "anything without
         // a ROLE_ prefix" — Spring Security adds its own authorities (such as
         // FACTOR_PASSWORD) that are not ours to hand to the UI.
@@ -152,6 +157,7 @@ public class StaffController {
             row.put("email", member.getEmail());
             row.put("role", member.getRole());
             row.put("permissions", member.getPermissions().stream().sorted().toList());
+            row.put("branchId", member.getBranchId());
             row.put("active", member.isActive());
             row.put("seeded", member.isSeeded());
             row.put("locked", member.isLocked());
@@ -185,7 +191,10 @@ public class StaffController {
             @NotBlank String fullName,
             String phoneNumber,
             @Email(message = "That does not look like an email address") String email,
-            @NotNull StaffUser.Role role) {
+            @NotNull StaffUser.Role role,
+            /* Null for head office, which is what every login was before this
+               existed. A branch id only ever narrows what they can reach. */
+            Long branchId) {
     }
 
     @PostMapping
@@ -204,11 +213,49 @@ public class StaffController {
                 .phoneNumber(request.phoneNumber())
                 .email(request.email())
                 .role(request.role())
+                .branchId(request.branchId())
                 .createdBy(principal.getName())
                 .build());
         audit.record(principal, "staff.create",
-                "Added " + member.getFullName() + " as " + member.getRole());
+                "Added " + member.getFullName() + " as " + member.getRole()
+                        + (member.getBranchId() != null
+                                ? " limited to branch " + member.getBranchId() : ""));
         return Map.of("id", member.getId(), "username", member.getUsername(), "role", member.getRole());
+    }
+
+    public record BranchRequest(Long branchId) {
+    }
+
+    /**
+     * Limits a login to one branch, or lifts the limit.
+     *
+     * <p>Owner-only, like every other change on this screen, and for a sharper
+     * reason than the rest: this is the boundary that stops one partner reading
+     * another's customers, so the person who can move it should be the person who
+     * owns the business.
+     *
+     * <p>Takes effect on their next request -- the branch travels as an authority
+     * on the session, so a login already signed in keeps the old scope until the
+     * token is next resolved. Narrowing somebody mid-session therefore is not
+     * instant, which is worth knowing if you are doing it in a hurry.
+     */
+    @PatchMapping("/{id}/branch")
+    @PreAuthorize("hasAuthority('STAFF')")
+    public Map<String, Object> setBranch(@PathVariable Long id, @RequestBody BranchRequest request,
+                                        Principal principal) {
+        StaffUser member = staff.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No such staff member"));
+        member.setBranchId(request.branchId());
+        staff.save(member);
+        audit.record(principal, "staff.branch", member.getFullName()
+                + (request.branchId() == null ? " can now see all branches"
+                        : " limited to branch " + request.branchId()));
+        return Map.of("id", member.getId(), "branchId",
+                member.getBranchId() == null ? "" : member.getBranchId(),
+                "message", request.branchId() == null
+                        ? member.getFullName() + " can now see every branch."
+                        : member.getFullName() + " is now limited to that branch, from their "
+                                + "next sign-in.");
     }
 
     public record RoleRequest(@NotNull StaffUser.Role role) {

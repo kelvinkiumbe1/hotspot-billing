@@ -50,10 +50,18 @@ const ROLE_STYLES = {
 function AddStaffForm({ auth, onCancel, onCreated }) {
   const [form, setForm] = useState({
     fullName: '', username: '', password: '', phoneNumber: '', email: '', role: 'SUPPORT',
+    branchId: '',
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [branches, setBranches] = useState([])
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
+
+  useEffect(() => {
+    api('/admin/branches', { auth })
+      .then((d) => setBranches(Array.isArray(d) ? d : (d?.branches || [])))
+      .catch(() => setBranches([]))
+  }, [auth])
 
   // Suggest a username from the name, but let it be overridden.
   const suggested = form.fullName.trim().toLowerCase().split(/\s+/)[0]?.replace(/[^a-z0-9]/g, '') || ''
@@ -71,6 +79,8 @@ function AddStaffForm({ auth, onCancel, onCreated }) {
           username: (form.username || suggested).toLowerCase(),
           phoneNumber: form.phoneNumber.replace(/\D/g, '') || null,
           email: form.email || null,
+          // Blank means head office. A branch id only ever narrows what they see.
+          branchId: form.branchId ? Number(form.branchId) : null,
         },
       })
       onCreated()
@@ -129,6 +139,27 @@ function AddStaffForm({ auth, onCancel, onCreated }) {
         </div>
       </div>
 
+      {branches.length > 0 && (
+        <div>
+          <label className={LABEL_CLS}>Which branch</label>
+          <select className={INPUT_CLS} value={form.branchId}
+            onChange={(e) => set({ branchId: e.target.value })}>
+            <option value="">Head office — sees every branch</option>
+            {branches.map((b) => (
+              <option key={b.id} value={String(b.id)}>{b.name}{b.town ? ` · ${b.town}` : ''}</option>
+            ))}
+          </select>
+          {/* The honest description of what a branch login is today. Promising a
+              full partner portal would be a promise the allowlist does not keep. */}
+          <p className="text-xs text-on-surface-variant mt-1">
+            A branch login sees only that branch&rsquo;s customers, and only the screens
+            that are split by branch &mdash; customers, their usage, and the package
+            list. Everything else is closed to them rather than showing other
+            branches. Use it for a franchise or a partner reselling in another town.
+          </p>
+        </div>
+      )}
+
       {error && <p className="text-sm text-error">{error}</p>}
 
       <div className="flex gap-2">
@@ -148,6 +179,13 @@ export default function StaffPage({ auth, me }) {
   const [msg, setMsg] = useState(null)
   const [resetFor, setResetFor] = useState(null)
   const [newPassword, setNewPassword] = useState('')
+  const [branches, setBranches] = useState([])
+
+  useEffect(() => {
+    api('/admin/branches', { auth })
+      .then((d) => setBranches(Array.isArray(d) ? d : (d?.branches || [])))
+      .catch(() => setBranches([]))
+  }, [auth])
 
   const load = () => api('/admin/staff', { auth }).then(setRows).catch(() => setRows([]))
   useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -288,6 +326,23 @@ export default function StaffPage({ auth, me }) {
                       >
                         {ROLES.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
                       </select>
+                      {branches.length > 0 && (
+                        <select
+                          value={r.branchId ?? ''}
+                          onChange={(e) => act(r.id, '/branch',
+                            { branchId: e.target.value ? Number(e.target.value) : null })}
+                          aria-label={`Branch for ${r.fullName}`}
+                          className={`mt-1 block px-2 py-1 rounded-full text-[10px] font-semibold cursor-pointer ${
+                            r.branchId
+                              ? 'bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/20'
+                              : 'bg-surface-container-high text-on-surface-variant'}`}
+                        >
+                          <option value="">All branches</option>
+                          {branches.map((b) => (
+                            <option key={b.id} value={String(b.id)}>{b.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-1">
