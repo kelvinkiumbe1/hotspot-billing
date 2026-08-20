@@ -55,4 +55,20 @@ public class PhoneVerification {
 
     @Column(name = "requested_ip", length = 64)
     private String requestedIp;
+
+    /**
+     * Proof of ownership handed back when the right code is entered.
+     *
+     * <p>Hashed, short-lived and spent on first use. The verified row itself is
+     * kept forever as the record that a number was once proved, which is why the
+     * proof that authorises an action cannot be that row.
+     */
+    @Column(name = "access_token_hash", length = 128)
+    private String accessTokenHash;
+
+    @Column(name = "access_expires_at")
+    private Instant accessExpiresAt;
+
+    @Column(name = "access_used_at")
+    private Instant accessUsedAt;
 }

@@ -19,6 +19,20 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    /**
+     * A customer endpoint that was asked to act on a number nobody proved.
+     *
+     * <p>403 rather than 400: the request was well formed and the answer is that
+     * the caller is not allowed, which is also what the portal needs to know to
+     * send them back to the confirm-your-number step.
+     */
+    @ExceptionHandler(com.spalimited.hotspotbilling.service.PhoneOwnership.NotProved.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> notProved(
+            com.spalimited.hotspotbilling.service.PhoneOwnership.NotProved e) {
+        return Map.of("message", e.getMessage());
+    }
+
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> badRequest(RuntimeException e) {

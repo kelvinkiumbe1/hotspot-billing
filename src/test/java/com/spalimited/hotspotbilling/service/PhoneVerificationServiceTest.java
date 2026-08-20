@@ -98,6 +98,16 @@ class PhoneVerificationServiceTest {
                 .thenAnswer(i -> stored.stream()
                         .filter(v -> v.getPhoneNumber().equals(i.getArgument(0))
                                 && v.getVerifiedAt() != null).toList());
+        when(verifications
+                .findByPhoneNumberAndPurposeAndAccessTokenHashIsNotNullAndAccessUsedAtIsNullOrderByIdDesc(
+                        anyString(), anyString()))
+                .thenAnswer(i -> stored.stream()
+                        .filter(v -> v.getPhoneNumber().equals(i.getArgument(0))
+                                && v.getPurpose().equals(i.getArgument(1))
+                                && v.getAccessTokenHash() != null
+                                && v.getAccessUsedAt() == null)
+                        .sorted((a, b) -> Long.compare(b.getId(), a.getId()))
+                        .toList());
         org.mockito.Mockito.doAnswer(i -> {
             stored.remove((PhoneVerification) i.getArgument(0));
             return null;
@@ -300,5 +310,102 @@ class PhoneVerificationServiceTest {
         assertThat(service.isVerified("0712345678")).isFalse();
         service.request("0712345678", "GENERIC", "1.2.3.4");
         assertThat(service.isVerified("0712345678")).isFalse();
+    }
+
+    // --- proving ownership ---
+
+    /** Requests a code, reads it off the text, and enters it. */
+    private String prove(String phone, String purpose) {
+        service.request(phone, purpose, "1.2.3.4");
+        PhoneVerificationService.Checked c = service.verify(phone, purpose, sentCode());
+        assertThat(c.verified()).isTrue();
+        return c.token();
+    }
+
+    @Test
+    @DisplayName("entering the right code hands back a token, and a wrong one never does")
+    void tokenOnlyOnSuccess() {
+        service.request("0712345678", "CREDIT", "1.2.3.4");
+        String code = sentCode();
+
+        assertThat(service.verify("0712345678", "CREDIT", "000000").token()).isNull();
+        assertThat(service.verify("0712345678", "CREDIT", code).token()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("the token is spent by the first use")
+    void tokenIsSingleUse() {
+        String token = prove("0712345678", "CREDIT");
+
+        assertThat(service.consume("0712345678", "CREDIT", token)).isTrue();
+        // Otherwise one code drains an account by repeating the same call.
+        assertThat(service.consume("0712345678", "CREDIT", token)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a token proves one number, not any number")
+    void tokenIsBoundToTheNumber() {
+        String token = prove("0712345678", "CREDIT");
+
+        assertThat(service.consume("0798765432", "CREDIT", token)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a token proves one purpose, not any purpose")
+    void tokenIsBoundToThePurpose() {
+        String token = prove("0712345678", "LOYALTY");
+
+        // A code asked for to look at a points balance must not authorise an
+        // advance, or the narrowest thing a customer agreed to becomes the widest.
+        assertThat(service.consume("0712345678", "CREDIT", token)).isFalse();
+    }
+
+    @Test
+    @DisplayName("looking does not spend the proof, so one code covers a visit")
+    void holdsProofDoesNotSpend() {
+        String token = prove("0712345678", "CREDIT");
+
+        assertThat(service.holdsProof("0712345678", "CREDIT", token)).isTrue();
+        assertThat(service.holdsProof("0712345678", "CREDIT", token)).isTrue();
+        // Still good for the action the customer came to do.
+        assertThat(service.consume("0712345678", "CREDIT", token)).isTrue();
+        assertThat(service.holdsProof("0712345678", "CREDIT", token)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a made-up token proves nothing")
+    void inventedTokenIsRefused() {
+        prove("0712345678", "CREDIT");
+
+        assertThat(service.consume("0712345678", "CREDIT", "deadbeefdeadbeefdeadbeefdeadbeef"))
+                .isFalse();
+        assertThat(service.consume("0712345678", "CREDIT", null)).isFalse();
+        assertThat(service.consume("0712345678", "CREDIT", "  ")).isFalse();
+    }
+
+    @Test
+    @DisplayName("an expired token is refused even though the number stays proved")
+    void expiredTokenIsRefused() {
+        String token = prove("0712345678", "CREDIT");
+        stored.forEach(v -> v.setAccessExpiresAt(Instant.now().minusSeconds(1)));
+
+        assertThat(service.consume("0712345678", "CREDIT", token)).isFalse();
+        // The verified row is the permanent record that the number was proved,
+        // and it is still there -- which is exactly why it cannot be the thing
+        // that authorises a payout.
+        assertThat(service.isVerified("0712345678")).isTrue();
+    }
+
+    @Test
+    @DisplayName("having once been verified is not permission to do anything")
+    void beingVerifiedIsNotAuthorisation() {
+        prove("0712345678", "CREDIT");
+        stored.forEach(v -> v.setAccessUsedAt(Instant.now()));
+
+        // The hole this closed: isVerified() means "ever proved" and stays true
+        // forever, so a number confirmed at signup would have authorised an
+        // advance months later to whoever typed it in.
+        assertThat(service.isVerified("0712345678")).isTrue();
+        assertThat(service.consume("0712345678", "CREDIT", "anything")).isFalse();
     }
 }

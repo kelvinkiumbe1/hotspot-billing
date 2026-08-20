@@ -6,6 +6,7 @@ import com.spalimited.hotspotbilling.domain.Voucher;
 import com.spalimited.hotspotbilling.repository.PaymentRepository;
 import com.spalimited.hotspotbilling.repository.PlanRepository;
 import com.spalimited.hotspotbilling.repository.VoucherRepository;
+import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.VoucherService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -35,6 +36,7 @@ import java.util.stream.IntStream;
 public class AdminController {
 
     private final PlanRepository planRepository;
+    private final AuditService auditService;
     private final VoucherRepository voucherRepository;
     private final PaymentRepository paymentRepository;
     private final VoucherService voucherService;
@@ -410,19 +412,29 @@ public class AdminController {
         String createdBy = principal.getName();
         if (request.customMinutes() != null) {
             Plan plan = customPlanService.systemPlan(customPlanService.settings());
-            return IntStream.range(0, request.count())
+            List<Voucher> issued = IntStream.range(0, request.count())
                     .mapToObj(i -> voucherService.issueCustom(
                             plan, null, request.customMinutes(), request.prefix(), request.codeLength(), createdBy))
                     .toList();
+            // Vouchers are stock that can be sold, so issuing them belongs in the
+            // trail an owner reads. Each row already carries created_by; that is
+            // attribution, not a record anybody reviews.
+            auditService.record(createdBy, "voucher.generate",
+                    "Issued " + issued.size() + " custom voucher(s) of "
+                            + request.customMinutes() + " minutes");
+            return issued;
         }
         if (request.planId() == null) {
             throw new IllegalArgumentException("Choose a plan or a custom duration");
         }
         Plan plan = planRepository.findById(request.planId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown plan: " + request.planId()));
-        return IntStream.range(0, request.count())
+        List<Voucher> issued = IntStream.range(0, request.count())
                 .mapToObj(i -> voucherService.issue(plan, null, request.prefix(), request.codeLength(), createdBy))
                 .toList();
+        auditService.record(createdBy, "voucher.generate",
+                "Issued " + issued.size() + " voucher(s) for plan '" + plan.getName() + "'");
+        return issued;
     }
 
     /**

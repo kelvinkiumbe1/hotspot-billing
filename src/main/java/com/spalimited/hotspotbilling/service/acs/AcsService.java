@@ -55,6 +55,7 @@ public class AcsService {
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     private final CpeDeviceRepository devices;
+    private final AcsAuth acsAuth;
     private final CpeTaskRepository tasks;
     private final CpeParameterRepository parameters;
     private final ObjectMapper mapper;
@@ -90,8 +91,13 @@ public class AcsService {
      */
     @Transactional
     public Reply handle(byte[] body, String sessionId, String remoteAddress) {
-        Session session = sessionFor(sessionId);
+        // The id first, then the session for that id. Reversed, first contact
+        // built one Session for this request and newSessionId() stored a
+        // different, empty one under the cookie it handed back -- so the device
+        // it had just identified was written to an object nobody could retrieve,
+        // and the next request answered "no orders" no matter what was queued.
         String id = sessionId == null || sessionId.isBlank() ? newSessionId() : sessionId;
+        Session session = sessionFor(id);
 
         Cwmp.Message message;
         try {
@@ -142,9 +148,17 @@ public class AcsService {
         }
         String oui = inform.oui() == null || inform.oui().isBlank() ? "unknown" : inform.oui();
 
-        CpeDevice device = devices.findByOuiAndSerialNumber(oui, inform.serial())
-                .orElseGet(() -> CpeDevice.builder()
-                        .oui(oui).serialNumber(inform.serial()).build());
+        CpeDevice known = devices.findByOuiAndSerialNumber(oui, inform.serial()).orElse(null);
+        if (known == null && !acsAuth.settings().isAllowUnknown()) {
+            // Correct credentials, unexpected serial. On an estate that is
+            // already in, that is either a mistake or somebody probing, and
+            // filing it would put a device in the inventory that nobody bought.
+            log.warn("Refused an unknown CPE {}/{} from {} — new devices are not being accepted",
+                    oui, inform.serial(), remoteAddress);
+            return Reply.done(sessionId);
+        }
+        CpeDevice device = known != null ? known
+                : CpeDevice.builder().oui(oui).serialNumber(inform.serial()).build();
 
         device.setManufacturer(orKeep(inform.manufacturer(), device.getManufacturer()));
         device.setProductClass(orKeep(inform.productClass(), device.getProductClass()));

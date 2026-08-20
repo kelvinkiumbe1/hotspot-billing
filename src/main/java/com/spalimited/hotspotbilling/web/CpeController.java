@@ -3,6 +3,8 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.CpeDevice;
 import com.spalimited.hotspotbilling.domain.CpeTask;
 import com.spalimited.hotspotbilling.service.AuditService;
+import com.spalimited.hotspotbilling.domain.AcsSettings;
+import com.spalimited.hotspotbilling.service.acs.AcsAuth;
 import com.spalimited.hotspotbilling.service.acs.AcsService;
 import com.spalimited.hotspotbilling.service.acs.ConnectionRequest;
 import jakarta.validation.constraints.NotBlank;
@@ -33,6 +35,42 @@ public class CpeController {
     private final AcsService acs;
     private final ConnectionRequest connectionRequest;
     private final AuditService audit;
+    private final AcsAuth acsAuth;
+
+    // --- What a device must present to reach the ACS ---
+
+    /**
+     * The ACS credentials, without the password.
+     *
+     * <p>{@code configured} is what the page needs: until it is true the ACS
+     * refuses every device, which is deliberate but has to be visible or it looks
+     * like the network is broken.
+     */
+    @GetMapping("/acs-credentials")
+    public Map<String, Object> acsCredentials() {
+        AcsSettings s = acsAuth.settings();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username", s.getUsername() == null ? "" : s.getUsername());
+        out.put("configured", acsAuth.configured());
+        out.put("allowUnknown", s.isAllowUnknown());
+        out.put("updatedAt", s.getUpdatedAt());
+        out.put("updatedBy", s.getUpdatedBy());
+        return out;
+    }
+
+    public record AcsCredentialsRequest(String username, String password, boolean allowUnknown) {
+    }
+
+    /** Sets them. A blank password leaves the existing one alone. */
+    @PutMapping("/acs-credentials")
+    public Map<String, Object> saveAcsCredentials(@RequestBody AcsCredentialsRequest body,
+                                                 Principal principal) {
+        String who = principal != null ? principal.getName() : "system";
+        acsAuth.save(body.username(), body.password(), body.allowUnknown(), who);
+        audit.record(who, "acs.credentials",
+                "Updated the ACS credentials devices sign in with");
+        return acsCredentials();
+    }
 
     @GetMapping
     public Map<String, Object> list() {

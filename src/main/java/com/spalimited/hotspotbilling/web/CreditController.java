@@ -3,6 +3,7 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.CreditAdvance;
 import com.spalimited.hotspotbilling.domain.CreditSettings;
 import com.spalimited.hotspotbilling.service.CreditService;
+import com.spalimited.hotspotbilling.service.PhoneOwnership;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,12 +22,25 @@ import java.util.Map;
 public class CreditController {
 
     private final CreditService credit;
+    private final PhoneOwnership ownership;
+
+    /**
+     * The purpose a code must be requested with to act on a credit account.
+     *
+     * <p>Per-feature rather than one shared value, so a code obtained to look at
+     * a balance cannot be spent on a payout somewhere else.
+     */
+    private static final String PURPOSE = "CREDIT";
 
     // --- Public (captive portal) ---
 
     /** Whether this number can pay later, and what it owes already. */
     @GetMapping("/api/credit/{phone}")
-    public Map<String, Object> check(@PathVariable String phone) {
+    public Map<String, Object> check(@PathVariable String phone,
+                                     @RequestHeader(name = "X-Phone-Proof", required = false)
+                                     String proof) {
+        // What somebody owes is their business. This used to answer anybody.
+        ownership.check(phone, PURPOSE, proof);
         CreditService.Eligibility e = credit.eligibility(phone);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("enabled", e.enabled());
@@ -41,7 +55,13 @@ public class CreditController {
     }
 
     @PostMapping("/api/credit/{phone}/take")
-    public Map<String, Object> take(@PathVariable String phone, @RequestBody TakeRequest body) {
+    public Map<String, Object> take(@PathVariable String phone, @RequestBody TakeRequest body,
+                                    @RequestHeader(name = "X-Phone-Proof", required = false)
+                                    String proof) {
+        // The response carries a working voucher code and the debt lands on the
+        // number in the path, so this is the one that has to be proved rather
+        // than merely checked.
+        ownership.require(phone, PURPOSE, proof);
         return credit.take(phone, body == null ? null : body.planId());
     }
 

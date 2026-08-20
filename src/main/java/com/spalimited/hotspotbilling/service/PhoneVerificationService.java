@@ -53,6 +53,14 @@ public class PhoneVerificationService {
     /** Five guesses at six digits is a one-in-two-hundred-thousand chance. */
     private static final int MAX_ATTEMPTS = 5;
 
+    /**
+     * How long the proof of ownership lasts once a code is entered correctly.
+     *
+     * <p>Longer than it takes to finish the action it was requested for, shorter
+     * than a walk away from an unlocked phone.
+     */
+    private static final Duration ACCESS_LIFETIME = Duration.ofMinutes(15);
+
     /** Per number, per hour. Enough for a real person who did not get the first. */
     private static final int MAX_PER_NUMBER_HOUR = 5;
 
@@ -134,7 +142,12 @@ public class PhoneVerificationService {
     }
 
     /** What a check concluded. */
-    public record Checked(boolean verified, String message) {
+    public record Checked(boolean verified, String message, String token) {
+
+        /** A refusal, which never carries a token. */
+        Checked(boolean verified, String message) {
+            this(verified, message, null);
+        }
     }
 
     /**
@@ -179,10 +192,82 @@ public class PhoneVerificationService {
                     : "That code is not right, and that was the last try. Ask for a new one.");
         }
 
+        // Correct code. Issue the proof the privileged endpoints ask for: the
+        // verified row below is permanent and says only "this number was proved
+        // once", which is not something that should still authorise a payout
+        // months later.
+        String token = newToken();
         live.setVerifiedAt(Instant.now());
+        live.setAccessTokenHash(hash(phone, use, token));
+        live.setAccessExpiresAt(Instant.now().plus(ACCESS_LIFETIME));
+        live.setAccessUsedAt(null);
         verifications.save(live);
         log.info("Verified {} for {}", phone, use);
-        return new Checked(true, "Thanks — that number is confirmed.");
+        return new Checked(true, "Thanks — that number is confirmed.", token);
+    }
+
+    /**
+     * Spends the proof that the caller owns a number.
+     *
+     * <p>Single use on purpose. An advance, a redemption and a referral payout
+     * are each one action, and a token that survived the first would let a shared
+     * or shoulder-surfed phone be drained by repeating the call.
+     *
+     * @return true only if the token was live, matched, and had not been spent
+     */
+    @Transactional
+    public boolean consume(String rawPhone, String purpose, String token) {
+        String phone = phoneNumbers.normalise(rawPhone);
+        String use = purpose == null || purpose.isBlank() ? "GENERIC" : purpose.trim().toUpperCase();
+        if (phone == null || token == null || token.isBlank()) {
+            return false;
+        }
+        String offered = hash(phone, use, token.trim());
+        for (PhoneVerification row : verifications
+                .findByPhoneNumberAndPurposeAndAccessTokenHashIsNotNullAndAccessUsedAtIsNullOrderByIdDesc(
+                        phone, use)) {
+            if (row.getAccessExpiresAt() == null || row.getAccessExpiresAt().isBefore(Instant.now())) {
+                continue;
+            }
+            if (constantTimeEquals(offered, row.getAccessTokenHash())) {
+                row.setAccessUsedAt(Instant.now());
+                verifications.save(row);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks the proof without spending it.
+     *
+     * <p>For the endpoints that only show something. A customer looks at what
+     * they have and then acts on it, and making the look spend the proof would
+     * cost them a second SMS to press the button — so the reads check and the
+     * writes consume, and one code covers the whole visit.
+     */
+    @Transactional(readOnly = true)
+    public boolean holdsProof(String rawPhone, String purpose, String token) {
+        String phone = phoneNumbers.normalise(rawPhone);
+        String use = purpose == null || purpose.isBlank() ? "GENERIC" : purpose.trim().toUpperCase();
+        if (phone == null || token == null || token.isBlank()) {
+            return false;
+        }
+        String offered = hash(phone, use, token.trim());
+        return verifications
+                .findByPhoneNumberAndPurposeAndAccessTokenHashIsNotNullAndAccessUsedAtIsNullOrderByIdDesc(
+                        phone, use)
+                .stream()
+                .anyMatch(row -> row.getAccessExpiresAt() != null
+                        && row.getAccessExpiresAt().isAfter(Instant.now())
+                        && constantTimeEquals(offered, row.getAccessTokenHash()));
+    }
+
+    /** 32 hex characters of entropy — not a code anybody types, so length is free. */
+    private String newToken() {
+        byte[] bytes = new byte[16];
+        random.nextBytes(bytes);
+        return HexFormat.of().formatHex(bytes);
     }
 
     /** Whether a number has ever been proved. */

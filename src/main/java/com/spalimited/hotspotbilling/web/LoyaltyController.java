@@ -3,6 +3,7 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.LoyaltySettings;
 import com.spalimited.hotspotbilling.service.AuditService;
 import com.spalimited.hotspotbilling.service.LoyaltyService;
+import com.spalimited.hotspotbilling.service.PhoneOwnership;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,12 +26,17 @@ public class LoyaltyController {
 
     private final LoyaltyService loyalty;
     private final AuditService audit;
+    private final PhoneOwnership ownership;
+
+    private static final String PURPOSE = "LOYALTY";
 
     // --- Public (captive portal) ---
 
     @GetMapping("/api/loyalty/{phone}")
     public Map<String, Object> balance(
-            @PathVariable @com.spalimited.hotspotbilling.config.Phone String phone) {
+            @PathVariable @com.spalimited.hotspotbilling.config.Phone String phone,
+            @RequestHeader(name = "X-Phone-Proof", required = false) String proof) {
+        ownership.check(phone, PURPOSE, proof);
         return loyalty.balance(phone);
     }
 
@@ -40,7 +46,12 @@ public class LoyaltyController {
     @PostMapping("/api/loyalty/{phone}/redeem")
     public Map<String, Object> redeem(
             @PathVariable @com.spalimited.hotspotbilling.config.Phone String phone,
-            @Valid @RequestBody RedeemRequest req) {
+            @Valid @RequestBody RedeemRequest req,
+            @RequestHeader(name = "X-Phone-Proof", required = false) String proof) {
+        // The reward itself only ever reaches the owning handset by SMS, so
+        // nobody else could steal it -- but they could still spend somebody
+        // else's points and leave them with nothing to show for it.
+        ownership.require(phone, PURPOSE, proof);
         return loyalty.redeem(phone, req.minutes());
     }
 

@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -51,7 +54,34 @@ public class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
+    /**
+     * The ACS answers to devices, not to people, and needs its own chain.
+     *
+     * <p>TR-069 carries the device's credentials as HTTP Basic on every request.
+     * On the main chain that header is picked up by Spring's Basic filter, looked
+     * up in the staff table, not found, and refused — so a device with perfectly
+     * good ACS credentials got a 401 before AcsController ever ran. Here Basic is
+     * off, the path is open, and {@code AcsAuth} does the checking against the
+     * credentials an operator configured for devices.
+     */
     @Bean
+    @Order(1)
+    SecurityFilterChain acsFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/acs")
+                .csrf(csrf -> csrf.disable())
+                // Both off deliberately: this chain must not try to resolve a
+                // device's credentials as a staff login.
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain filterChain(HttpSecurity http, BearerTokenFilter bearerTokenFilter,
                                     DemoReadOnlyFilter demoReadOnlyFilter)
             throws Exception {
@@ -64,14 +94,72 @@ public class SecurityConfig {
                 .addFilterAfter(demoReadOnlyFilter, BasicAuthenticationFilter.class)
                 .cors(withDefaults())
                 .csrf(csrf -> csrf.disable())
+                // Fail closed. This used to end in permitAll, which meant a new
+                // controller was public until somebody remembered to add a
+                // matcher -- and several never did, so strangers could read a
+                // customer's credit balance and take an advance in their name.
+                // Everything public is now named here, and the list is the
+                // thing to review when an endpoint is added.
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/tech/**").hasAnyRole("ADMIN", "TECHNICIAN")
-                        // Enrolling or listing passkeys is done by an already
-                        // signed-in person; the /login/** ceremony below is not.
+                        // Enrolling or listing passkeys, and turning 2FA on or
+                        // off, are done by an already signed-in person; the
+                        // /login/** ceremony below is not. Without the 2FA line
+                        // these answered 500 from a null principal instead of 401.
                         .requestMatchers("/api/auth/passkey/register/**").authenticated()
                         .requestMatchers("/api/auth/passkey/credentials/**").authenticated()
-                        .anyRequest().permitAll())
+                        .requestMatchers("/api/auth/2fa/**").authenticated()
+
+                        // ---- deliberately public from here down ----
+
+                        // The built React app. These are shells: what anyone can
+                        // actually do is decided by the API calls behind them.
+                        .requestMatchers(HttpMethod.GET,
+                                "/", "/index.html", "/favicon.*", "/icons.svg",
+                                "/manifest.webmanifest", "/robots.txt", "/sw.js",
+                                "/assets/**", "/api/uploads/**").permitAll()
+                        .requestMatchers("/admin", "/tech", "/pay", "/my-account",
+                                "/admin/**", "/tech/**", "/pay/**", "/my-account/**",
+                                "/error").permitAll()
+
+                        // Signing in, and the passkey ceremony that replaces it.
+                        .requestMatchers("/api/auth/login", "/api/auth/logout",
+                                "/api/auth/demo", "/api/auth/password-rules",
+                                "/api/auth/passkey/login/**").permitAll()
+
+                        // Money arriving. A provider callback cannot carry a
+                        // login, so each one proves itself instead -- by
+                        // signature, by calling the provider back, or by the
+                        // Safaricom IP allowlist. See ProviderWebhookController.
+                        .requestMatchers("/api/payments/**", "/api/whatsapp/webhook",
+                                "/api/voice/**").permitAll()
+
+                        // What somebody with no account legitimately reaches: the
+                        // captive portal, the plan list, their own pass, a support
+                        // ticket, and the one-time code that proves a phone is
+                        // theirs. A voucher code is itself the bearer credential
+                        // for a pass, which is why /api/vouchers is here.
+                        .requestMatchers("/api/plans/**", "/api/portal/**",
+                                "/api/portal-settings/**", "/api/paybill/**",
+                                "/api/promotion/**", "/api/custom-plan/**",
+                                "/api/status/**", "/api/tickets/**", "/api/pppoe/**",
+                                "/api/vouchers/**", "/api/verify/**",
+                                // The country picker on the signup form, and the
+                                // one free voucher a new number may claim.
+                                "/api/countries", "/api/trial",
+                                // The USSD aggregator's callback. Same position
+                                // as a payment webhook: a telco cannot sign in.
+                                "/api/ussd").permitAll()
+
+                        // A customer has no staff login, so these cannot be
+                        // authenticated here -- they prove the caller owns the
+                        // phone with a fresh one-time code instead, inside the
+                        // controller. See PhoneOwnership.
+                        .requestMatchers("/api/credit/**", "/api/loyalty/**",
+                                "/api/referral/**").permitAll()
+
+                        .anyRequest().authenticated())
                 // Plain 401 JSON without a WWW-Authenticate: Basic header —
                 // that header makes browsers open their native login popup
                 // instead of letting our login form show the error.

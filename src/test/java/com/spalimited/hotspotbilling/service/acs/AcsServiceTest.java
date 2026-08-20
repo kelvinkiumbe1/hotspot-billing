@@ -49,6 +49,7 @@ class AcsServiceTest {
     @Mock private CpeDeviceRepository devices;
     @Mock private CpeTaskRepository tasks;
     @Mock private CpeParameterRepository parameters;
+    @Mock private AcsAuth acsAuth;
 
     private AcsService acs;
     private final Map<Long, CpeDevice> deviceStore = new HashMap<>();
@@ -58,7 +59,12 @@ class AcsServiceTest {
 
     @BeforeEach
     void setUp() {
-        acs = new AcsService(devices, tasks, parameters, new ObjectMapper());
+        acs = new AcsService(devices, acsAuth, tasks, parameters, new ObjectMapper());
+        // Credentials are checked in the controller; what matters here is that an
+        // estate still taking new devices files an unknown serial.
+        when(acsAuth.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.AcsSettings.builder()
+                        .id(1L).allowUnknown(true).build());
         deviceStore.clear();
         taskStore.clear();
         paramStore.clear();
@@ -544,5 +550,57 @@ class AcsServiceTest {
                   <detail><cwmp:Fault><FaultCode>%s</FaultCode>
                   <FaultString>%s</FaultString></cwmp:Fault></detail>
                 </soap:Fault></soap:Body></soap:Envelope>""".formatted(code, message);
+    }
+
+    // ------------------------------------------------- first contact and strangers
+
+    @Test
+    @DisplayName("a device on genuine first contact -- no cookie -- still collects its order")
+    void firstContactCollectsItsOrder() {
+        // Every other test here hands handle() a session id it made up, which is
+        // why they all passed while this was broken: with an id supplied, the
+        // session that got the device and the session stored under the cookie
+        // were the same object. On real first contact they were not, so the
+        // device was written to one and the next request read the other, and a
+        // queued order sat PENDING for ever.
+        AcsService.Reply inform = post(inform098(), null);
+        assertThat(inform.sessionId()).isNotBlank();
+        CpeTask queued = acs.queue(1L, CpeTask.Kind.REBOOT, Map.of(), "admin");
+
+        AcsService.Reply order = post(null, inform.sessionId());
+
+        assertThat(order.body()).contains("Reboot");
+        assertThat(taskStore.get(queued.getId()).getStatus()).isEqualTo(CpeTask.Status.SENT);
+    }
+
+    @Test
+    @DisplayName("an unknown serial is refused once the estate is closed to new devices")
+    void unknownSerialRefusedWhenClosed() {
+        when(acsAuth.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.AcsSettings.builder()
+                        .id(1L).allowUnknown(false).build());
+
+        AcsService.Reply reply = post(inform098(), null);
+
+        // Correct credentials, serial nobody expected. Filing it would put a
+        // device in the inventory that was never bought.
+        assertThat(deviceStore).isEmpty();
+        assertThat(reply.body()).isNull();
+    }
+
+    @Test
+    @DisplayName("a device already on the books still gets in when the estate is closed")
+    void knownSerialStillWorksWhenClosed() {
+        post(inform098(), "first-time");
+        assertThat(deviceStore).hasSize(1);
+        when(acsAuth.settings()).thenReturn(
+                com.spalimited.hotspotbilling.domain.AcsSettings.builder()
+                        .id(1L).allowUnknown(false).build());
+
+        AcsService.Reply reply = post(inform098(), "later");
+
+        // Closing the estate must not cut off the estate.
+        assertThat(reply.body()).contains("InformResponse");
+        assertThat(deviceStore).hasSize(1);
     }
 }

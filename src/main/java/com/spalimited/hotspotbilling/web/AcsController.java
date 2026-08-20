@@ -1,5 +1,6 @@
 package com.spalimited.hotspotbilling.web;
 
+import com.spalimited.hotspotbilling.service.acs.AcsAuth;
 import com.spalimited.hotspotbilling.service.acs.AcsService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -46,12 +47,24 @@ public class AcsController {
     private static final String SESSION_COOKIE = "acs-session";
 
     private final AcsService acs;
+    private final AcsAuth acsAuth;
 
     @PostMapping
     public ResponseEntity<String> handle(
             @RequestBody(required = false) byte[] body,
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionId,
             HttpServletRequest request) {
+
+        // A CPE cannot hold a staff session, so it carries the ACS credentials
+        // the operator put in its provisioning template. Refusing with a
+        // WWW-Authenticate header is what makes a device retry with them: every
+        // TR-069 stack expects the challenge and answers it.
+        if (!acsAuth.permits(request.getHeader(HttpHeaders.AUTHORIZATION))) {
+            log.warn("Refused an unauthenticated CWMP request from {}", clientAddress(request));
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"acs\"")
+                    .build();
+        }
 
         AcsService.Reply reply = acs.handle(body, sessionId, clientAddress(request));
 

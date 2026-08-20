@@ -50,7 +50,15 @@ public class PhoneVerificationController {
     public Map<String, Object> confirm(@Valid @RequestBody ConfirmBody body) {
         PhoneVerificationService.Checked c = verification.verify(
                 body.phoneNumber(), body.purpose(), body.code());
-        return Map.of("verified", c.verified(), "message", c.message());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("verified", c.verified());
+        out.put("message", c.message());
+        if (c.token() != null) {
+            // The proof the customer-facing endpoints ask for, in X-Phone-Proof.
+            // Only ever present on success, so a refusal cannot be mined for one.
+            out.put("proof", c.token());
+        }
+        return out;
     }
 
     /**

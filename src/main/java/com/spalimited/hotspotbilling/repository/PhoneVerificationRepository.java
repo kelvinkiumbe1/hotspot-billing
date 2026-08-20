@@ -22,5 +22,16 @@ public interface PhoneVerificationRepository extends JpaRepository<PhoneVerifica
     /** And from one address, which is the one that catches a script. */
     long countByRequestedIpAndCreatedAtAfter(String requestedIp, Instant since);
 
+    /**
+     * Live ownership tokens for a number and purpose, newest first.
+     *
+     * <p>A list rather than one row: every completed verification stays in the
+     * table, so a number that has been proved several times has several rows and
+     * only the newest carries an unspent token.
+     */
+    List<PhoneVerification>
+            findByPhoneNumberAndPurposeAndAccessTokenHashIsNotNullAndAccessUsedAtIsNullOrderByIdDesc(
+                    String phoneNumber, String purpose);
+
     long deleteByExpiresAtBeforeAndVerifiedAtIsNull(Instant cutoff);
 }

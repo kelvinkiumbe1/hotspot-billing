@@ -11,6 +11,7 @@ import com.spalimited.hotspotbilling.repository.SubscriptionPaymentRepository;
 import com.spalimited.hotspotbilling.service.PlatformBillingClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +34,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/platform-billing")
 @RequiredArgsConstructor
+// What the ISP owes Zidi, and paying it. Finance rather than any signed-in
+// desk: the amount is worked out here rather than sent by the caller, so this
+// was never a way to move money somewhere else -- but a support account had no
+// business pushing a payment prompt to a number of its choosing either.
+@PreAuthorize("hasAuthority('FINANCE')")
 public class PlatformBillingController {
 
     private final PaymentRepository payments;

@@ -3,6 +3,7 @@ package com.spalimited.hotspotbilling.web;
 import com.spalimited.hotspotbilling.domain.Referral;
 import com.spalimited.hotspotbilling.domain.ReferralSettings;
 import com.spalimited.hotspotbilling.service.ReferralService;
+import com.spalimited.hotspotbilling.service.PhoneOwnership;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,12 +20,18 @@ import java.util.Map;
 public class ReferralController {
 
     private final ReferralService referrals;
+    private final PhoneOwnership ownership;
+
+    private static final String PURPOSE = "REFERRAL";
 
     // --- Public (captive portal) ---
 
     /** This phone's shareable code plus the current reward terms. */
     @GetMapping("/api/referral/{phone}")
-    public Map<String, Object> myCode(@PathVariable String phone) {
+    public Map<String, Object> myCode(@PathVariable String phone,
+                                     @RequestHeader(name = "X-Phone-Proof", required = false)
+                                     String proof) {
+        ownership.check(phone, PURPOSE, proof);
         ReferralSettings s = referrals.settings();
         Referral r = referrals.codeFor(phone);
         Map<String, Object> out = new LinkedHashMap<>();
@@ -41,7 +48,10 @@ public class ReferralController {
 
     /** A new customer applies a friend's code before buying. */
     @PostMapping("/api/referral/{phone}/claim")
-    public Map<String, Object> claim(@PathVariable String phone, @RequestBody ClaimRequest body) {
+    public Map<String, Object> claim(@PathVariable String phone, @RequestBody ClaimRequest body,
+                                    @RequestHeader(name = "X-Phone-Proof", required = false)
+                                    String proof) {
+        ownership.require(phone, PURPOSE, proof);
         return referrals.submitClaim(phone, body == null ? null : body.code());
     }
 
