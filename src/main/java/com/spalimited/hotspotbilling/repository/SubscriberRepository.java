@@ -28,4 +28,14 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
      * second half out would strand those customers throttled forever.
      */
     List<Subscriber> findByDataCapMbIsNotNullOrFupAppliedAtIsNotNull();
+
+    /**
+     * Who the router poll has seen recently.
+     *
+     * <p>Replaces reading the whole book and filtering in Java, which is the
+     * difference between a query and a table scan once an ISP has a few thousand
+     * customers.
+     */
+    java.util.List<Subscriber> findByLastSeenOnlineAtAfter(java.time.Instant since);
+
 }

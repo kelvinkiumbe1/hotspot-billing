@@ -22,4 +22,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> findByIssuedOnBetween(LocalDate from, LocalDate to);
 
     long countByNumberStartingWith(String prefix);
+
+    /** Invoiced total per subscriber, cancelled ones excluded. */
+    @org.springframework.data.jpa.repository.Query(
+            "select i.subscriber.id, coalesce(sum(i.amount), 0) from Invoice i "
+            + "where i.status <> com.spalimited.hotspotbilling.domain.Invoice$Status.CANCELLED "
+            + "group by i.subscriber.id")
+    java.util.List<Object[]> totalInvoicedPerSubscriber();
+
 }

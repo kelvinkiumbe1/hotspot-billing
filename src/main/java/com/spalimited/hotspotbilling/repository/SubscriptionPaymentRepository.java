@@ -31,4 +31,19 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
             + "where p.status = :status and p.completedAt >= :from and p.completedAt < :to")
     BigDecimal sumAmountByStatusBetween(@Param("status") SubscriptionPayment.Status status,
                                         @Param("from") Instant from, @Param("to") Instant to);
+
+    /** The same daily roll-up for fixed-line payments. See PaymentRepository. */
+    @Query(value = "select cast(coalesce(completed_at, created_at) as date) as day, "
+            + "coalesce(sum(amount), 0) as total from subscription_payments "
+            + "where status = 'SUCCESS' and coalesce(completed_at, created_at) >= :since "
+            + "group by 1", nativeQuery = true)
+    java.util.List<Object[]> dailyTotalsSince(@Param("since") java.time.Instant since);
+
+
+    /** Successfully paid total per subscriber. */
+    @Query("select p.subscriber.id, coalesce(sum(p.amount), 0) from SubscriptionPayment p "
+            + "where p.status = com.spalimited.hotspotbilling.domain.SubscriptionPayment$Status.SUCCESS "
+            + "group by p.subscriber.id")
+    java.util.List<Object[]> totalPaidPerSubscriber();
+
 }

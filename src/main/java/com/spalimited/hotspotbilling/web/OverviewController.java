@@ -65,31 +65,27 @@ public class OverviewController {
         return out;
     }
 
-    /** Today against yesterday, plus a fortnight of daily totals for a sparkline. */
+    /**
+     * Today against yesterday, plus a fortnight of daily totals for a sparkline.
+     *
+     * <p>Added up by the database over a bounded range. This used to read every
+     * payment ever taken into memory and filter in Java, which measured fine at
+     * twenty-four customers and took eight seconds at five thousand — on the
+     * screen every member of staff opens first thing.
+     */
     private Map<String, Object> money() {
         LocalDate today = LocalDate.now(ZONE);
         Map<LocalDate, BigDecimal> daily = new LinkedHashMap<>();
         for (int i = 13; i >= 0; i--) {
             daily.put(today.minusDays(i), BigDecimal.ZERO);
         }
+        Instant since = today.minusDays(13).atStartOfDay(ZONE).toInstant();
 
-        int soldToday = 0;
-        for (Payment p : payments.findAll()) {
-            if (p.getStatus() != Payment.Status.SUCCESS) {
-                continue;
-            }
-            LocalDate day = day(p.getCompletedAt() != null ? p.getCompletedAt() : p.getCreatedAt());
-            daily.computeIfPresent(day, (k, v) -> v.add(nz(p.getAmount())));
-            if (day.equals(today)) {
-                soldToday++;
-            }
+        for (Object[] row : payments.dailyTotalsSince(since)) {
+            addDay(daily, row);
         }
-        for (SubscriptionPayment p : subscriptionPayments.findAll()) {
-            if (p.getStatus() != SubscriptionPayment.Status.SUCCESS) {
-                continue;
-            }
-            LocalDate day = day(p.getCompletedAt() != null ? p.getCompletedAt() : p.getCreatedAt());
-            daily.computeIfPresent(day, (k, v) -> v.add(nz(p.getAmount())));
+        for (Object[] row : subscriptionPayments.dailyTotalsSince(since)) {
+            addDay(daily, row);
         }
 
         BigDecimal todayTotal = daily.getOrDefault(today, BigDecimal.ZERO);
@@ -104,21 +100,37 @@ public class OverviewController {
                 : todayTotal.subtract(yesterday)
                         .multiply(BigDecimal.valueOf(100))
                         .divide(yesterday, 0, java.math.RoundingMode.HALF_UP));
-        out.put("sold", soldToday);
+        out.put("sold", payments.countByStatusAndCompletedAtAfter(
+                Payment.Status.SUCCESS, today.atStartOfDay(ZONE).toInstant()));
         out.put("series", daily.entrySet().stream()
                 .map(e -> Map.<String, Object>of("date", e.getKey().toString(), "amount", e.getValue()))
                 .toList());
         return out;
     }
 
+    /**
+     * Folds one (day, total) row from the database into the fortnight.
+     *
+     * <p>Only days already in the map are added to, so a payment stamped in the
+     * future — a clock wrong on a gateway, which happens — cannot stretch the
+     * chart or appear as today's takings.
+     */
+    private static void addDay(Map<LocalDate, BigDecimal> daily, Object[] row) {
+        if (row == null || row.length < 2 || row[0] == null) {
+            return;
+        }
+        LocalDate day = row[0] instanceof java.sql.Date d ? d.toLocalDate()
+                : LocalDate.parse(row[0].toString());
+        BigDecimal amount = row[1] == null ? BigDecimal.ZERO
+                : new BigDecimal(row[1].toString());
+        daily.computeIfPresent(day, (k, v) -> v.add(amount));
+    }
+
     /** Who is on the network now, from the last-seen stamp the router poll writes. */
     private Map<String, Object> liveSessions() {
         Instant cutoff = Instant.now().minus(Duration.ofMinutes(10));
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (Subscriber s : subscribers.findAll()) {
-            if (s.getLastSeenOnlineAt() == null || s.getLastSeenOnlineAt().isBefore(cutoff)) {
-                continue;
-            }
+        for (Subscriber s : subscribers.findByLastSeenOnlineAtAfter(cutoff)) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("user", s.getPppoeUsername());
             row.put("name", s.getFullName());

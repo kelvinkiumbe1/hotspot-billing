@@ -60,7 +60,7 @@ ENDPOINTS = [
 ]
 
 
-def call(base, endpoint, credentials):
+def call(base, endpoint, credentials, bearer=None):
     request = urllib.request.Request(
         base + endpoint.path,
         method=endpoint.method,
@@ -69,7 +69,11 @@ def call(base, endpoint, credentials):
     if endpoint.body:
         request.add_header("Content-Type", "application/json")
     if endpoint.auth:
-        request.add_header("Authorization", "Basic " + credentials)
+        # A bearer token is what the real UI sends. Basic auth re-verifies a
+        # bcrypt hash on every single request, which is deliberate in a password
+        # checker and ruinous as a per-request cost -- see deploy/SCALE.md.
+        request.add_header("Authorization",
+                           ("Bearer " + bearer) if bearer else ("Basic " + credentials))
     started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -82,7 +86,7 @@ def call(base, endpoint, credentials):
         return (time.perf_counter() - started) * 1000, 0
 
 
-def run(base, credentials, seconds, workers):
+def run(base, credentials, seconds, workers, bearer=None):
     latencies = defaultdict(list)
     statuses = defaultdict(lambda: defaultdict(int))
     lock = threading.Lock()
@@ -95,7 +99,7 @@ def run(base, credentials, seconds, workers):
         i = index
         while time.time() < stop_at:
             endpoint = ENDPOINTS[i % len(ENDPOINTS)]
-            millis, status = call(base, endpoint, credentials)
+            millis, status = call(base, endpoint, credentials, bearer)
             with lock:
                 latencies[endpoint.name].append(millis)
                 statuses[endpoint.name][status] += 1
@@ -128,24 +132,42 @@ def main():
     parser.add_argument("--seconds", type=int, default=20)
     parser.add_argument("--workers", type=int, default=24)
     parser.add_argument("--label", default="")
+    parser.add_argument("--basic", action="store_true",
+                        help="use HTTP Basic instead of a session token, to show the "
+                             "cost of hashing a password on every request")
     args = parser.parse_args()
 
     credentials = base64.b64encode(
         f"{args.user}:{args.password}".encode()).decode()
 
+    bearer = None
+    if not args.basic:
+        try:
+            login = urllib.request.Request(
+                args.base + "/api/auth/login", method="POST",
+                data=json.dumps({"username": args.user,
+                                 "password": args.password}).encode())
+            login.add_header("Content-Type", "application/json")
+            with urllib.request.urlopen(login, timeout=15) as response:
+                bearer = json.loads(response.read())["token"]
+        except Exception as e:
+            print(f"!! could not get a session token ({e}); falling back to Basic",
+                  file=sys.stderr)
+
     # One pass first, so a misconfigured run fails in a second rather than after
     # the full duration.
     for endpoint in ENDPOINTS:
-        _, status = call(args.base, endpoint, credentials)
+        _, status = call(args.base, endpoint, credentials, bearer)
         if status not in (200, 201):
             print(f"!! {endpoint.name} answered {status} -- fix that before measuring",
                   file=sys.stderr)
             return 1
 
     print(f"Driving {args.base} with {args.workers} workers for {args.seconds}s"
+          f" using {'HTTP Basic' if bearer is None else 'a session token'}"
           + (f"  [{args.label}]" if args.label else ""))
     latencies, statuses, elapsed = run(
-        args.base, credentials, args.seconds, args.workers)
+        args.base, credentials, args.seconds, args.workers, bearer)
 
     total = sum(len(v) for v in latencies.values())
     print(f"\n{total} requests in {elapsed:.1f}s "

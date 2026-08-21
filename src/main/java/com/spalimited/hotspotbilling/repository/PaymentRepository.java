@@ -62,4 +62,21 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     /** Vouchers a payment is attached to — the audit's "this one was paid for" set. */
     @Query("select p.voucher.id from Payment p where p.voucher is not null")
     List<Long> findAllVoucherIds();
+
+    /**
+     * Successful takings per day since a date, added up by the database.
+     *
+     * <p>The overview used to read every payment ever made into memory to draw a
+     * fortnight's sparkline. That is free at twenty-four customers and takes
+     * eight seconds at five thousand -- on the first screen every member of
+     * staff opens every morning.
+     *
+     * <p>CAST rather than date() so the same query runs on H2 in the tests.
+     */
+    @Query(value = "select cast(coalesce(completed_at, created_at) as date) as day, "
+            + "coalesce(sum(amount), 0) as total from payments "
+            + "where status = 'SUCCESS' and coalesce(completed_at, created_at) >= :since "
+            + "group by 1", nativeQuery = true)
+    java.util.List<Object[]> dailyTotalsSince(@Param("since") java.time.Instant since);
+
 }

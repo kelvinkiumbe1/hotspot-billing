@@ -146,9 +146,17 @@ public class LedgerService {
     /** Everyone with a non-zero balance, worst arrears first. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> outstanding() {
+        // Three grouped queries, not one statement per customer. This used to
+        // build a full statement for every subscriber just to read the last
+        // running total off the bottom -- about fifteen thousand queries at five
+        // thousand customers, and the reason the morning overview took seven
+        // seconds. The closing balance does not depend on the ordering the
+        // statement needs, only on the sums, so it can be asked for directly.
+        Map<Long, BigDecimal> balances = allBalances();
+
         List<Map<String, Object>> out = new ArrayList<>();
         for (Subscriber sub : subscribers.findAll()) {
-            BigDecimal balance = balance(sub.getId());
+            BigDecimal balance = balances.getOrDefault(sub.getId(), BigDecimal.ZERO);
             if (balance.signum() == 0) {
                 continue;
             }
@@ -203,5 +211,42 @@ public class LedgerService {
     @Transactional
     public void removeAdjustment(Long id) {
         adjustments.deleteById(id);
+    }
+
+    /**
+     * Every subscriber's closing balance, in three queries.
+     *
+     * <p>Invoiced, less paid, plus adjustments. The sign of an adjustment is
+     * taken from the entity rather than rewritten in SQL, so there is one
+     * definition of what a penalty does rather than two that can drift.
+     *
+     * <p>Agrees with {@link #balance(Long)} by construction: the running balance
+     * a statement shows is a cumulative sum, and its last row is the total of the
+     * same three sets.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> allBalances() {
+        Map<Long, BigDecimal> totals = new LinkedHashMap<>();
+        for (Object[] row : invoices.totalInvoicedPerSubscriber()) {
+            if (row[0] != null) {
+                totals.merge(((Number) row[0]).longValue(), (BigDecimal) row[1], BigDecimal::add);
+            }
+        }
+        for (Object[] row : payments.totalPaidPerSubscriber()) {
+            if (row[0] != null) {
+                totals.merge(((Number) row[0]).longValue(),
+                        ((BigDecimal) row[1]).negate(), BigDecimal::add);
+            }
+        }
+        for (Object[] row : adjustments.totalAdjustedPerSubscriberAndKind()) {
+            if (row[0] == null) {
+                continue;
+            }
+            LedgerAdjustment.Kind kind = (LedgerAdjustment.Kind) row[1];
+            BigDecimal amount = (BigDecimal) row[2];
+            BigDecimal signed = kind == LedgerAdjustment.Kind.PENALTY ? amount : amount.negate();
+            totals.merge(((Number) row[0]).longValue(), signed, BigDecimal::add);
+        }
+        return totals;
     }
 }
