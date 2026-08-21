@@ -1032,7 +1032,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
         <LangToggle />
       </header>
 
-      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
         <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
           <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
@@ -1066,7 +1066,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
                   </h2>
                   <div className="h-px bg-outline-variant/50 flex-1"></div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {groupPlans.map((p) => (
                     <PlanCard
                       key={p.id}
@@ -1115,7 +1115,7 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <LangToggle />
       </header>
 
-      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-16 px-5 flex flex-col gap-5">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-5">
         <section className="fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <Icon name="wifi" filled className="text-primary text-[24px]!" />
@@ -1144,7 +1144,7 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
           </div>
         )}
 
-        <section className="portal-full grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="portal-full grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {shown.map((p, i) => (
             <BreezeRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
@@ -1170,21 +1170,28 @@ function BreezeRow({ plan, promo, onBuy, index = 0 }) {
     <button
       type="button"
       onClick={() => onBuy(deal.old ? { ...plan, price: deal.price } : plan)}
-      className="w-full bg-surface rounded-2xl border border-outline-variant p-4 flex items-center gap-3 text-left hover:border-primary hover:shadow-[0_6px_14px_rgba(15,23,42,0.06)] transition-all cursor-pointer fade-up"
+      className="w-full bg-surface rounded-2xl border border-outline-variant p-4 flex items-center gap-3 lg:flex-col lg:items-start text-left hover:border-primary hover:shadow-[0_6px_14px_rgba(15,23,42,0.06)] transition-all cursor-pointer fade-up"
       style={{ animationDelay: `${80 + index * 50}ms` }}
     >
-      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon name="bolt" filled className="text-primary text-[20px]!" />
+      {/* Name and price sit side by side on a phone. At four across there is
+          not room for both on one line -- the names started wrapping to three
+          lines and the row heights went ragged -- so the card stacks instead. */}
+      <div className="flex items-center gap-3 min-w-0 flex-1 lg:w-full lg:flex-none">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon name="bolt" filled className="text-primary text-[20px]!" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-on-background leading-tight">{plan.name}</p>
+          <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-on-background leading-tight">{plan.name}</p>
-        <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
+      <div className="flex items-center gap-3 shrink-0 lg:w-full lg:justify-between">
+        <div className="text-right lg:text-left">
+          {deal.old && <p className="text-xs text-on-surface-variant line-through">{money(deal.old)}</p>}
+          <p className="font-mono font-bold text-primary">{money(deal.price)}</p>
+        </div>
+        <span className="h-9 px-4 rounded-full bg-primary text-on-primary text-sm font-semibold flex items-center">{t('card.buyShort')}</span>
       </div>
-      <div className="text-right">
-        {deal.old && <p className="text-xs text-on-surface-variant line-through">{money(deal.old)}</p>}
-        <p className="font-mono font-bold text-primary">{money(deal.price)}</p>
-      </div>
-      <span className="h-9 px-4 rounded-full bg-primary text-on-primary text-sm font-semibold flex items-center">{t('card.buyShort')}</span>
     </button>
   )
 }
@@ -1200,7 +1207,7 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <LangToggle />
       </header>
 
-      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-16 px-5 flex flex-col gap-6">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-6">
         <section className="fade-up text-center border-y-4 border-double border-on-background/70 py-6">
           <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
             <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
@@ -1266,7 +1273,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         </div>
       </header>
 
-      <main className="portal-wide flex-1 w-full max-w-2xl lg:max-w-6xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
+      <main className="portal-wide flex-1 w-full max-w-2xl md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
         <div className="fade-up flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="grid_view" className="text-primary text-[18px]!" />
           {t('matrix.hint')}
@@ -1274,7 +1281,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <section className="portal-full grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+        <section className="portal-full grid grid-cols-3 sm:grid-cols-4 gap-2">
           {plans.map((p, i) => (
             <MatrixTile key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
@@ -1322,7 +1329,7 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
         <LangToggle />
       </header>
 
-      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
         <section className="fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <h1 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
@@ -1340,7 +1347,7 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
         <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
-        <section className="portal-full grid gap-3 sm:grid-cols-2">
+        <section className="portal-full grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((p, i) => (
             <StepsRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
@@ -1362,9 +1369,9 @@ function StepsRow({ plan, promo, onBuy, index = 0 }) {
   const deal = dealFor(plan, promo)
   const speed = speedLabel(plan.bandwidth)
   return (
-    <div className="bg-surface rounded-xl border border-outline-variant p-4 flex items-center gap-3 fade-up" style={{ animationDelay: `${60 + index * 50}ms` }}>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold truncate">{plan.name}</p>
+    <div className="bg-surface rounded-xl border border-outline-variant p-4 flex items-center gap-3 lg:flex-col lg:items-stretch fade-up" style={{ animationDelay: `${60 + index * 50}ms` }}>
+      <div className="flex-1 min-w-0 lg:w-full lg:flex-none">
+        <p className="font-semibold leading-tight">{plan.name}</p>
         <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
         <p className="font-mono text-sm font-bold text-on-background mt-1">
           {deal.old && <span className="text-xs text-on-surface-variant line-through mr-1.5">{money(deal.old)}</span>}
