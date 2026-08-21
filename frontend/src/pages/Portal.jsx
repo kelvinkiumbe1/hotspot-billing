@@ -116,6 +116,25 @@ const LANGUAGES = [
 const LANG_KEY = 'portal.lang'
 
 /** What the customer chose last time, if anything. */
+const DESIGN_KEY = 'portalDesign'
+
+/**
+ * The design this portal used last time, from before the server has answered.
+ *
+ * <p>Without it the first paint was always Signature -- black canvas, amber
+ * accent -- because that was the initial state, and every refresh showed it for
+ * as long as /portal-settings took to come back before snapping to whatever the
+ * operator actually chose. On a captive portal that flash is the first thing a
+ * customer ever sees of the business.
+ */
+function storedDesign() {
+  try {
+    return normalizeDesignKey(localStorage.getItem(DESIGN_KEY))
+  } catch {
+    return null
+  }
+}
+
 function storedLang() {
   try {
     const saved = localStorage.getItem(LANG_KEY)
@@ -329,7 +348,9 @@ export default function Portal() {
   const [plansError, setPlansError] = useState(false)
   const [custom, setCustom] = useState(null)
   const [promo, setPromo] = useState(null)
-  const [design, setDesign] = useState('CLASSIC')
+  // Null means 'not known yet'. A remembered design paints immediately; a
+  // first-ever visit waits rather than showing somebody else's theme.
+  const [design, setDesign] = useState(storedDesign)
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   // The ISP's own brand for this captive portal (each tenant sets their own).
   const [brand, setBrand] = useState({ name: '', logoUrl: null, headline: '', subheadline: '' })
@@ -360,7 +381,13 @@ export default function Portal() {
     api('/custom-plan').then(setCustom).catch(() => {})
     api('/promotion').then(setPromo).catch(() => {})
     api('/portal-settings').then((s) => {
-      setDesign(normalizeDesignKey(s.portalTemplate) || 'CLASSIC')
+      const chosen = normalizeDesignKey(s.portalTemplate) || 'CLASSIC'
+      setDesign(chosen)
+      try {
+        localStorage.setItem(DESIGN_KEY, chosen)
+      } catch {
+        // Private browsing. The portal still works; it just flashes once.
+      }
       setLoyaltyEnabled(!!s.loyaltyEnabled)
       // How the operator arranged it, and any wording they rewrote. Both arrive
       // with the branding rather than on a second request, so the first paint is
@@ -528,6 +555,19 @@ export default function Portal() {
         onBuy={choosePlan}
         onActivated={showActivated}
       />
+    )
+  }
+
+  // Nothing remembered and the server has not answered yet: a first-ever
+  // visit. Hold on a plain screen rather than paint a design the operator did
+  // not choose and snap out of it a moment later — on a captive portal that
+  // flash is the first thing a customer sees of the business.
+  if (!forcedDesign.current && !design) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="h-8 w-8 rounded-full border-2 border-neutral-300 border-t-neutral-500
+                        animate-spin" role="status" aria-label="Loading" />
+      </div>
     )
   }
 
@@ -889,7 +929,8 @@ function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
   }
 
   return (
-    <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up"
+    <section className="portal-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up
+                        lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start"
       style={{ animationDelay: `${delay}ms`, order: place === 'top' ? undefined : 1 }}>
       <form onSubmit={submit}>
         <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor={`voucher-${place}`}>
@@ -915,7 +956,8 @@ function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
         </div>
         {msg && <p className={`text-sm mt-2 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
       </form>
-      <div className="mt-4 pt-4 border-t border-outline-variant">
+      <div className="mt-4 pt-4 border-t border-outline-variant
+                      lg:mt-0 lg:pt-0 lg:border-t-0 lg:border-l lg:pl-6">
         <RecoverBox compact />
       </div>
     </section>
