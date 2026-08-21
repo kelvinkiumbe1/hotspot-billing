@@ -1088,21 +1088,21 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
-        <section className="portal-lead relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
+        <section className="portal-lead portal-full relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
           <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
-          <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
+          <div className="relative z-10 p-6 py-8 md:py-10 lg:px-12 lg:py-16 flex items-center gap-6">
             <div className="flex-1">
               <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
                 <Icon name="wifi" filled className="text-primary-fixed text-[28px]!" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white"><HeroTitle /></h1>
-              <p className="text-base text-white/80 mt-2 max-w-sm"><HeroSub /></p>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white"><HeroTitle /></h1>
+              <p className="text-base lg:text-lg text-white/80 mt-2 max-w-sm lg:max-w-md"><HeroSub /></p>
             </div>
             <img
               src={customerPhoto}
               alt="Customer browsing online"
-              className="hidden md:block w-36 h-48 object-cover rounded-xl border-2 border-white/20 shadow-lg"
+              className="hidden md:block w-36 h-48 lg:w-52 lg:h-72 object-cover rounded-xl border-2 border-white/20 shadow-lg"
             />
           </div>
         </section>
