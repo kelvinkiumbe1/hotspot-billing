@@ -52,9 +52,11 @@ ENDPOINTS = [
              "the public status page during an outage, when everyone looks at once"),
     Endpoint("admin-overview", "/api/admin/overview",
              "the first screen every morning", auth=True),
-    Endpoint("admin-subscribers", "/api/admin/subscribers",
-             "the list the office lives in -- the query that grows with the book",
+    Endpoint("admin-subscribers", "/api/admin/subscribers/page?page=0&size=50",
+             "the list the office lives in -- one page, as the screen asks for it",
              auth=True),
+    Endpoint("admin-picker", "/api/admin/subscribers/lookup",
+             "the customer dropdown some thirty screens load", auth=True),
     Endpoint("admin-payments", "/api/admin/payments",
              "reconciliation, and the heaviest read in the product", auth=True),
 ]
@@ -68,6 +70,9 @@ def call(base, endpoint, credentials, bearer=None):
     )
     if endpoint.body:
         request.add_header("Content-Type", "application/json")
+    # Every real browser asks for this, so measuring without it measures a
+    # client nobody has.
+    request.add_header("Accept-Encoding", "gzip")
     if endpoint.auth:
         # A bearer token is what the real UI sends. Basic auth re-verifies a
         # bcrypt hash on every single request, which is deliberate in a password

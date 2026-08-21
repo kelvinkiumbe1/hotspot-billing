@@ -56,7 +56,7 @@ function MoveCustomers({ auth, routers, onDone }) {
   const [result, setResult] = useState(null)
 
   useEffect(() => {
-    api('/admin/subscribers', { auth }).then((d) => setCustomers(d || [])).catch(() => setCustomers([]))
+    api('/admin/subscribers/lookup', { auth }).then((d) => setCustomers(d || [])).catch(() => setCustomers([]))
   }, [auth])
 
   const onFrom = useMemo(() => {

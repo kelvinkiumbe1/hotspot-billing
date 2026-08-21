@@ -353,7 +353,7 @@ export default function AddressesPage({ auth }) {
   useEffect(() => {
     load()
     api('/admin/routers', { auth }).then((d) => setRouters(d || [])).catch(() => {})
-    api('/admin/subscribers', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!subnets) return <Skeleton className="h-64" />

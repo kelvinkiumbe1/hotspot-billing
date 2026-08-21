@@ -19,7 +19,7 @@ export default function PayBill({ auth }) {
   const load = () => api('/admin/c2b', { auth }).then(setRows).catch(() => setRows([]))
   useEffect(() => {
     load()
-    api('/admin/subscribers', { auth }).then((s) => { setSubs(s); if (s[0]) setSubscriberId(String(s[0].id)) }).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then((s) => { setSubs(s); if (s[0]) setSubscriberId(String(s[0].id)) }).catch(() => {})
     const t = setInterval(load, 30000)
     return () => clearInterval(t)
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps

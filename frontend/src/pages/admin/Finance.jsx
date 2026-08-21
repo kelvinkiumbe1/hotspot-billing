@@ -39,7 +39,6 @@ export default function Finance({ auth }) {
   const [series, setSeries] = useState([])
   const [invoices, setInvoices] = useState(null)
   const [expenses, setExpenses] = useState(null)
-  const [subs, setSubs] = useState([])
   const [expenseForm, setExpenseForm] = useState({ description: '', category: 'BANDWIDTH', amount: '', incurredOn: '' })
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -55,7 +54,6 @@ export default function Finance({ auth }) {
   useEffect(() => {
     loadInvoices()
     loadExpenses()
-    api('/admin/subscribers', { auth }).then(setSubs).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const unpaidInvoices = useMemo(() => (invoices || []).filter((i) => i.status === 'UNPAID'), [invoices])

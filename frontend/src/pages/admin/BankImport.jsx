@@ -394,7 +394,7 @@ export default function BankImportPage({ auth }) {
   }
   useEffect(() => {
     load()
-    api('/admin/subscribers', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (queue === null || history === null) return <Skeleton className="h-64" />

@@ -534,7 +534,7 @@ export default function CallsPage({ auth }) {
   }
   useEffect(() => {
     load()
-    api('/admin/subscribers', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Polled rather than pushed. Five seconds is fast enough that the account is

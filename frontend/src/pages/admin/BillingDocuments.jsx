@@ -257,7 +257,7 @@ export default function BillingDocumentsPage({ auth }) {
   }
   useEffect(() => {
     load()
-    api('/admin/subscribers', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then((d) => setCustomers(d || [])).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function act(id, what) {

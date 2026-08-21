@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { INPUT_CLS, LABEL_CLS, PrimaryButton, PageHeader, StatCard, AreaSparkline } from '../components/ui.jsx'
@@ -8,42 +8,42 @@ import TaskNotes from '../components/TaskNotes.jsx'
 import ChatThread from '../components/ChatThread.jsx'
 import zidiLogo from '../assets/zidi-logo.png'
 import zidiLogoDark from '../assets/zidi-logo-dark.png'
-import RoutersPage from './admin/Routers.jsx'
-import DevicesPage from './admin/Devices.jsx'
-import RadiusPage from './admin/Radius.jsx'
-import RetentionPage from './admin/Retention.jsx'
+const RoutersPage = lazy(() => import('./admin/Routers.jsx'))
+const DevicesPage = lazy(() => import('./admin/Devices.jsx'))
+const RadiusPage = lazy(() => import('./admin/Radius.jsx'))
+const RetentionPage = lazy(() => import('./admin/Retention.jsx'))
 import ThemeSwitcher from '../components/ThemeSwitcher.jsx'
-import FinancePage from './admin/Finance.jsx'
-import BranchesPage from './admin/Branches.jsx'
-import PayBillPage from './admin/PayBill.jsx'
-import AuditLogPage from './admin/AuditLog.jsx'
-import ActiveUsersPage from './admin/ActiveUsers.jsx'
-import BrandingPage from './admin/Branding.jsx'
-import LeadsPage from './admin/Leads.jsx'
-import AgentsPage from './admin/Agents.jsx'
-import EquipmentPage from './admin/Equipment.jsx'
-import AnalyticsPage from './admin/Analytics.jsx'
-import VouchersPage from './admin/Vouchers.jsx'
-import CommunicationsPage from './admin/Communications.jsx'
-import FiberPage from './admin/Fiber.jsx'
-import CpePage from './admin/Cpe.jsx'
-import UsagePage from './admin/Usage.jsx'
-import RouterBackupsPage from './admin/RouterBackups.jsx'
-import RemoteAccessPage from './admin/RemoteAccess.jsx'
-import FleetPage from './admin/Fleet.jsx'
-import AddressesPage from './admin/Addresses.jsx'
-import TroubleshootPage from './admin/Troubleshoot.jsx'
-import BankImportPage from './admin/BankImport.jsx'
-import MigrationPage from './admin/Migration.jsx'
-import BillingDocumentsPage from './admin/BillingDocuments.jsx'
-import CallsPage from './admin/Calls.jsx'
-import StaffPage from './admin/Staff.jsx'
-import LedgerPage from './admin/Ledger.jsx'
-import RevenueAuditPage from './admin/RevenueAudit.jsx'
-import SystemHealthPage from './admin/SystemHealth.jsx'
-import TaxSettingsPage from './admin/TaxSettings.jsx'
-import PaymentGatewaysPage from './admin/PaymentGateways.jsx'
-import SettingsHub from './admin/SettingsHub.jsx'
+const FinancePage = lazy(() => import('./admin/Finance.jsx'))
+const BranchesPage = lazy(() => import('./admin/Branches.jsx'))
+const PayBillPage = lazy(() => import('./admin/PayBill.jsx'))
+const AuditLogPage = lazy(() => import('./admin/AuditLog.jsx'))
+const ActiveUsersPage = lazy(() => import('./admin/ActiveUsers.jsx'))
+const BrandingPage = lazy(() => import('./admin/Branding.jsx'))
+const LeadsPage = lazy(() => import('./admin/Leads.jsx'))
+const AgentsPage = lazy(() => import('./admin/Agents.jsx'))
+const EquipmentPage = lazy(() => import('./admin/Equipment.jsx'))
+const AnalyticsPage = lazy(() => import('./admin/Analytics.jsx'))
+const VouchersPage = lazy(() => import('./admin/Vouchers.jsx'))
+const CommunicationsPage = lazy(() => import('./admin/Communications.jsx'))
+const FiberPage = lazy(() => import('./admin/Fiber.jsx'))
+const CpePage = lazy(() => import('./admin/Cpe.jsx'))
+const UsagePage = lazy(() => import('./admin/Usage.jsx'))
+const RouterBackupsPage = lazy(() => import('./admin/RouterBackups.jsx'))
+const RemoteAccessPage = lazy(() => import('./admin/RemoteAccess.jsx'))
+const FleetPage = lazy(() => import('./admin/Fleet.jsx'))
+const AddressesPage = lazy(() => import('./admin/Addresses.jsx'))
+const TroubleshootPage = lazy(() => import('./admin/Troubleshoot.jsx'))
+const BankImportPage = lazy(() => import('./admin/BankImport.jsx'))
+const MigrationPage = lazy(() => import('./admin/Migration.jsx'))
+const BillingDocumentsPage = lazy(() => import('./admin/BillingDocuments.jsx'))
+const CallsPage = lazy(() => import('./admin/Calls.jsx'))
+const StaffPage = lazy(() => import('./admin/Staff.jsx'))
+const LedgerPage = lazy(() => import('./admin/Ledger.jsx'))
+const RevenueAuditPage = lazy(() => import('./admin/RevenueAudit.jsx'))
+const SystemHealthPage = lazy(() => import('./admin/SystemHealth.jsx'))
+const TaxSettingsPage = lazy(() => import('./admin/TaxSettings.jsx'))
+const PaymentGatewaysPage = lazy(() => import('./admin/PaymentGateways.jsx'))
+const SettingsHub = lazy(() => import('./admin/SettingsHub.jsx'))
 import loginFiber from '../assets/login-fiber.jpg'
 
 /* ------------------------------------------------------------------ */
@@ -1313,6 +1313,12 @@ function Shell({ auth, onLogout }) {
           2400px only bites on an ultrawide, where full-bleed table rows
           would be a worse problem than a margin. */}
       <main className={`md:ml-16 ${demo ? 'pt-32' : 'pt-24'} px-5 md:px-8 pb-8 max-w-[2400px]`}>
+        {/* Each admin screen is its own chunk now, fetched when it is first
+            opened. The whole bundle was 1.5 MB in one file, paid for on every
+            cold load by every member of staff, to render one tab. One boundary
+            around the lot rather than one per tab: a screen is sometimes also
+            rendered as a modal, and a missing boundary is a blank page. */}
+        <Suspense fallback={<Skeleton className="h-64" />}>
         {tab === 'overview' && <Overview auth={auth} onNav={nav} />}
         {tab === 'active' && <ActiveUsersPage auth={auth} />}
         {tab === 'leads' && <LeadsPage auth={auth} />}
@@ -1358,6 +1364,7 @@ function Shell({ auth, onLogout }) {
         )}
         {tab === 'subscription' && <SubscriptionPage auth={auth} />}
         {tab === 'refer' && <ReferEarnPage auth={auth} />}
+        </Suspense>
       </main>
     </div>
   )
@@ -3328,6 +3335,9 @@ function ImportSubscribersModal({ auth, onClose, onDone }) {
   )
 }
 
+/** Rows per page. Fifty fills a screen without making the server build a book. */
+const PAGE_SIZE = 50
+
 function Subscribers({ auth }) {
   const [subs, setSubs] = useState(null)
   const [modal, setModal] = useState(false)
@@ -3337,15 +3347,43 @@ function Subscribers({ auth }) {
   const [msg, setMsg] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [detailId, setDetailId] = useState(null)
+  const [page, setPage] = useState(0)
+  const [meta, setMeta] = useState(null)
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('ALL')
 
-  const load = () => api('/admin/subscribers', { auth }).then(setSubs).catch(() => setSubs([]))
-  useEffect(() => { load() }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
+  /**
+   * One page at a time, searched and counted by the server.
+   *
+   * This screen used to pull every customer and filter in the browser, which is
+   * fine at twenty-four and 4.1 MB of JSON at five thousand. The totals come
+   * back with the page and cover the whole book, not the fifty rows on screen.
+   */
+  const load = () => {
+    const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) })
+    if (query.trim()) params.set('q', query.trim())
+    if (status !== 'ALL') params.set('status', status)
+    return api(`/admin/subscribers/page?${params}`, { auth })
+      .then((d) => { setSubs(d.content || []); setMeta(d) })
+      .catch(() => { setSubs([]); setMeta(null) })
+  }
+
+  // Debounced, so typing a name is one query when they stop rather than one
+  // per keystroke against the whole book.
+  useEffect(() => {
+    const t = setTimeout(load, query ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [auth, page, query, status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Any change to what is being looked for starts again at the first page,
+  // otherwise a search from page four shows nothing and looks broken.
+  useEffect(() => { setPage(0) }, [query, status])
 
   if (subs === null) return <Skeleton className="h-64" />
 
-  const active = subs.filter((s) => s.status === 'ACTIVE')
-  const mrr = active.reduce((a, s) => a + Number(s.monthlyFee), 0)
-  const expiring = active.filter((s) => (new Date(s.paidUntil) - Date.now()) / 86400000 <= 3).length
+  const summary = meta?.summary || { active: 0, suspended: 0, expiringSoon: 0, monthlyRevenue: 0 }
+  const total = meta?.total ?? 0
+  const totalPages = meta?.totalPages ?? 1
 
   async function act(path, body) {
     setMsg(null)
@@ -3383,12 +3421,33 @@ function Subscribers({ auth }) {
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1">
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]!" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, login or phone"
+            className="w-full h-10 pl-9 pr-3 bg-surface-container-lowest border border-outline-variant rounded-md text-sm focus:outline-none focus:border-primary"
+          />
+        </div>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-md text-sm cursor-pointer"
+        >
+          <option value="ALL">All statuses</option>
+          <option value="ACTIVE">Active only</option>
+          <option value="SUSPENDED">Suspended only</option>
+        </select>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
         {[
-          ['Active', active.length, 'border-l-primary'],
-          ['Suspended', subs.length - active.length, ''],
-          ['Expiring ≤3 days', expiring, 'border-l-warning'],
-          ['Monthly Revenue', fmtKES(mrr), 'border-l-secondary'],
+          ['Active', summary.active, 'border-l-primary'],
+          ['Suspended', summary.suspended, ''],
+          ['Expiring ≤3 days', summary.expiringSoon, 'border-l-warning'],
+          ['Monthly Revenue', fmtKES(summary.monthlyRevenue), 'border-l-secondary'],
         ].map(([label, value, accent]) => (
           <div key={label} className={`bg-surface-container-lowest px-3.5 py-2.5 rounded-md border border-outline-variant ${accent ? `border-l-2 ${accent}` : ''}`}>
             <CardLabel>{label}</CardLabel>
@@ -3530,12 +3589,42 @@ function Subscribers({ auth }) {
                 )
               })}
               {subs.length === 0 && (
-                <tr><td className="text-on-surface-variant" colSpan={7}>No subscribers yet — add your first monthly customer.</td></tr>
+                <tr><td className="text-on-surface-variant" colSpan={7}>
+                  {query || status !== 'ALL'
+                    ? 'No customer matches that. Try a different search or clear the filter.'
+                    : 'No subscribers yet — add your first monthly customer.'}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {total > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-3 text-sm">
+          <span className="text-on-surface-variant">
+            {/* The range, not just the page number: "51-100 of 3,000" tells an
+                operator where they are in a way "page 2" does not. */}
+            {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, total)} of {total.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="h-9 px-3 rounded-md border border-outline-variant disabled:opacity-40 cursor-pointer disabled:cursor-default"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page + 1 >= totalPages}
+              className="h-9 px-3 rounded-md border border-outline-variant disabled:opacity-40 cursor-pointer disabled:cursor-default"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {modal && <SubscriberModal auth={auth} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
       {importOpen && <ImportSubscribersModal auth={auth} onClose={() => setImportOpen(false)} onDone={() => load()} />}

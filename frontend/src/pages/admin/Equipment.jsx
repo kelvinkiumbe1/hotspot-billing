@@ -126,7 +126,7 @@ export default function EquipmentPage({ auth }) {
   useEffect(() => {
     load()
     api('/admin/technicians', { auth }).then(setTechnicians).catch(() => {})
-    api('/admin/subscribers', { auth }).then(setSubscribers).catch(() => {})
+    api('/admin/subscribers/lookup', { auth }).then(setSubscribers).catch(() => {})
   }, [auth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {

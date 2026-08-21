@@ -25,6 +25,11 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import java.time.Duration;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +59,106 @@ public class SubscriberController {
     @GetMapping
     public List<Subscriber> all() {
         return branchScope.filter(subscribers.findAllByOrderByCreatedAtAsc());
+    }
+
+    /**
+     * Just enough of each customer to fill a picker.
+     *
+     * <p>Some thirty screens load the customer list only to populate a dropdown.
+     * They were each pulling every column of every row to show a name, which is
+     * most of what made {@link #all()} the heaviest response in the product.
+     */
+    @GetMapping("/lookup")
+    public List<Map<String, Object>> lookup() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object[] row : subscribers.lookup(branchScope.current())) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row[0]);
+            item.put("fullName", row[1]);
+            item.put("phoneNumber", row[2]);
+            item.put("pppoeUsername", row[3]);
+            item.put("status", row[4]);
+            item.put("monthlyFee", row[5]);
+            item.put("routerId", row[6]);
+            out.add(item);
+        }
+        return out;
+    }
+
+    /**
+     * One page of customers, searched and counted by the database.
+     *
+     * <p>The branch goes into the query rather than filtering the page after the
+     * fact: narrowing a page the database has already chosen gives a branch login
+     * a half-empty page, a wrong total, and — worst — a page two that skips
+     * customers instead of showing them.
+     */
+    @GetMapping("/page")
+    public Map<String, Object> page(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status) {
+
+        Long branch = branchScope.current();
+        // Bounded so a hand-typed size cannot ask for the whole book back and
+        // undo the point of this endpoint.
+        int limit = Math.min(Math.max(size, 1), 200);
+        Subscriber.Status wanted = null;
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            try {
+                wanted = Subscriber.Status.valueOf(status.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException notAStatus) {
+                throw new IllegalArgumentException("Unknown status: " + status);
+            }
+        }
+        // Built here, bound as a parameter. A % typed into the search box is a
+        // wildcard rather than a literal, which is what somebody searching a
+        // name expects anyway.
+        String term = q == null || q.isBlank() ? null
+                : "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
+
+        Page<Subscriber> found = subscribers.search(branch, wanted, term,
+                PageRequest.of(Math.max(page, 0), limit, Sort.by(Sort.Direction.ASC, "createdAt")));
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("content", found.getContent());
+        out.put("page", found.getNumber());
+        out.put("size", found.getSize());
+        out.put("total", found.getTotalElements());
+        out.put("totalPages", found.getTotalPages());
+        out.put("summary", summary(branch));
+        return out;
+    }
+
+    /**
+     * The figures the stat cards show.
+     *
+     * <p>Over the whole book, not the page — they were added up in the browser
+     * from the full list, which is the reason the full list had to be sent.
+     */
+    private Map<String, Object> summary(Long branch) {
+        long active = 0;
+        long suspended = 0;
+        BigDecimal monthly = BigDecimal.ZERO;
+        for (Object[] row : subscribers.countAndValueByStatus(branch)) {
+            Subscriber.Status status = (Subscriber.Status) row[0];
+            long count = ((Number) row[1]).longValue();
+            if (status == Subscriber.Status.ACTIVE) {
+                active = count;
+                // Monthly revenue counts the customers who are actually on.
+                monthly = (BigDecimal) row[2];
+            } else {
+                suspended += count;
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("active", active);
+        out.put("suspended", suspended);
+        out.put("expiringSoon", subscribers.countExpiringBefore(branch,
+                Instant.now().plus(Duration.ofDays(3))));
+        out.put("monthlyRevenue", monthly);
+        return out;
     }
 
     /**
