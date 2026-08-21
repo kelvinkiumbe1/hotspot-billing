@@ -55,6 +55,27 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     /**
+     * Files the browser fetches before anybody has signed in.
+     *
+     * <p>A constant rather than an inline list because one of these is easy to
+     * forget and impossible to spot: the web app manifest was public while every
+     * icon it names was not, so the install prompt offered to add an app it could
+     * not draw and quietly fell back to a generic glyph. It reads as the wrong
+     * logo, not as a 401, and it is only visible on the install prompt itself.
+     *
+     * <p>{@code PublicStaticFilesTest} holds this list against the manifest and
+     * against what the frontend actually ships, so adding an icon without opening
+     * it up fails the build instead of shipping.
+     */
+    static final String[] PUBLIC_STATIC = {
+            "/", "/index.html", "/favicon.*", "/icons.svg",
+            "/manifest.webmanifest", "/robots.txt", "/sw.js",
+            "/icon-192.png", "/icon-512.png",
+            "/icon-maskable-512.png", "/apple-touch-icon.png",
+            "/assets/**", "/api/uploads/**",
+    };
+
+    /**
      * The ACS answers to devices, not to people, and needs its own chain.
      *
      * <p>TR-069 carries the device's credentials as HTTP Basic on every request.
@@ -115,10 +136,15 @@ public class SecurityConfig {
 
                         // The built React app. These are shells: what anyone can
                         // actually do is decided by the API calls behind them.
-                        .requestMatchers(HttpMethod.GET,
-                                "/", "/index.html", "/favicon.*", "/icons.svg",
-                                "/manifest.webmanifest", "/robots.txt", "/sw.js",
-                                "/assets/**", "/api/uploads/**").permitAll()
+                        //
+                        // The icons are listed one by one rather than as a
+                        // wildcard, and they have to be listed at all: the
+                        // manifest was public but every icon it names was not,
+                        // so the install prompt asked to add an app it could not
+                        // draw and fell back to a generic glyph. Nothing about
+                        // that says "unauthenticated file missing" when you look
+                        // at it -- it just looks like the wrong logo.
+                        .requestMatchers(HttpMethod.GET, PUBLIC_STATIC).permitAll()
                         .requestMatchers("/admin", "/tech", "/pay", "/my-account",
                                 "/admin/**", "/tech/**", "/pay/**", "/my-account/**",
                                 "/error").permitAll()

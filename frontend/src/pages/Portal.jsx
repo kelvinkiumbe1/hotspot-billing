@@ -3,7 +3,7 @@ import { normalizePhone, setCountry, phoneExample, phoneForLookup, dialPrefix } 
 import { api } from '../api.js'
 import { designByKey, normalizeDesignKey } from '../portalDesigns.js'
 import { PORTAL_STRINGS } from '../portalStrings.js'
-import heroCity from '../assets/hero-city.jpg'
+import heroCity from '../assets/hero-city.webp'
 import customerPhoto from '../assets/customer.jpg'
 import { money } from '../money.js'
 
