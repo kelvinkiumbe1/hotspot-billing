@@ -32,9 +32,32 @@ import {
   RadioTower, Settings, Circle, ShieldAlert, BadgeCheck, BanknoteX, Inbox,
   CircleQuestionMark, UserX, WifiOff, CalendarX, HeartPulse, DatabaseBackup, ServerCog,
   Pencil, Globe, Languages, BatteryCharging, Cable, Share2, Moon,
+  Sparkles, Lightbulb, PhoneCall, Receipt, FileText, Stethoscope, TriangleAlert,
 } from 'lucide-react'
 
 const MAP = {
+
+  // Names that were in use but had no mapping, so Icon fell back to a plain
+  // circle and drew a silent dot -- including `warning`, which appears on six
+  // screens. An unmapped name is invisible in review and obvious to a customer,
+  // so run the audit after adding one:
+  //   grep the codebase for name="..." / icon: '...' and check every value is a
+  //   key in this map.
+  auto_awesome: Sparkles,
+  dashboard_customize: LayoutGrid,
+  data_usage: Gauge,
+  gpp_maybe: ShieldAlert,
+  keyboard_arrow_down: ChevronDown,
+  keyboard_arrow_up: ChevronUp,
+  lightbulb: Lightbulb,
+  phone_in_talk: PhoneCall,
+  pin: KeyRound,
+  receipt: Receipt,
+  request_quote: FileText,
+  settings_input_antenna: RadioTower,
+  troubleshoot: Stethoscope,
+  vpn_key: KeyRound,
+  warning: TriangleAlert,
   account_balance: Landmark,
   account_balance_wallet: Wallet,
   account_circle: CircleUserRound,
