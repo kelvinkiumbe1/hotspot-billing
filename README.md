@@ -82,3 +82,4 @@ Set these environment variables (or edit `src/main/resources/application.propert
 - [ ] Scheduled job to expire vouchers and clean up router users
 - [ ] Serve the built React app from Spring Boot for single-artifact deployment
 - [ ] MikroTik walled-garden setup so unauthenticated users can reach the portal + M-Pesa
+to be done next week
