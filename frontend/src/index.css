@@ -863,3 +863,26 @@ button.bg-primary:focus-visible {
 .tech-theme input[type="checkbox"]:not(.sr-only):not(.peer):focus-visible {
   outline: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Captive portal on a desktop screen.
+
+   The portal is built phone-first, which is right — almost everybody buys a
+   pass on a phone. But on a laptop it rendered as a 380px column stranded in
+   the middle of a 1440px screen, so it read as a phone screenshot rather than
+   a shop. Ten passes meant scrolling past nine of them.
+
+   The plan grid is allowed the full container from `md` up; everything else —
+   headings, the voucher box, promo banners — stays at reading width, because
+   a sentence 1000px wide is worse than one 500px wide, not better.
+
+   Unlayered on purpose: these have to beat the Tailwind utilities on the same
+   elements without every rule carrying !important.
+   --------------------------------------------------------------------------- */
+@media (min-width: 48rem) {
+  .portal-wide > :not(.portal-full) {
+    width: 100%;
+    max-width: 32rem;
+    margin-inline: auto;
+  }
+}

@@ -1032,7 +1032,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
         <LangToggle />
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
         <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
           <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
@@ -1054,7 +1054,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <section className="flex flex-col gap-6">
+        <section className="portal-full flex flex-col gap-6">
           {PLAN_GROUPS.map((group) => {
             const groupPlans = plans.filter((p) => planGroup(p.durationMinutes) === group)
             if (!groupPlans.length) return null
@@ -1066,7 +1066,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
                   </h2>
                   <div className="h-px bg-outline-variant/50 flex-1"></div>
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {groupPlans.map((p) => (
                     <PlanCard
                       key={p.id}
@@ -1081,9 +1081,12 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
               </div>
             )
           })}
-          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
-          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         </section>
+        {/* Outside the wide plan area so a form card does not stretch across a
+            laptop screen; the cap in .portal-wide brings it back to reading
+            width. */}
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+        <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
         <div className="mt-3">
           <VoucherSection onActivated={onActivated} />
@@ -1112,7 +1115,7 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <LangToggle />
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 flex flex-col gap-5">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-16 px-5 flex flex-col gap-5">
         <section className="fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <Icon name="wifi" filled className="text-primary text-[24px]!" />
@@ -1141,13 +1144,15 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
           </div>
         )}
 
-        <section className="flex flex-col gap-3">
+        <section className="portal-full grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((p, i) => (
             <BreezeRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
-          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
-          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         </section>
+        {/* Not plans, so not in the plan grid: as grid items they took a cell
+            each and left a dead strip beside them on a wide screen. */}
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+        <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
         {loyaltyEnabled && <RewardsCard />}
       </main>
@@ -1172,7 +1177,7 @@ function BreezeRow({ plan, promo, onBuy, index = 0 }) {
         <Icon name="bolt" filled className="text-primary text-[20px]!" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-on-background truncate">{plan.name}</p>
+        <p className="font-semibold text-on-background leading-tight">{plan.name}</p>
         <p className="text-xs text-on-surface-variant">{formatDuration(plan.durationMinutes)}{speed ? ` · ${speed}` : ''}</p>
       </div>
       <div className="text-right">
@@ -1195,7 +1200,7 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <LangToggle />
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 flex flex-col gap-6">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto pb-16 px-5 flex flex-col gap-6">
         <section className="fade-up text-center border-y-4 border-double border-on-background/70 py-6">
           <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
             <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
@@ -1206,7 +1211,7 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <section className="grid grid-cols-2 gap-4 px-1">
+        <section className="portal-full grid grid-cols-2 lg:grid-cols-4 gap-4 px-1">
           {plans.map((p, i) => (
             <PosterTag key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
@@ -1261,7 +1266,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-2xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
+      <main className="portal-wide flex-1 w-full max-w-2xl lg:max-w-6xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
         <div className="fade-up flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="grid_view" className="text-primary text-[18px]!" />
           {t('matrix.hint')}
@@ -1269,7 +1274,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <section className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        <section className="portal-full grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
           {plans.map((p, i) => (
             <MatrixTile key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
@@ -1317,7 +1322,7 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
         <LangToggle />
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
         <section className="fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <h1 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
@@ -1334,14 +1339,14 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
+        <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
+        <section className="portal-full grid gap-3 sm:grid-cols-2">
           {plans.map((p, i) => (
             <StepsRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
           ))}
-          {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
-          <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         </section>
+        {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
+        <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
         <VoucherSection onActivated={onActivated} delay={250} />
         {loyaltyEnabled && <RewardsCard />}
@@ -1393,7 +1398,7 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-lg mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
+      <main className="portal-wide flex-1 w-full max-w-lg md:max-w-2xl lg:max-w-3xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
         <section className="fade-up">
           <p className="text-xs text-primary mb-2">&gt; {t('neon.online')}</p>
           <h1 className="text-2xl font-bold tracking-tight">{t('hero.minTitle')}</h1>
@@ -1403,7 +1408,7 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
         {plans.length > 0 ? (
-          <section className="border border-outline-variant rounded-lg bg-surface divide-y divide-dashed divide-outline-variant">
+          <section className="portal-full border border-outline-variant rounded-lg bg-surface divide-y divide-dashed divide-outline-variant">
             {plans.map((p, i) => (
               <NeonRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
             ))}
