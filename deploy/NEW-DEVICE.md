@@ -100,12 +100,21 @@ mpesa.callback-url
 mpesa.callback-allowed-ips
 ```
 
-**Move this out of band** — USB, password manager, encrypted transfer. Not through
-GitHub, not pasted into a chat window. Without it the app still boots and vouchers
-still redeem; only real STK pushes fail.
+**Do not move this file at all.** Re-read the keys from
+developer.safaricom.co.ke on the new machine: consumer key and secret from your
+app's Keys page, the passkey from the sandbox test credentials page. It takes a
+couple of minutes, and a credential that never leaves the machine cannot be
+intercepted, left on a shared drive, or forgotten in a bundle somebody meant to
+delete. Moving a secret you can simply re-fetch is a risk taken for no benefit.
 
-`mpesa.callback-url` points at an ngrok tunnel that dies whenever ngrok restarts, so
-it needs re-pasting on the new machine anyway.
+`mpesa.callback-url` is a dead ngrok hostname regardless — ngrok issues a new one
+every restart, so that line needed re-pasting either way.
+
+Without this file the app boots and runs: portal, admin, voucher redemption all
+work. Only live STK pushes fail.
+
+`handover-bundle.sh` writes `MPESA-CREDENTIALS.txt` listing exactly what to
+re-enter and where each value comes from, instead of copying the file.
 
 ### 2. `uploads/` — the operator's branding
 
@@ -136,6 +145,42 @@ If you bring the database, bring `uploads/` too. They only make sense together.
 | `data/hotspot-billing.mv.db` | A stale H2 file from before PostgreSQL. Nothing reads it. |
 | `control-plane/local-tenants/` | 36 log files from tenant tests. Logs, not state. |
 | The `.mp4`s and "Logo maker project" files | Marketing scratch, not part of the app. |
+
+## Getting the bundle across without a USB stick
+
+`deploy/handover-bundle.sh` ends by tarring everything into a single
+AES-256-encrypted file, precisely so it can travel over something you do not
+fully trust. Encrypted rather than merely compressed because of the database
+dump: it holds real customer phone numbers — personal data under Kenya's Data
+Protection Act 2019, not test rows — and that should not sit unprotected on a
+shared drive, in a cloud account's deleted-items, or on an open network share.
+
+**Over the local network**, which is the simplest option when both machines are
+in the same place and involves no third party at all:
+
+```bash
+# old machine
+cd ~/Desktop && python -m http.server 8000
+
+# new machine, same wifi
+curl -O http://<old-machine-ip>:8000/zidi-handover.tar.gz.enc
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+  -in zidi-handover.tar.gz.enc | tar -xzf -
+```
+
+The script prints the machine's actual LAN address, so you do not have to go
+looking for it. **Stop the server the moment the download finishes** — it is
+unauthenticated, and anything else on that network can reach it.
+
+**If the machines are not on the same network**, the encryption is what makes the
+alternatives acceptable: put the `.enc` file through OneDrive, Google Drive, or
+email it to yourself, and send the passphrase by a *different* route — a
+different app, or read it out loud. The file and its key travelling together
+defeats the point.
+
+Either way the passphrase is typed, never stored. Get it wrong on the far side
+and `openssl` says `bad decrypt` and stops, rather than handing you a corrupt
+archive that looks like it worked.
 
 ## Bringing Claude Code's memory along
 
