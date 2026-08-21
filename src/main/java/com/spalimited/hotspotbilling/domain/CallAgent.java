@@ -48,6 +48,28 @@ public class CallAgent {
     @Column(name = "staff_id")
     private Long staffId;
 
+    /**
+     * The field technician this agent row stands for, if any.
+     *
+     * <p>Office agents are created by hand and have none. A technician gets one
+     * the first time they place a call, so the rota does not fill with duplicates
+     * of the same person.
+     */
+    @Column(name = "technician_id")
+    private Long technicianId;
+
+    /**
+     * Whether calls coming IN ring this agent.
+     *
+     * <p>False for technicians. Someone ringing the business should not reach
+     * whoever happens to be up a ladder — placing a call and taking one are
+     * different jobs, and conflating them is how a customer gets a support line
+     * that nobody can answer properly.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean inbound = true;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

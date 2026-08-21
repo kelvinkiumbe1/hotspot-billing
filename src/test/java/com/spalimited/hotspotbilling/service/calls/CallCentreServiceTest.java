@@ -96,12 +96,14 @@ class CallCentreServiceTest {
         when(settingsRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
         grace = CallAgent.builder().id(1L).name("Grace").phoneNumber("254700000001")
-                .priority(1).active(true).build();
+                .priority(1).active(true).inbound(true).build();
         peter = CallAgent.builder().id(2L).name("Peter").phoneNumber("254700000002")
-                .priority(2).active(true).build();
+                .priority(2).active(true).inbound(true).build();
         rota = new ArrayList<>(List.of(grace, peter));
-        when(agentRepo.findByActiveTrueOrderByPriorityAsc()).thenAnswer(i ->
-                rota.stream().filter(CallAgent::isActive).toList());
+        // Office agents take calls coming in; technicians do not, which is why
+        // the rota query filters on it. Both of these are office staff.
+        when(agentRepo.findByActiveTrueAndInboundTrueOrderByPriorityAsc()).thenAnswer(i ->
+                rota.stream().filter(CallAgent::isActive).filter(CallAgent::isInbound).toList());
         when(agentRepo.findById(1L)).thenReturn(Optional.of(grace));
         when(agentRepo.findById(2L)).thenReturn(Optional.of(peter));
         when(agentRepo.save(any())).thenAnswer(i -> i.getArgument(0));

@@ -22,4 +22,7 @@ public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
             Long agentId, List<CallRecord.Status> statuses);
 
     long countByStatusAndStartedAtAfter(CallRecord.Status status, Instant since);
+
+    /** One technician's own recent calls, for the field app. */
+    List<CallRecord> findTop50ByAgentIdOrderByStartedAtDesc(Long agentId);
 }

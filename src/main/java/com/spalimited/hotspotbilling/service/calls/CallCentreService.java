@@ -1,6 +1,7 @@
 package com.spalimited.hotspotbilling.service.calls;
 
 import com.spalimited.hotspotbilling.domain.CallAgent;
+import com.spalimited.hotspotbilling.domain.Technician;
 import com.spalimited.hotspotbilling.domain.CallRecord;
 import com.spalimited.hotspotbilling.domain.CallSettings;
 import com.spalimited.hotspotbilling.domain.Subscriber;
@@ -203,13 +204,50 @@ public class CallCentreService {
     @Transactional(readOnly = true)
     public List<CallAgent> availableAgents() {
         List<CallAgent> free = new ArrayList<>();
-        for (CallAgent agent : agents.findByActiveTrueOrderByPriorityAsc()) {
+        // Inbound rota only. A technician can place a call without being rung
+        // by every customer who dials the business.
+        for (CallAgent agent : agents.findByActiveTrueAndInboundTrueOrderByPriorityAsc()) {
             if (agent.isAvailable() && agent.getPhoneNumber() != null
                     && !agent.getPhoneNumber().isBlank()) {
                 free.add(agent);
             }
         }
         return free;
+    }
+
+    /**
+     * The agent identity a technician places calls under.
+     *
+     * <p>Created on first use rather than by an office chore nobody would
+     * remember: a technician who cannot ring a customer falls back to their own
+     * handset, which is the behaviour this exists to end.
+     *
+     * <p>Off the inbound rota, and the phone is re-read from the technician
+     * record each time — a technician who changes their number would otherwise
+     * keep being rung on the old one for as long as the agent row survives.
+     */
+    @Transactional
+    public CallAgent agentForTechnician(Technician tech) {
+        String phone = phoneNumbers.normalise(tech.getPhoneNumber());
+        if (phone == null || phone.isBlank()) {
+            throw new IllegalStateException(
+                    "Your phone number is not on file, so we cannot ring you to start the call. "
+                            + "Ask the office to add it.");
+        }
+        CallAgent agent = agents.findByTechnicianId(tech.getId()).orElseGet(() ->
+                CallAgent.builder()
+                        .technicianId(tech.getId())
+                        .name(tech.getFullName())
+                        .priority(50)
+                        .active(true)
+                        .inbound(false)
+                        .createdAt(Instant.now())
+                        .build());
+        agent.setPhoneNumber(phone);
+        agent.setName(tech.getFullName());
+        agent.setInbound(false);
+        agent.setActive(true);
+        return agents.save(agent);
     }
 
     @Transactional
@@ -517,7 +555,7 @@ public class CallCentreService {
         out.put("completedToday",
                 calls.countByStatusAndStartedAtAfter(CallRecord.Status.COMPLETED, since));
         out.put("live", live().size());
-        out.put("agentsOnRota", agents.findByActiveTrueOrderByPriorityAsc().size());
+        out.put("agentsOnRota", agents.findByActiveTrueAndInboundTrueOrderByPriorityAsc().size());
         out.put("agentsFree", availableAgents().size());
         return out;
     }

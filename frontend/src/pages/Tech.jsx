@@ -314,6 +314,37 @@ const JOB_CHIP = {
  * running, with the clock visible on both sides.
  */
 function Jobs({ auth }) {
+  // Whether the business can place the call. Asked before the button is drawn:
+  // an operator who has not set the call centre up should keep the old tel:
+  // behaviour rather than get a button that fails on somebody's roof.
+  const [calling, setCalling] = useState(null)
+  const [dialling, setDialling] = useState(null)
+  const [callMsg, setCallMsg] = useState(null)
+
+  useEffect(() => {
+    api('/tech/calls/status', { auth })
+      .then(setCalling)
+      .catch(() => setCalling({ available: false }))
+  }, [auth])
+
+  /**
+   * Rings the technician first; the customer's phone only rings once a human is
+   * already on the line. The customer sees the business number, not this
+   * technician's own.
+   */
+  async function callCustomer(job) {
+    setDialling(job.id)
+    setCallMsg(null)
+    try {
+      const r = await api('/tech/calls/dial', { method: 'POST', auth, body: { ticketId: job.id } })
+      setCallMsg({ ok: r.ok, text: r.message, jobId: job.id })
+    } catch (e) {
+      setCallMsg({ ok: false, text: e.message, jobId: job.id })
+    } finally {
+      setDialling(null)
+    }
+  }
+
   const [jobs, setJobs] = useState(null)
   const [closing, setClosing] = useState(null)
   const [note, setNote] = useState('')
@@ -406,11 +437,31 @@ function Jobs({ auth }) {
                       ? `running ${elapsed(job.workingMinutes)}`
                       : 'just assigned'}
                   </span>
-                  <a href={`tel:${job.phoneNumber}`}
-                    className="text-[12px] text-primary flex items-center gap-1 hover:underline">
-                    <Icon name="call" className="text-[14px]!" /> Call
-                  </a>
+                  {calling?.available ? (
+                    <button
+                      type="button"
+                      disabled={dialling === job.id}
+                      onClick={() => callCustomer(job)}
+                      className="text-[12px] text-primary flex items-center gap-1 hover:underline disabled:opacity-60 cursor-pointer"
+                    >
+                      <Icon name="call" className="text-[14px]!" />
+                      {dialling === job.id ? 'Ringing you…' : 'Call'}
+                    </button>
+                  ) : (
+                    // No call centre configured, so fall back to the handset
+                    // rather than leave a technician unable to reach anybody.
+                    <a href={`tel:${job.phoneNumber}`}
+                      className="text-[12px] text-primary flex items-center gap-1 hover:underline">
+                      <Icon name="call" className="text-[14px]!" /> Call
+                    </a>
+                  )}
                 </div>
+
+                {callMsg?.jobId === job.id && (
+                  <p className={`text-[12px] ${callMsg.ok ? 'text-secondary' : 'text-error'}`}>
+                    {callMsg.text}
+                  </p>
+                )}
 
                 {closing === job.id ? (
                   <div className="border-t border-outline-variant pt-3 flex flex-col gap-2">
