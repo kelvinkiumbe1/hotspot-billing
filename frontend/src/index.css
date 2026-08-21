@@ -879,6 +879,14 @@ button.bg-primary:focus-visible {
    Unlayered on purpose: these have to beat the Tailwind utilities on the same
    elements without every rule carrying !important.
    --------------------------------------------------------------------------- */
+/* The design's own opening block stays first. The voucher box is ordered above
+   the passes so it is reachable without scrolling past them, and -2 keeps it
+   from also jumping above the welcome. Ordering rather than moving the markup,
+   because each of the six designs opens differently. */
+.portal-wide > .portal-lead {
+  order: -2;
+}
+
 @media (min-width: 48rem) {
   .portal-wide > :not(.portal-full) {
     width: 100%;

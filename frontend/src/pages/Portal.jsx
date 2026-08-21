@@ -931,7 +931,7 @@ function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
   return (
     <section className="portal-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up
                         lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start"
-      style={{ animationDelay: `${delay}ms`, order: place === 'top' ? undefined : 1 }}>
+      style={{ animationDelay: `${delay}ms`, order: place === 'top' ? -1 : 1 }}>
       <form onSubmit={submit}>
         <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor={`voucher-${place}`}>
           {t('voucher.label')}
@@ -1088,7 +1088,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
-        <section className="relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
+        <section className="portal-lead relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
           <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
           <div className="relative z-10 p-6 py-8 md:py-10 flex items-center gap-6">
@@ -1143,10 +1143,12 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
-        <div className="mt-3">
-          <VoucherSection onActivated={onActivated} delay={60} place="top" />
-          <VoucherSection onActivated={onActivated} place="bottom" />
-        </div>
+        {/* Direct children of main, not wrapped: the wrapper swallowed the
+            flex order, so both copies rendered next to each other instead of
+            one above the passes and one below -- and being wrapped they were
+            capped to reading width while everything around them was not. */}
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} place="bottom" />
 
         {loyaltyEnabled && <RewardsCard />}
       </main>
@@ -1172,7 +1174,7 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-5">
-        <section className="fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+        <section className="portal-lead fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <Icon name="wifi" filled className="text-primary text-[24px]!" />
           </div>
@@ -1265,7 +1267,7 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-6">
-        <section className="fade-up text-center border-y-4 border-double border-on-background/70 py-6">
+        <section className="portal-lead fade-up text-center border-y-4 border-double border-on-background/70 py-6">
           <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
             <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
           </p>
@@ -1332,7 +1334,7 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-2xl md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
-        <div className="fade-up flex items-center gap-2 text-sm text-on-surface-variant">
+        <div className="portal-lead fade-up flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="grid_view" className="text-primary text-[18px]!" />
           {t('matrix.hint')}
         </div>
@@ -1389,7 +1391,7 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
-        <section className="fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+        <section className="portal-lead fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
           <h1 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
           </h1>
@@ -1405,7 +1407,9 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
-        <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
+        {/* Spans with the grid it labels, rather than being pulled in to
+            reading width and sitting short of the passes underneath it. */}
+        <h2 className="portal-full text-xs font-semibold tracking-wider uppercase text-on-surface-variant fade-up">{t('steps.plans')}</h2>
         <section className="portal-full grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((p, i) => (
             <StepsRow key={p.id} plan={p} promo={promo} onBuy={onBuy} index={i} />
@@ -1466,7 +1470,7 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-2xl lg:max-w-3xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
-        <section className="fade-up">
+        <section className="portal-lead fade-up">
           <p className="text-xs text-primary mb-2">&gt; {t('neon.online')}</p>
           <h1 className="text-2xl font-bold tracking-tight">{t('hero.minTitle')}</h1>
           <p className="text-sm text-on-surface-variant mt-1">&gt; {t('neon.select')}<span className="cursor-blink text-primary">_</span></p>
