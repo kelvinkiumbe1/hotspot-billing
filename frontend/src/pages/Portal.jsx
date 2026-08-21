@@ -18,6 +18,9 @@ const STRINGS = PORTAL_STRINGS
 const LangContext = createContext({
   lang: 'EN', setLang: () => {}, design: 'CLASSIC', pay: 'M-Pesa',
   brand: { name: '', logoUrl: null, headline: '', subheadline: '' },
+  // The operator's own support number. Empty here and empty when they have not
+  // set one, which is deliberate -- see SupportLink.
+  support: '',
   // What the operator rearranged and rewrote. Both default to empty, which
   // means "exactly as the design ships" -- an operator who never opens the
   // Layout tab must see no change at all on a screen that sells things.
@@ -77,7 +80,7 @@ function useBlocks() {
 }
 
 function useT() {
-  const { lang, setLang, design: designKey, brand, pay, copy } = useContext(LangContext)
+  const { lang, setLang, design: designKey, brand, pay, copy, support } = useContext(LangContext)
   const t = (key, vars) => {
     // The operator's own wording first, then this language, then English, then
     // the key. Overrides are laid over the built-in table rather than replacing
@@ -96,7 +99,7 @@ function useT() {
   }
   // Everything a screen needs to paint itself in the chosen design.
   const design = designByKey(designKey)
-  return { t, lang, setLang, design, designVars: design.vars, brand: brand || {} }
+  return { t, lang, setLang, design, designVars: design.vars, brand: brand || {}, support: support || '' }
 }
 
 /**
@@ -217,7 +220,54 @@ function LangToggle() {
 
 const POLL_INTERVAL_MS = 3000
 const MAX_POLLS = 40
-const SUPPORT_PHONE = '+254 700 000 000'
+/*
+ * The operator's support number, or nothing at all.
+ *
+ * This was a module-level constant holding '+254 700 000 000' -- a placeholder, printed
+ * to paying customers. Every other part of the chain was already built: the
+ * operator has a field for it on the Branding screen, PortalSettings stores it,
+ * the API sends it on /api/portal-settings, and the portal parses that exact
+ * response on load to get its theme. The value arrived on every page load and
+ * was read into nothing.
+ *
+ * The failure is quiet in both directions. The operator types their number,
+ * saves, and the form reloads it back from the server, so the settings screen
+ * confirms it worked. Meanwhile a customer who paid and did not get online is
+ * given a number that rings nowhere, on the one screen where they have already
+ * lost money.
+ *
+ * So: no fallback. An absent number renders nothing, because there is no
+ * sensible default for whose phone rings, and a dead line reads as being
+ * ignored while a missing one sends them back to whoever sold them the voucher.
+ */
+/*
+ * The support sentence on the paid-but-not-connected screen.
+ *
+ * Separate from SupportLink because the whole line has to go when there is no
+ * number, not just the link in it. "Need help? Call us on" trailing into
+ * nothing is a worse screen than the placeholder was.
+ */
+function SupportNote() {
+  const { t, support } = useT()
+  if (!(support || '').trim()) return null
+  return (
+    <p className="mt-10 text-xs text-on-surface-variant flex items-center justify-center gap-2 fade-up" style={{ animationDelay: '320ms' }}>
+      {t('err.support')}{' '}
+      <SupportLink className="text-primary hover:underline font-semibold inline-flex items-center gap-1" />
+    </p>
+  )
+}
+
+function SupportLink({ className = '' }) {
+  const { support } = useT()
+  const number = (support || '').trim()
+  if (!number) return null
+  return (
+    <a className={className} href={'tel:' + number.replace(/[^+0-9]/g, '')}>
+      <Icon name="support_agent" className="text-[16px]!" /> {number}
+    </a>
+  )
+}
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes} min`
@@ -358,6 +408,10 @@ export default function Portal() {
   // the design's own rather than a rearranged one that then snaps back.
   const [layout, setLayout] = useState(null)
   const [copy, setCopy] = useState({})
+  // The operator's support number, straight off the settings response the
+  // portal already fetches. Starts empty rather than at a placeholder, so a
+  // slow network shows nothing instead of the wrong number briefly.
+  const [support, setSupport] = useState('')
   const [lang, setLang] = useState(initialLang)
   // Kenya's default until the server says otherwise, matching the backend,
   // so an existing deployment reads exactly as it does today.
@@ -394,6 +448,10 @@ export default function Portal() {
       // already theirs instead of the default flashing past first.
       if (s.layout) setLayout(s.layout)
       if (s.copy) setCopy(s.copy)
+      // Unconditional, unlike the two above: clearing the field in the admin has
+      // to actually clear it here, and `if (s.supportPhone)` would leave the
+      // last good number on screen forever.
+      setSupport(s.supportPhone || '')
       if (s.paymentBrand) setPay(s.paymentBrand)
       // Primed before anyone types: the shape a number must take is a property
       // of where the operator is.
@@ -572,7 +630,7 @@ export default function Portal() {
   }
 
   return (
-    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design, brand, pay, layout, copy }}>
+    <LangContext.Provider value={{ lang, setLang: chooseLang, design: forcedDesign.current || design, brand, pay, layout, copy, support }}>
       {/* key on the screen name so every step of the flow animates in */}
       <div key={screen} className="screen-enter">
         {screen_}
@@ -872,21 +930,31 @@ function PlansScreen(props) {
    has enabled it — falls back to verifying it as an M-Pesa payment (which
    reconnects an already-claimed code to the time still left on it). */
 /**
- * Redeeming a code.
+ * Redeeming a code, at the top of the page.
  *
- * <p>Rendered twice on every design: once above the passes and once below.
- * Somebody who already holds a code should not have to scroll past ten things
- * they do not want to buy, and somebody who scrolled to the bottom looking for
- * it should find it there. Cheap to repeat, and it is the second most common
- * thing anyone does on this page.
+ * <p>This and {@link RecoverSection} were one box holding two forms, rendered
+ * twice -- so both questions were asked at the top and both again at the
+ * bottom. They are not the same question. "I have a code" is what somebody
+ * arrives holding, and it belongs above the passes so they never scroll past
+ * ten things they do not want to buy. "I paid and nothing happened" is what
+ * somebody works out after the passes have failed them, and it belongs at the
+ * bottom, where they go looking once something has gone wrong.
  *
- * <p>The position is fixed rather than taken from the operator's section order,
- * because "top and bottom" is the point -- an order that put it in one place
- * would defeat it.
+ * <p>Splitting them also stopped the recovery form rendering twice with the
+ * same element id, which is what a duplicate id costs: the label pointed at
+ * whichever copy the browser found first, so tapping the bottom one's label
+ * focused the top one's field, off-screen.
+ *
+ * <p>The position is fixed rather than taken from the operator's section order.
+ * Top and bottom is the point; an order that put both in one place would
+ * defeat it.
  */
-function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
+function RedeemSection({ onActivated, delay = 60 }) {
+  // Every hook runs before the gate below. It used to sit above these, and the
+  // layout that decides it arrives after the first paint -- so an operator who
+  // hid this block took the component from six hooks to none between renders,
+  // which is not a hidden section, it is a blank page and a console error.
   const { shows } = useBlocks()
-  if (!shows('voucher')) return null
   const { t } = useT()
   const [input, setInput] = useState('')
   const [codeVerify, setCodeVerify] = useState(false)
@@ -928,17 +996,18 @@ function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
     }
   }
 
+  if (!shows('voucher')) return null
+
   return (
-    <section className="portal-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up
-                        lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start"
-      style={{ animationDelay: `${delay}ms`, order: place === 'top' ? -1 : 1 }}>
+    <section className="portal-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up"
+      style={{ animationDelay: `${delay}ms`, order: -1 }}>
       <form onSubmit={submit}>
-        <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor={`voucher-${place}`}>
+        <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher-code">
           {t('voucher.label')}
         </label>
         <div className="flex gap-3">
           <input
-            id={`voucher-${place}`}
+            id="voucher-code"
             type="text"
             required
             value={input}
@@ -956,10 +1025,29 @@ function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
         </div>
         {msg && <p className={`text-sm mt-2 ${msg.ok ? 'text-primary' : 'text-error'}`}>{msg.text}</p>}
       </form>
-      <div className="mt-4 pt-4 border-t border-outline-variant
-                      lg:mt-0 lg:pt-0 lg:border-t-0 lg:border-l lg:pl-6">
-        <RecoverBox compact />
-      </div>
+    </section>
+  )
+}
+
+/**
+ * "I paid but I am not connected", at the bottom of the page.
+ *
+ * <p>Deliberately last. Someone reaches for this after the ordinary route has
+ * already failed them, and putting it beside the redeem box at the top invited
+ * customers who had simply not paid yet to type their number into it and wait
+ * for a code that was never coming.
+ *
+ * <p>Gated on the same block toggle as the redeem box: an operator switching
+ * "voucher" off means they do not want codes handled on this page at all, and
+ * leaving half of it behind would be a stranger outcome than either.
+ */
+function RecoverSection({ delay = 400 }) {
+  const { shows } = useBlocks()
+  if (!shows('voucher')) return null
+  return (
+    <section className="portal-full bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up"
+      style={{ animationDelay: `${delay}ms`, order: 1 }}>
+      <RecoverBox compact />
     </section>
   )
 }
@@ -1078,6 +1166,39 @@ function MobileNav() {
 
 /* --- Design: Signature (CLASSIC) — black canvas, amber accent, photo hero --- */
 
+/*
+ * The hero photograph, as a layer behind whatever sits on top of it.
+ *
+ * Five of the six designs now lead with this same image, and they have to,
+ * because it is the operator's one hero upload rather than a decoration each
+ * theme picked for itself. What differs is the scrim: a photograph is only
+ * background if the text over it still reads, and every design puts different
+ * text at a different size in a different place. So the scrim is the argument
+ * and the picture is not.
+ *
+ * The crop matters as much as the scrim, and for the same reason. object-cover
+ * takes its slice from the vertical centre, and the centre of a skyline
+ * photograph is sky. At the tall heights Signature uses that is fine -- the
+ * frame is deep enough to reach the buildings. At the 3.5rem band Compact Grid
+ * uses it is 176 pixels of empty air, which reads as a broken image rather than
+ * a photograph. Short bands pass a position low enough to catch the lit skyline.
+ *
+ * Scrims and positions are written out in full at each call site rather than
+ * assembled from pieces, because Tailwind reads the source as text -- a class
+ * name that only exists once the code runs is a class name that never gets
+ * generated.
+ */
+function HeroPhotoLayer({ scrim, position = 'object-center' }) {
+  return (
+    <>
+      {/* Decorative: the headline beside it already says what this is, and a
+          screen reader announcing a stock skyline helps nobody. */}
+      <img src={heroCity} alt="" className={`absolute inset-0 w-full h-full object-cover ${position}`} />
+      <div className={`absolute inset-0 ${scrim}`}></div>
+    </>
+  )
+}
+
 function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, onRetryPlans, onPromoExpire, onBuy, onActivated }) {
   const { t } = useT()
   return (
@@ -1089,8 +1210,7 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-5 pt-6 flex flex-col gap-6">
         <section className="portal-lead portal-full relative rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(15,23,42,0.08)] fade-up">
-          <img src={heroCity} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-primary/25"></div>
+          <HeroPhotoLayer scrim="bg-gradient-to-r from-black/95 via-black/80 to-primary/25" />
           <div className="relative z-10 p-6 py-8 md:py-10 lg:px-12 lg:py-16 flex items-center gap-6">
             <div className="flex-1">
               <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur flex items-center justify-center mb-4 border border-white/20">
@@ -1099,11 +1219,14 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white"><HeroTitle /></h1>
               <p className="text-base lg:text-lg text-white/80 mt-2 max-w-sm lg:max-w-md"><HeroSub /></p>
             </div>
-            <img
-              src={customerPhoto}
-              alt="Customer browsing online"
-              className="hidden md:block w-36 h-48 lg:w-52 lg:h-72 object-cover rounded-xl border-2 border-white/20 shadow-lg"
-            />
+            {/* Also a background, and for the same reason as Step-by-Step's:
+                this portrait is hidden below md and was being downloaded there
+                anyway -- 55 KB, on the phone, before the customer has paid. */}
+            <div
+              aria-hidden="true"
+              className="hidden md:block w-36 h-48 lg:w-52 lg:h-72 bg-cover bg-center rounded-xl border-2 border-white/20 shadow-lg shrink-0"
+              style={{ backgroundImage: `url(${customerPhoto})` }}
+            ></div>
           </div>
         </section>
 
@@ -1147,8 +1270,8 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
             flex order, so both copies rendered next to each other instead of
             one above the passes and one below -- and being wrapped they were
             capped to reading width while everything around them was not. */}
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={400} />
 
         {loyaltyEnabled && <RewardsCard />}
       </main>
@@ -1174,16 +1297,28 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-5">
-        <section className="portal-lead fade-up bg-surface rounded-3xl border border-outline-variant p-6 text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-          <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
-            <Icon name="wifi" filled className="text-primary text-[24px]!" />
+        {/* A media card rather than a photo with text on it. Breeze is a light
+            theme and the hero is a night photograph, so type over the image
+            would need a scrim heavy enough to stop it being airy -- which is
+            the only thing Breeze is. The picture takes the top of the card and
+            fades into the surface it sits on; the wifi badge straddles the
+            seam so the two halves read as one card and not as a banner with a
+            box under it. */}
+        <section className="portal-lead portal-full fade-up bg-surface rounded-3xl border border-outline-variant text-center shadow-[0_4px_12px_rgba(15,23,42,0.04)] overflow-hidden">
+          <div className="relative h-28 md:h-36 lg:h-44">
+            <HeroPhotoLayer scrim="bg-gradient-to-t from-surface via-surface/15 to-transparent" position="object-[50%_72%]" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('breeze.hi')}</h1>
-          <p className="text-sm text-on-surface-variant mt-1">{t('breeze.sub')}</p>
+          <div className="relative px-6 pb-6 -mt-6">
+            <div className="w-12 h-12 mx-auto rounded-full bg-surface border border-outline-variant flex items-center justify-center mb-3 shadow-[0_2px_8px_rgba(15,23,42,0.12)]">
+              <Icon name="wifi" filled className="text-primary text-[24px]!" />
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{t('breeze.hi')}</h1>
+            <p className="text-sm text-on-surface-variant mt-1 max-w-md mx-auto">{t('breeze.sub')}</p>
+          </div>
         </section>
 
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} delay={100} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={100} />
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
@@ -1267,12 +1402,21 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 flex flex-col gap-6">
-        <section className="portal-lead fade-up text-center border-y-4 border-double border-on-background/70 py-6">
-          <p className="text-xs font-bold tracking-[0.3em] uppercase text-secondary mb-2">
-            <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
-          </p>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight"><HeroTitle /></h1>
-          <p className="text-xs text-on-surface-variant mt-3 uppercase tracking-[0.2em]">{t('poster.tag')}</p>
+        {/* The photograph becomes the poster and the double rule stays as its
+            frame -- printed bills put the picture inside the border rather than
+            above it. Type goes white on a scrim heavy enough to hold 5xl bold
+            over a lit skyline, which is darker than it looks like it needs to
+            be: the bright half of this image is exactly where the tagline
+            sits. */}
+        <section className="portal-lead portal-full fade-up relative overflow-hidden text-center border-y-4 border-double border-on-background/70">
+          <HeroPhotoLayer scrim="bg-gradient-to-b from-black/80 via-black/55 to-black/80" position="object-[50%_72%]" />
+          <div className="relative z-10 py-8 md:py-12 lg:py-16 px-5">
+            <p className="text-xs font-bold tracking-[0.3em] uppercase text-primary-fixed mb-2">
+              <Icon name="wifi" filled className="text-[14px]! align-middle mr-1" /><BrandName />
+            </p>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white"><HeroTitle /></h1>
+            <p className="text-xs text-white/75 mt-3 uppercase tracking-[0.2em]">{t('poster.tag')}</p>
+          </div>
         </section>
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
@@ -1285,8 +1429,8 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} delay={200} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={200} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1325,18 +1469,25 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
       <header className="bg-surface flex items-center justify-between px-5 h-16 w-full border-b border-outline-variant sticky top-0 z-40">
         <Brand />
         <div className="flex items-center gap-2">
-          <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}
-            className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:text-primary transition-colors">
-            <Icon name="support_agent" className="text-[16px]!" /> {SUPPORT_PHONE}
-          </a>
+          {/* The pill is inside SupportLink, so an operator with no number
+              set gets no empty chrome in the header either. */}
+          <SupportLink className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant border border-outline-variant rounded-full px-3 py-1.5 hover:text-primary transition-colors" />
           <LangToggle />
         </div>
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-2xl md:max-w-3xl lg:max-w-7xl mx-auto pb-24 px-4 pt-5 flex flex-col gap-4">
-        <div className="portal-lead fade-up flex items-center gap-2 text-sm text-on-surface-variant">
-          <Icon name="grid_view" className="text-primary text-[18px]!" />
-          {t('matrix.hint')}
+        {/* A band, not a hero. Compact Grid earns its name by getting the
+            passes above the fold, and a tall picture is the one change that
+            would cost it that. This is the same photograph doing the least it
+            can: enough to place the operator somewhere real, short enough that
+            the grid underneath does not move. */}
+        <div className="portal-lead portal-full fade-up relative overflow-hidden rounded-lg">
+          <HeroPhotoLayer scrim="bg-gradient-to-r from-black/90 via-black/70 to-black/40" position="object-[50%_72%]" />
+          <div className="relative z-10 flex items-center gap-2 px-4 h-14 md:h-16 lg:h-20 text-sm text-white">
+            <Icon name="grid_view" className="text-primary-fixed text-[18px]!" />
+            {t('matrix.hint')}
+          </div>
         </div>
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
@@ -1349,8 +1500,8 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} delay={150} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={150} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1391,18 +1542,38 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
       </header>
 
       <main className="portal-wide flex-1 w-full max-w-lg md:max-w-3xl lg:max-w-7xl mx-auto pb-16 px-5 pt-6 flex flex-col gap-5">
-        <section className="portal-lead fade-up bg-surface rounded-xl border border-outline-variant p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-          <h1 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
-          </h1>
-          <ol className="flex flex-col gap-3">
-            {[1, 2, 3, 4].map((n) => (
-              <li key={n} className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{n}</span>
-                <span className="text-sm text-on-surface-variant">{t('steps.' + n)}</span>
-              </li>
-            ))}
-          </ol>
+        {/* Beside the instructions on a wide screen, and gone entirely on a
+            phone. Step-by-Step exists for the customer who needs telling what
+            to do, and pushing four numbered steps below the fold behind a
+            decorative picture would take the one thing this design is for and
+            hide it. The photograph is worth a column it is not worth a
+            scroll. */}
+        <section className="portal-lead portal-full fade-up bg-surface rounded-xl border border-outline-variant shadow-[0_4px_12px_rgba(15,23,42,0.04)] overflow-hidden md:grid md:grid-cols-[1fr_1.4fr] lg:grid-cols-[1fr_2fr]">
+          {/* A CSS background rather than an <img>, and the difference is 116 KB
+              on a phone. `hidden md:block` stops the browser drawing an image;
+              it does not stop it fetching one, so the mobile customer this
+              design exists for was downloading a photograph that is never shown
+              to them. A background-image on a display:none element is never
+              fetched at all, which is the behaviour actually wanted here. */}
+          <div
+            className="relative hidden md:block min-h-44 bg-cover bg-[position:50%_62%]"
+            style={{ backgroundImage: `url(${heroCity})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-black/10 to-black/35"></div>
+          </div>
+          <div className="p-5 lg:p-8">
+            <h1 className="text-lg lg:text-xl font-bold mb-4 flex items-center gap-2">
+              <Icon name="checklist" className="text-primary" /> {t('steps.heading')}
+            </h1>
+            <ol className="flex flex-col gap-3">
+              {[1, 2, 3, 4].map((n) => (
+                <li key={n} className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{n}</span>
+                  <span className="text-sm text-on-surface-variant">{t('steps.' + n)}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </section>
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
@@ -1418,8 +1589,8 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} delay={250} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={250} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1489,8 +1660,8 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
         )}
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={60} place="top" />
-        <VoucherSection onActivated={onActivated} delay={200} place="bottom" />
+        <RedeemSection onActivated={onActivated} delay={60} />
+        <RecoverSection delay={200} />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -2514,13 +2685,7 @@ function ErrorScreen({ message, onRetry, onChoosePlan }) {
           <RecoverBox />
         </div>
 
-        <p className="mt-10 text-xs text-on-surface-variant flex items-center justify-center gap-2 fade-up" style={{ animationDelay: '320ms' }}>
-          <Icon name="support_agent" className="text-[15px]!" />
-          {t('err.support')}{' '}
-          <a className="text-primary hover:underline font-semibold" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
-            {SUPPORT_PHONE}
-          </a>
-        </p>
+        <SupportNote />
       </main>
 
       <Footer />
