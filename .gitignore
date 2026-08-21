@@ -63,3 +63,7 @@ local-tenants/
 
 # Playwright MCP scratch output (page snapshots, console logs)
 .playwright-mcp/
+
+# Local run logs from the dev servers
+backend-dev.log
+frontend-dev.log

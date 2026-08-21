@@ -668,12 +668,12 @@ function CustomTimeCard({ custom, promo, onBuy }) {
   const speed = speedLabel(custom.bandwidth)
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="portal-full flex flex-col gap-4">
       <div className="flex items-center gap-3 fade-up">
         <h2 className="text-xs font-semibold tracking-wider uppercase text-on-surface-variant whitespace-nowrap">{t('custom.heading')}</h2>
         <div className="h-px bg-outline-variant/50 flex-1"></div>
       </div>
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] border-t-4 border-secondary fade-up flex flex-col gap-4">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_12px_rgba(15,23,42,0.05)] lg:grid lg:grid-cols-[1fr_auto_auto] lg:items-end lg:gap-6 border-t-4 border-secondary fade-up flex flex-col gap-4">
         <div className="flex justify-between items-start gap-3">
           <div>
             <h3 className="text-lg font-semibold text-on-background">{t('custom.title')}</h3>
@@ -683,8 +683,8 @@ function CustomTimeCard({ custom, promo, onBuy }) {
             </p>
           </div>
         </div>
-        <div className="flex items-end gap-4 flex-wrap">
-          <div className="flex-1 min-w-[140px]">
+        <div className="flex items-end gap-4 flex-wrap lg:flex-nowrap lg:shrink-0">
+          <div className="flex-1 min-w-[140px] lg:w-40 lg:flex-none">
             <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="custom-minutes">
               {t('custom.minutes')}
             </label>
@@ -712,7 +712,7 @@ function CustomTimeCard({ custom, promo, onBuy }) {
         <button
           onClick={() => valid && onBuy({ id: 'custom', customMinutes: m, name: `${formatDuration(m)} Custom`, price, bandwidth: custom.bandwidth })}
           disabled={!valid}
-          className="w-full h-12 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
+          className="w-full lg:w-auto lg:shrink-0 lg:px-8 h-12 bg-primary text-on-primary rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(15,23,42,0.08)] hover:brightness-110 active:scale-95 transition-all duration-100 disabled:opacity-50 cursor-pointer"
         >
           <Icon name="payments" /> {t('custom.buy', { dur: valid ? formatDuration(m) : '' })}
         </button>
@@ -831,8 +831,21 @@ function PlansScreen(props) {
    code out of the text, tries it as a voucher first, and — where the operator
    has enabled it — falls back to verifying it as an M-Pesa payment (which
    reconnects an already-claimed code to the time still left on it). */
-function VoucherSection({ onActivated, delay = 400 }) {
-  const { shows, orderOf } = useBlocks()
+/**
+ * Redeeming a code.
+ *
+ * <p>Rendered twice on every design: once above the passes and once below.
+ * Somebody who already holds a code should not have to scroll past ten things
+ * they do not want to buy, and somebody who scrolled to the bottom looking for
+ * it should find it there. Cheap to repeat, and it is the second most common
+ * thing anyone does on this page.
+ *
+ * <p>The position is fixed rather than taken from the operator's section order,
+ * because "top and bottom" is the point -- an order that put it in one place
+ * would defeat it.
+ */
+function VoucherSection({ onActivated, delay = 400, place = 'bottom' }) {
+  const { shows } = useBlocks()
   if (!shows('voucher')) return null
   const { t } = useT()
   const [input, setInput] = useState('')
@@ -877,14 +890,14 @@ function VoucherSection({ onActivated, delay = 400 }) {
 
   return (
     <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] fade-up"
-      style={{ animationDelay: `${delay}ms`, order: orderOf('voucher') }}>
+      style={{ animationDelay: `${delay}ms`, order: place === 'top' ? undefined : 1 }}>
       <form onSubmit={submit}>
-        <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor="voucher">
+        <label className="block text-xs font-semibold tracking-wider uppercase text-on-surface-variant mb-2" htmlFor={`voucher-${place}`}>
           {t('voucher.label')}
         </label>
         <div className="flex gap-3">
           <input
-            id="voucher"
+            id={`voucher-${place}`}
             type="text"
             required
             value={input}
@@ -1089,7 +1102,8 @@ function ClassicPlans({ plans, custom, promo, loyaltyEnabled = false, plansError
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
         <div className="mt-3">
-          <VoucherSection onActivated={onActivated} />
+          <VoucherSection onActivated={onActivated} delay={60} place="top" />
+          <VoucherSection onActivated={onActivated} place="bottom" />
         </div>
 
         {loyaltyEnabled && <RewardsCard />}
@@ -1124,7 +1138,8 @@ function BreezePlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
           <p className="text-sm text-on-surface-variant mt-1">{t('breeze.sub')}</p>
         </section>
 
-        <VoucherSection onActivated={onActivated} delay={100} />
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} delay={100} place="bottom" />
 
         {promo?.active && <PromoBanner promo={promo} onExpire={onPromoExpire} />}
 
@@ -1226,7 +1241,8 @@ function PosterPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={200} />
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} delay={200} place="bottom" />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1289,7 +1305,8 @@ function MatrixPlans({ plans, custom, promo, loyaltyEnabled = false, plansError,
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={150} />
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} delay={150} place="bottom" />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1355,7 +1372,8 @@ function StepsPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, 
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
         <PlansFallback plans={plans} plansError={plansError} onRetryPlans={onRetryPlans} />
 
-        <VoucherSection onActivated={onActivated} delay={250} />
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} delay={250} place="bottom" />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
@@ -1425,7 +1443,8 @@ function NeonPlans({ plans, custom, promo, loyaltyEnabled = false, plansError, o
         )}
         {custom?.enabled && plans.length > 0 && <CustomTimeCard custom={custom} promo={promo} onBuy={onBuy} />}
 
-        <VoucherSection onActivated={onActivated} delay={200} />
+        <VoucherSection onActivated={onActivated} delay={60} place="top" />
+        <VoucherSection onActivated={onActivated} delay={200} place="bottom" />
         {loyaltyEnabled && <RewardsCard />}
       </main>
 
